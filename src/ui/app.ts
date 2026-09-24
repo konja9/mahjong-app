@@ -120,8 +120,6 @@ export class App {
   private applyTheme(): void {
     document.documentElement.dataset.theme = this.s.theme;
     document.documentElement.dataset.play = this.s.playMode;
-    document.getElementById('machine')?.setAttribute('data-skin', this.s.machineSkin);
-    document.getElementById('machine')?.setAttribute('data-font', this.s.machineFont);
     document.documentElement.dataset.effects = this.s.effects;
     document.documentElement.dataset.answer = this.s.answerStyle;
   }
@@ -975,12 +973,6 @@ export class App {
       case 'effects':
         this.update({ effects: v as Settings['effects'] }, false);
         return;
-      case 'font':
-        this.update({ machineFont: v as Settings['machineFont'] }, false);
-        return;
-      case 'skin':
-        this.update({ machineSkin: v as Settings['machineSkin'], skinChosen: true }, false);
-        return;
       case 'sound':
         this.update({ sound: bool }, false);
         if (bool) {
@@ -1043,8 +1035,6 @@ export class App {
       <div class="set-head"><span>設定</span><button class="icon-btn" data-set="close" data-v="" aria-label="閉じる">×</button></div>
       <div class="set-sec">表示・演出</div>
       ${row('テーマ', '', 'theme', [['serika', 'serika'], ['paper', 'paper'], ['neon', 'neon']], s.theme)}
-      ${row('台のデザイン', 'ノーマルのパチンコ台の見た目', 'skin', [['luxe-velvet', 'ベルベット'], ['luxe', 'ブラック&ゴールド'], ['luxe-deco', 'アールデコ'], ['luxe-shine', 'ゴールドシーン'], ['classic', 'クラシック']], s.machineSkin)}
-      ${row('台のフォント', '', 'font', [['mincho', '明朝×Cinzel'], ['classic-serif', '古風な明朝×Garamond'], ['modern', 'ゴシック×Montserrat']], s.machineFont)}
       ${row('演出', '点滅や揺れが苦手な場合は「控えめ」か「オフ」に', 'effects', [['max', '全開'], ['lite', '控えめ'], ['off', 'オフ']], s.effects)}
       ${row('サウンド', '', 'sound', yn, onOff(s.sound))}
       <div class="set-row"><div><div class="set-label">音量</div></div><input type="range" min="0" max="1" step="0.05" value="${s.volume}" data-set="volume" aria-label="音量"></div>
@@ -1097,7 +1087,7 @@ const SHELL = `
     <div id="result"></div>
   </section>
   <section id="summary" hidden></section>
-  <aside id="machine" aria-label="パチンコ台"></aside>
+  <aside id="machine" data-skin="velvet" aria-label="パチンコ台"></aside>
 </main>
 <div id="combo" aria-live="polite"></div>
 <div id="numpad">

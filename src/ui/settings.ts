@@ -6,20 +6,12 @@ export type EffectLevel = 'off' | 'lite' | 'max';
 export type Theme = 'serika' | 'paper' | 'neon';
 export type AnswerStyle = 'choice' | 'input';
 export type PlayMode = 'normal' | 'practice';
-export type MachineFont = 'mincho' | 'classic-serif' | 'modern';
-export type MachineSkin = 'classic' | 'luxe' | 'luxe-deco' | 'luxe-shine' | 'luxe-velvet';
 
 export interface Settings {
   /** 最上位タブ：ノーマル（パチンコ台あり）かプラクティス（演出なし） */
   playMode: PlayMode;
   /** ノーマルの大盤振る舞いモード（高打点・役満が大幅に出やすい） */
   generous: boolean;
-  /** 台のデザイン */
-  machineSkin: MachineSkin;
-  /** 台のデザインを利用者が選んだか（未選択なら標準のデザインに追従する） */
-  skinChosen: boolean;
-  /** 台パネルのフォント */
-  machineFont: MachineFont;
   mode: Mode;
   /** 回答方式：4択か数値入力か */
   answerStyle: AnswerStyle;
@@ -39,9 +31,6 @@ const reducedMotion =
 export const DEFAULT_SETTINGS: Settings = {
   playMode: 'normal',
   generous: false,
-  machineSkin: 'luxe-velvet',
-  skinChosen: false,
-  machineFont: 'mincho',
   mode: 'hayami',
   answerStyle: 'choice',
   count: 25,
@@ -58,11 +47,8 @@ const KEY = 'tensu.settings.v1';
 
 export function loadSettings(): Settings {
   const s = load<Settings>(KEY, DEFAULT_SETTINGS);
-  const skins: MachineSkin[] = ['classic', 'luxe', 'luxe-deco', 'luxe-shine', 'luxe-velvet'];
-  const machineSkin = s.skinChosen && skins.includes(s.machineSkin) ? s.machineSkin : DEFAULT_SETTINGS.machineSkin;
   return {
     ...s,
-    machineSkin,
     filters: { ...DEFAULT_SETTINGS.filters, ...s.filters },
     rules: { ...DEFAULT_RULES, ...s.rules },
   };
