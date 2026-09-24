@@ -35,12 +35,13 @@ export class MachinePanel {
   ) {
     this.machine = new Machine(level);
     root.innerHTML = `
+      <div class="m-marquee" aria-hidden="true"><span class="m-title">パチふと</span></div>
       <div class="m-head"><span class="m-state">通常</span><span class="m-st"></span></div>
-      <div class="m-screen"></div>
+      <div class="m-screen"><div class="m-payline" aria-hidden="true"></div></div>
       <div class="m-msg" aria-live="polite"></div>
       <div class="m-bottom">
         <div class="m-holds">${Array.from({ length: MAX_HOLDS }, () => '<span class="hold"></span>').join('')}</div>
-        <div class="m-chucker" title="始動口"><span></span></div>
+        <div class="m-chucker" title="始動口"><i class="petal l"></i><span></span><i class="petal r"></i></div>
       </div>
       <div class="m-data">
         <div><small>回転</small><b data-k="sinceHit">0</b></div>
@@ -91,6 +92,9 @@ export class MachinePanel {
     await this.fx.ball(from, this.chucker);
     if (g !== this.gen) return;
     const added = this.machine.enter(n);
+    // チューリップが開く
+    this.chucker.classList.add('open');
+    this.timers.push(window.setTimeout(() => this.chucker.classList.remove('open'), n > 1 ? 900 : 350));
     if (n > 1) this.msg('電チュー開放!', 'denchu');
     else if (!added) this.msg('保留MAX', '');
     this.render(true);

@@ -3008,3 +3008,384 @@ body[data-phase='suspense'] #bet {
     display: none;
   }
 }
+
+/* ============================================================ 台パネル：パチンコ筐体デザイン */
+#machine {
+  --bezel: linear-gradient(145deg, #fff3b0, #d9a41e 22%, #7a5200 45%, #ffe27a 60%, #a86f00 80%, #ffe9a0);
+  --cab: linear-gradient(180deg, #3a0d1e 0%, #1a0710 55%, #0b0409 100%);
+  gap: 10px;
+  padding: 0 14px 14px;
+  border: 4px solid transparent;
+  border-radius: 22px;
+  background: var(--cab) padding-box, var(--bezel) border-box !important;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 20px 60px rgba(0, 0, 0, 0.6),
+    0 0 50px rgba(255, 61, 127, 0.25),
+    inset 0 2px 0 rgba(255, 255, 255, 0.12) !important;
+  overflow: hidden;
+}
+/* 看板：流れる電飾 */
+.m-marquee {
+  position: relative;
+  margin: 0 -14px;
+  padding: 14px 0 12px;
+  text-align: center;
+  background:
+    radial-gradient(circle, #fff6c4 0 2.2px, transparent 2.8px) 0 0 / 14px 8px repeat-x,
+    radial-gradient(circle, #fff6c4 0 2.2px, transparent 2.8px) 7px 100% / 14px 8px repeat-x,
+    linear-gradient(180deg, #c8102e, #7a0019);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.4), 0 4px 12px rgba(200, 16, 46, 0.4);
+  animation: bulbs 0.8s steps(2) infinite;
+}
+.m-marquee::before,
+.m-marquee::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 30px;
+}
+.m-marquee::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.35), transparent);
+}
+.m-marquee::after {
+  right: 0;
+  background: linear-gradient(-90deg, rgba(0, 0, 0, 0.35), transparent);
+}
+.m-title {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: 0.25em;
+  background: linear-gradient(180deg, #fffbe0, #ffd84a 50%, #e08a00);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 0 #4a0010) drop-shadow(0 0 10px rgba(255, 216, 74, 0.7));
+}
+@keyframes bulbs {
+  50% {
+    background-position: 7px 0, 0 100%, 0 0;
+  }
+}
+#machine.reach .m-marquee {
+  animation-duration: 0.4s;
+}
+#machine.hot .m-marquee {
+  background:
+    radial-gradient(circle, #fff 0 2.2px, transparent 2.8px) 0 0 / 14px 8px repeat-x,
+    radial-gradient(circle, #fff 0 2.2px, transparent 2.8px) 7px 100% / 14px 8px repeat-x,
+    linear-gradient(180deg, #ffc300, #a86f00);
+}
+#machine.rush .m-marquee,
+#machine.win .m-marquee {
+  background:
+    radial-gradient(circle, #fff 0 2.2px, transparent 2.8px) 0 0 / 14px 8px repeat-x,
+    radial-gradient(circle, #fff 0 2.2px, transparent 2.8px) 7px 100% / 14px 8px repeat-x,
+    linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d);
+  background-size: 14px 8px, 14px 8px, 200% 100%;
+  animation: bulbs 0.5s steps(2) infinite, slide-bg 3s linear infinite;
+}
+#machine.rush::before {
+  display: none;
+}
+
+/* 状態表示 */
+.m-head {
+  padding: 0 2px;
+  color: #ff9fb6;
+  font-size: 12px;
+}
+.m-state {
+  padding: 2px 10px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(255, 159, 182, 0.35);
+}
+#machine.rush .m-state {
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff);
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: #111;
+  font-weight: 900;
+}
+.m-st {
+  color: #ffd84a;
+  text-shadow: 0 0 8px rgba(255, 216, 74, 0.7);
+}
+
+/* 液晶：走査線・光沢・当たりライン */
+.m-screen {
+  position: relative;
+  padding: 14px 10px !important;
+  border-radius: 10px;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at 50% 20%, #24325e, #070a18 75%) !important;
+  box-shadow:
+    inset 0 0 0 2px #000,
+    inset 0 0 24px rgba(0, 0, 0, 0.9),
+    0 0 0 3px rgba(255, 216, 74, 0.55),
+    0 0 18px rgba(106, 141, 255, 0.35) !important;
+  overflow: hidden;
+}
+.m-screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.16), transparent 38%);
+  border-radius: inherit;
+}
+.m-payline {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  z-index: 3;
+  background: linear-gradient(90deg, transparent, rgba(255, 59, 92, 0.9) 12%, rgba(255, 59, 92, 0.9) 88%, transparent);
+  box-shadow: 0 0 8px rgba(255, 59, 92, 0.8);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.m-payline::before,
+.m-payline::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  border: 6px solid transparent;
+}
+.m-payline::before {
+  left: -2px;
+  border-left-color: #ff3b5c;
+}
+.m-payline::after {
+  right: -2px;
+  border-right-color: #ff3b5c;
+}
+#machine.reach .m-payline,
+#machine.win .m-payline {
+  opacity: 1;
+  animation: payline 0.5s ease-in-out infinite alternate;
+}
+@keyframes payline {
+  to {
+    box-shadow: 0 0 16px 2px rgba(255, 59, 92, 1);
+  }
+}
+/* リール：円筒の陰影と仕切り */
+#machine .reel-machine.mini .reels {
+  gap: 4px !important;
+  padding: 4px !important;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #b8b2a0, #f7f3e6 20%, #f7f3e6 80%, #b8b2a0) !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.6) !important;
+}
+#machine .reel-machine.mini .reel {
+  position: relative;
+  background: #f3efe2;
+  border-radius: 4px;
+  box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.2), inset -1px 0 0 rgba(0, 0, 0, 0.2);
+}
+#machine .reel-machine.mini .reel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.45), transparent 28%, transparent 72%, rgba(0, 0, 0, 0.45));
+}
+#machine .reel-machine.mini .cell .tile {
+  filter: none;
+}
+#machine .reel-machine.mini .reel.hit {
+  box-shadow: 0 0 16px 4px #ffd84a;
+}
+
+/* メッセージ：LED 風 */
+#machine .m-msg {
+  min-height: 24px;
+  padding: 2px 0;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 16px;
+}
+#machine .m-msg:empty {
+  background: transparent;
+}
+
+/* 保留：宝石のようなランプ */
+#machine .hold {
+  width: 16px;
+  height: 16px;
+  background: radial-gradient(circle at 35% 30%, #4a4a58, #16161e 70%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+#machine .hold.on {
+  background: radial-gradient(circle at 35% 30%, #fff 0 12%, var(--lamp) 45%, color-mix(in srgb, var(--lamp) 50%, #000));
+  box-shadow: 0 0 10px var(--lamp), 0 0 22px color-mix(in srgb, var(--lamp) 60%, transparent);
+}
+#machine .hold.on.rainbow {
+  background: conic-gradient(#ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d);
+}
+
+/* 始動口：チューリップ */
+#machine .m-chucker {
+  position: relative;
+  width: 30px;
+  height: 22px;
+  border: 0;
+  border-radius: 0 0 14px 14px;
+  background: linear-gradient(180deg, #ffe27a, #b07800);
+  box-shadow: 0 0 10px rgba(255, 216, 74, 0.5), inset 0 -3px 0 rgba(0, 0, 0, 0.3);
+}
+#machine .m-chucker span {
+  top: 3px;
+  width: 14px;
+  height: 9px;
+  margin-left: -7px;
+  border-radius: 0 0 7px 7px;
+  background: #1a0710;
+  opacity: 1;
+}
+#machine .m-chucker .petal {
+  position: absolute;
+  top: -8px;
+  width: 12px;
+  height: 18px;
+  border-radius: 50% 50% 40% 40%;
+  background: linear-gradient(180deg, #ff5f7a, #b3122e);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4);
+  transition: transform 0.18s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+#machine .m-chucker .petal.l {
+  left: -8px;
+  transform: rotate(-30deg);
+}
+#machine .m-chucker .petal.r {
+  right: -8px;
+  transform: rotate(30deg);
+}
+#machine .m-chucker.open .petal.l {
+  transform: rotate(-60deg);
+}
+#machine .m-chucker.open .petal.r {
+  transform: rotate(60deg);
+}
+
+/* データカウンター：7セグ LED 風 */
+#machine .m-data {
+  border-top: 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: #0a0204;
+  box-shadow: inset 0 0 0 1px rgba(255, 42, 42, 0.25), inset 0 0 12px rgba(0, 0, 0, 0.9);
+}
+#machine .m-data small {
+  color: #a0525f;
+  letter-spacing: 0.1em;
+}
+#machine .m-data b {
+  display: inline-block;
+  min-width: 3ch;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  font-weight: 800;
+  color: #ff2a2a;
+  text-shadow: 0 0 6px #ff2a2a, 0 0 14px rgba(255, 42, 42, 0.6);
+  letter-spacing: 0.06em;
+}
+#machine .m-log .hit {
+  background: #1a0508;
+  color: #ff7d8f;
+  box-shadow: inset 0 0 0 1px rgba(255, 42, 42, 0.35);
+}
+#machine .m-log .hit.k {
+  background: #3a0716;
+  color: #ffb0c4;
+}
+#machine .m-log .hit.p {
+  background: linear-gradient(90deg, #ff5f6d, #ffc371);
+  color: #2a1a00;
+}
+#machine .m-log:empty::before {
+  color: #a0525f;
+}
+#machine .m-slump {
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #0a0204;
+  box-shadow: inset 0 0 0 1px rgba(255, 216, 74, 0.2);
+}
+#machine .m-cashout {
+  background: linear-gradient(180deg, #ffe27a, #d99a00);
+  color: #2a1a00;
+  box-shadow: 0 4px 0 #7a5200, 0 0 16px rgba(255, 216, 74, 0.4);
+}
+#machine .m-cashout:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #7a5200;
+}
+
+/* スマホ：細い筐体（看板は薄い電飾帯のみ） */
+@media (max-width: 640px) {
+  #machine {
+    padding: 0 10px 8px;
+    border-width: 3px;
+    border-radius: 16px;
+    grid-template-areas:
+      'marquee marquee'
+      'screen head'
+      'screen msg'
+      'screen bottom'
+      'slump slump' !important;
+  }
+  .m-marquee {
+    grid-area: marquee;
+    margin: 0 -10px 6px;
+    padding: 9px 0 8px;
+  }
+  #machine .m-slump:empty {
+    display: none;
+  }
+  .m-title {
+    font-size: 13px;
+  }
+  #machine .m-screen {
+    padding: 8px 6px !important;
+  }
+  #machine .m-msg {
+    min-height: 18px;
+    font-size: 13px;
+    text-align: left;
+    padding-left: 6px;
+  }
+  #machine .hold {
+    width: 12px;
+    height: 12px;
+  }
+}
+@media (min-width: 641px) and (max-width: 1023px) {
+  #machine {
+    grid-template-areas:
+      'marquee marquee'
+      'screen head'
+      'screen msg'
+      'screen bottom'
+      'screen data'
+      'log log'
+      'slump cash' !important;
+  }
+  .m-marquee {
+    grid-area: marquee;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-marquee,
+  #machine.reach .m-payline {
+    animation: none !important;
+  }
+}
