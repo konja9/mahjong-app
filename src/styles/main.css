@@ -900,7 +900,7 @@ input[type='range'] {
   display: grid;
   place-items: center;
   transform: skewY(-6deg);
-  animation: cutin 0.3s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  animation: cutin 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 .cutin span {
@@ -944,7 +944,7 @@ input[type='range'] {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  animation: pop 0.55s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  animation: pop 0.8s cubic-bezier(0.2, 1.6, 0.4, 1) both;
 }
 .bigtext span {
   font-family: 'Noto Sans JP', sans-serif;
@@ -1196,7 +1196,7 @@ body.kakuhen #progress {
   padding: 4px 22px;
   border: 5px solid currentColor;
   border-radius: 10px;
-  animation: stamp 0.9s cubic-bezier(0.2, 1.8, 0.4, 1) both;
+  animation: stamp 1.4s cubic-bezier(0.2, 1.8, 0.4, 1) both;
 }
 .stamp.plain {
   color: #fff;
@@ -1216,7 +1216,7 @@ body.kakuhen #progress {
   position: absolute;
   left: 0;
   --tile-h: calc(64px * var(--s));
-  animation: swarm 0.9s cubic-bezier(0.3, 0.1, 0.7, 1) both;
+  animation: swarm 1.4s cubic-bezier(0.3, 0.1, 0.7, 1) both;
 }
 .swarm.gold .swarm-tile {
   filter: drop-shadow(0 0 12px #ffd84a);
@@ -1444,7 +1444,7 @@ body.kakuhen #progress {
     drop-shadow(0 0 30px rgba(255, 200, 0, 0.6));
 }
 .bigtext.spin-in {
-  animation: spin-in 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  animation: spin-in 1s cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
 .banner.chou {
   background: linear-gradient(90deg, #ff0080, #ff8c00, #ffe600, #00e676, #00b0ff, #d500f9, #ff0080);
@@ -2972,4 +2972,39 @@ body[data-phase='suspense'] #bet {
   background: var(--error);
   color: var(--bg);
   border-color: var(--error);
+}
+
+/* ---- 出題モードのタブ（スマホのみ。PC は設定バーに含まれる） */
+.mode-tabs {
+  display: none;
+}
+@media (max-width: 640px) {
+  .mode-tabs {
+    display: flex;
+    gap: 6px;
+    margin: 0 16px 10px;
+  }
+  .mode-tab {
+    flex: 1;
+    padding: 9px 0;
+    border-radius: 10px;
+    background: var(--sub-bg);
+    color: var(--sub);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    transition: background 0.15s, color 0.15s;
+  }
+  .mode-tab.on {
+    background: color-mix(in srgb, var(--main) 18%, var(--sub-bg));
+    color: var(--main);
+    box-shadow: inset 0 0 0 1.5px var(--main);
+  }
+  .pill-mode {
+    display: none;
+  }
+  #config .cfg-group[data-group='mode'] {
+    display: none;
+  }
 }

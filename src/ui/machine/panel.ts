@@ -119,7 +119,7 @@ export class MachinePanel {
       this.fx.rushChain(this.machine.data.rushChain);
       this.hooks.onState();
       this.render();
-      await this.wait(260);
+      await this.wait(500);
     }
     if (g === this.gen) {
       this.running = false;
@@ -142,17 +142,17 @@ export class MachinePanel {
     this.reel.spinAll();
     const tick = window.setInterval(() => sfx.reelTick(), 90);
     this.timers.push(tick);
-    await this.wait(650 * fast);
+    await this.wait(1300 * fast);
     if (g !== this.gen) return;
     this.reel.stop(0, r.symbols[0]);
     sfx.reelStop(0);
-    await this.wait(260 * fast);
+    await this.wait(520 * fast);
     if (g !== this.gen) return;
     this.reel.stop(2, r.symbols[2]);
     sfx.reelStop(2);
 
     if (!r.reach) {
-      await this.wait(240 * fast);
+      await this.wait(480 * fast);
       this.reel.stop(1, r.symbols[1]);
       sfx.reelStop(1);
       clearInterval(tick);
@@ -169,14 +169,14 @@ export class MachinePanel {
     if (developed) {
       clearInterval(tick);
       this.msg('発展!!', 'hot');
-      await this.wait(450);
+      await this.wait(800);
       if (g !== this.gen) return;
       this.hooks.onBusy(true);
       await this.fx.suspense(r.plan, r.symbols);
       if (g !== this.gen) return;
     } else {
       if (this.level() !== 'off') (hot ? sfx.gekiatsu : sfx.reach)();
-      await this.wait(1500 * fast);
+      await this.wait(3000 * fast);
       if (g !== this.gen) return;
       clearInterval(tick);
     }

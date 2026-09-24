@@ -184,8 +184,14 @@ export class App {
       b.classList.toggle('on', on);
       b.setAttribute('aria-selected', String(on));
     });
+    $('#mode-tabs').innerHTML = (['hayami', 'fu', 'jissen'] as Mode[])
+      .map(
+        (m) =>
+          `<button class="mode-tab${s.mode === m ? ' on' : ''}" role="tab" aria-selected="${s.mode === m}" data-mode="${m}">${MODE_NAMES[m]}</button>`,
+      )
+      .join('');
     const count = !this.practice ? '∞' : s.count ? `${s.count}問` : '∞';
-    $('#cfg-toggle').innerHTML = `${MODE_NAMES[s.mode]}<span class="dot-sep">·</span>${s.answerStyle === 'choice' ? '4択' : '入力'}<span class="dot-sep">·</span>${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+    $('#cfg-toggle').innerHTML = `<span class="pill-mode">${MODE_NAMES[s.mode]}<span class="dot-sep">·</span></span>${s.answerStyle === 'choice' ? '4択' : '入力'}<span class="dot-sep">·</span>${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
   }
 
   private setPhase(phase: Phase): void {
@@ -791,6 +797,10 @@ export class App {
         b.blur();
       }),
     );
+    $('#mode-tabs').addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-mode]');
+      if (b && b.dataset.mode !== this.s.mode) this.update({ mode: b.dataset.mode as Mode });
+    });
     $('#cfg-toggle').addEventListener('click', () => this.toggleConfigSheet());
     $('#cfg-backdrop').addEventListener('click', () => this.toggleConfigSheet(false));
     $('#next-btn').addEventListener('click', (e) => {
@@ -1054,6 +1064,7 @@ const SHELL = `
     </button>
   </div>
 </header>
+<nav id="mode-tabs" class="mode-tabs" role="tablist" aria-label="出題モード"></nav>
 <nav id="config" aria-label="出題設定"></nav>
 <div id="cfg-backdrop"></div>
 <main>

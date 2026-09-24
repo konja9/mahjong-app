@@ -17,6 +17,9 @@ const CUTIN_TEXT: Record<Cutin, string> = {
   rainbow: '確定!!',
 };
 
+/** 全開時の演出の長さの倍率（溜め・当り・ラウンドなど sleep を使う演出すべて） */
+const TEMPO = 1.6;
+
 export class Fx {
   private particles: Particles;
   private pending: (() => void)[] = [];
@@ -77,6 +80,7 @@ export class Fx {
 
   private sleep(ms: number): Promise<void> {
     if (this.skipped) return Promise.resolve();
+    ms *= this.full ? TEMPO : 1;
     return new Promise((res) => {
       const done = () => {
         clearTimeout(id);
@@ -91,7 +95,7 @@ export class Fx {
   private waitPush(ms: number): Promise<void> {
     if (this.skipped) return Promise.resolve();
     return new Promise((res) => {
-      const id = setTimeout(() => this.pressPush(), ms);
+      const id = setTimeout(() => this.pressPush(), ms * TEMPO);
       this.pushResolve = () => {
         clearTimeout(id);
         res();
@@ -146,7 +150,7 @@ export class Fx {
       el.style.top = `${18 + Math.random() * 20}%`;
       layer.appendChild(el);
       sfx.stamp();
-      setTimeout(() => el.remove(), 1000);
+      setTimeout(() => el.remove(), 1500);
       return;
     }
     if (kind === 'swarm') {
@@ -158,7 +162,7 @@ export class Fx {
       }).join('');
       layer.appendChild(wrap);
       sfx.swarm();
-      setTimeout(() => wrap.remove(), 1500);
+      setTimeout(() => wrap.remove(), 2200);
       return;
     }
     // ステップアップ
@@ -171,9 +175,9 @@ export class Fx {
         frame.className = `stepup step-${k}`;
         frame.innerHTML = `<span>STEP ${k}</span>`;
         sfx.step(k);
-      }, (k - 1) * 170);
+      }, (k - 1) * 280);
     }
-    setTimeout(() => frame.remove(), steps * 170 + 450);
+    setTimeout(() => frame.remove(), steps * 280 + 700);
   }
 
   // ------------------------------------------------------------ 溜め
