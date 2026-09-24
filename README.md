@@ -3,6 +3,8 @@
 麻雀の点数計算を、タイピング練習（monkeytype）のような感覚で練習できるブラウザゲームです。
 正解するとパチンコ風の演出（保留変化・リーチ・激アツ・確変・大当り）が入ります。
 
+**プレイ:** https://konja9.github.io/mahjong-app/
+
 ## 遊び方
 
 ```bash
@@ -41,7 +43,11 @@ npm test         # 点数表・符・役判定・問題生成のテスト
 npm run build    # 型チェックと本番ビルド（dist/）
 ```
 
-`vite.config.ts` の `base: './'` により、`dist/` をそのまま GitHub Pages などの静的ホスティングに置けます。
+### 公開（GitHub Pages）
+
+`.github/workflows/deploy.yml` が、push のたびにテスト・ビルドを実行して `dist/` を GitHub Pages に公開します（テストが落ちたときは公開しません）。
+初回だけ、リポジトリの **Settings → Pages → Build and deployment → Source** を **GitHub Actions** に設定してください。
+`vite.config.ts` の `base: './'` により、どのパス配下でも動きます。
 
 ```
 src/core/   点数計算エンジン（DOM に依存しない）
