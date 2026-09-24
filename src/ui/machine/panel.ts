@@ -4,7 +4,7 @@ import { LAMP_NAMES } from '../effects/pachinko';
 import { drawNotice } from '../effects/performance';
 import type { EffectLevel } from '../effects/performance';
 import { Reel } from '../effects/reel';
-import { payoutFor } from './economy';
+import { ECONOMY } from './economy';
 import { MAX_HOLDS, Machine, PREMIUM_SYMBOL, ST_SPINS, type SpinResult } from './machine';
 
 export interface PanelHooks {
@@ -12,10 +12,10 @@ export interface PanelHooks {
   onBusy(busy: boolean): void;
   /** 状態（通常/確変）が変わった・回転が終わった */
   onState(): void;
-  /** 大当りの払い出し */
-  onPayout(amount: number, premium: boolean): Promise<void>;
-  /** 大盤振る舞いボタン */
-  onGenerous(): void;
+  /** 大当り：ラウンド問題（賞金タイム）が終わるまで待つ。戻り値は出玉合計 */
+  onJackpot(o: { premium: boolean }): Promise<number>;
+  /** ハイローラーボタン */
+  onHighRoller(): void;
   /** 精算ボタン */
   onCashout(): void;
 }
@@ -39,7 +39,7 @@ export class MachinePanel {
     root.innerHTML = `
       <div class="m-head"><span class="m-state">通常</span><span class="m-st"></span></div>
       <div class="m-screen"></div>
-      <button class="m-generous" type="button" aria-pressed="false"><span class="g-label">大盤振る舞い</span><span class="g-state">OFF</span></button>
+      <button class="m-generous" type="button" aria-pressed="false"><span class="g-label">ハイローラー<small>BET×2・出玉×2.5</small></span><span class="g-state">OFF</span></button>
       <div class="m-msg" aria-live="polite"></div>
       <div class="m-bottom">
         <div class="m-holds">${Array.from({ length: MAX_HOLDS }, () => '<span class="hold"></span>').join('')}</div>
@@ -55,7 +55,7 @@ export class MachinePanel {
       <button class="m-cashout" type="button">精算</button>`;
     root.querySelector('.m-generous')!.addEventListener('click', (e) => {
       e.stopPropagation();
-      hooks.onGenerous();
+      hooks.onHighRoller();
     });
     root.querySelector('.m-cashout')!.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -74,11 +74,25 @@ export class MachinePanel {
     return this.isStopped;
   }
 
-  setGenerous(on: boolean): void {
+  setHighRoller(on: boolean): void {
     this.root.classList.toggle('generous', on);
     const b = this.root.querySelector<HTMLElement>('.m-generous')!;
     b.setAttribute('aria-pressed', String(on));
     b.querySelector('.g-state')!.textContent = on ? 'ON' : 'OFF';
+  }
+
+  /** 役満直撃：次の回転を確変大当り確定にする */
+  direct(): void {
+    this.machine.holds.unshift({ hit: true, kakuhen: true, color: 4 });
+    this.machine.holds = this.machine.holds.slice(0, MAX_HOLDS);
+    this.msg('役満直撃!!', 'win');
+    this.render(true);
+    this.kick();
+  }
+
+  /** ラウンド中の表示 */
+  roundStatus(text: string): void {
+    this.msg(text, 'win');
   }
 
   /** 保留も回転もない */
@@ -206,15 +220,25 @@ export class MachinePanel {
       this.msg(r.kakuhen ? '確変大当り' : '大当り', 'win');
       if (!developed) this.hooks.onBusy(true);
       const premium = r.symbols[0] === PREMIUM_SYMBOL;
-      await this.fx.jackpot({
+      const rush = this.machine.rush;
+      const chain = this.machine.data.rushChain;
+      await this.fx.jackpotIntro({ premium, rush, chain, rounds: ECONOMY.rounds });
+      if (g !== this.gen) return;
+      // ラウンド問題の間は回答できるようにし、台は止めておく
+      this.hooks.onBusy(false);
+      this.msg(`BONUS ${ECONOMY.rounds}R`, 'win');
+      const total = await this.hooks.onJackpot({ premium });
+      if (g !== this.gen) return;
+      this.hooks.onBusy(true);
+      await this.fx.jackpotOutro({
         kakuhen: r.kakuhen,
         premium,
-        rush: this.machine.rush,
-        chain: this.machine.data.rushChain,
+        rush,
+        chain: r.kakuhen ? (rush ? chain + 1 : 1) : 0,
+        total,
       });
       if (g !== this.gen) return;
-      await this.hooks.onPayout(payoutFor(premium), premium);
-      if (g !== this.gen) return;
+      this.msg(total ? `出玉 +${total.toLocaleString()}` : '', 'win');
       this.hooks.onBusy(false);
     } else {
       if (developed) this.hooks.onBusy(false);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { practiceScore, speedMultiplier } from '../src/core/practiceScore';
-import { ECONOMY, applyDelta, costFor, freshWallet, isBankrupt, payoutFor } from '../src/ui/machine/economy';
+import { generateQuestion, type Mode } from '../src/core/generator';
+import { DEFAULT_RULES } from '../src/core/rules';
+import { ECONOMY, applyDelta, costFor, freshWallet, isBankrupt, roundPrize } from '../src/ui/machine/economy';
 import { Machine, PREMIUM_SYMBOL } from '../src/ui/machine/machine';
 
 function mulberry32(seed: number) {
@@ -20,9 +22,19 @@ describe('yan', () => {
     expect(costFor(false, false)).toBe(120);
     expect(costFor(false, true)).toBe(120);
   });
-  it('払い出し', () => {
-    expect(payoutFor(false)).toBe(200);
-    expect(payoutFor(true)).toBe(400);
+  it('ハイローラーはコスト2倍', () => {
+    expect(costFor(true, true, true)).toBe(40);
+    expect(costFor(false, false, true)).toBe(240);
+  });
+  it('ラウンド賞金：打点・親・速答・連続・PREMIUM・ハイローラー', () => {
+    const base = { mode: 'jissen' as Mode, limit: '満貫' as const, dealer: false, fast: false, combo: 1, premium: false, highRoller: false };
+    const v = roundPrize(base);
+    expect(roundPrize({ ...base, limit: '役満' })).toBeGreaterThan(v * 10);
+    expect(roundPrize({ ...base, dealer: true })).toBeGreaterThan(v);
+    expect(roundPrize({ ...base, fast: true })).toBeGreaterThan(v);
+    expect(roundPrize({ ...base, combo: 20 })).toBe(roundPrize({ ...base, combo: 6 }));
+    expect(roundPrize({ ...base, combo: 6 })).toBeGreaterThan(v);
+    expect(roundPrize({ ...base, premium: true, highRoller: true })).toBeGreaterThanOrEqual(v * 4.9);
   });
   it('破産判定と推移', () => {
     let w = freshWallet();
@@ -44,35 +56,57 @@ describe('プラクティスのスコア', () => {
   });
 });
 
-/** プレイヤーを模擬して収支を求める（収支 ÷ 総コスト） */
-function simulate(accuracy: number, fastRate: number, seed: number, questions = 10000) {
+/** プレイヤーを模擬して回収率（払い出し ÷ 総コスト）を求める */
+function simulate(mode: Mode, accuracy: number, fastRate: number, highRoller = false, seed = 1, questions = 20000) {
   const rng = mulberry32(seed);
+  const pick = (round: boolean) => {
+    const q = generateQuestion(mode, DEFAULT_RULES, { seat: 'any', win: 'any' }, rng, false, round);
+    const s = q.mode === 'hayami' ? q.score : q.ev.score;
+    return { limit: s.limit, dealer: s.dealer, yakuman: q.mode !== 'hayami' && q.ev.yakuman > 0 };
+  };
+  const roundPool = Array.from({ length: 800 }, () => pick(true));
+  const normalPool = Array.from({ length: 800 }, () => pick(false));
   const m = new Machine(() => 'off', rng);
   let spent = 0;
   let won = 0;
+  const jackpot = (premium: boolean) => {
+    let combo = 0;
+    for (let k = 0; k < ECONOMY.rounds; k++) {
+      const q = roundPool[Math.floor(rng() * roundPool.length)];
+      if (rng() < accuracy * 0.95) {
+        combo++;
+        won += roundPrize({ mode, limit: q.limit, dealer: q.dealer, fast: rng() < fastRate, combo, premium, highRoller });
+      } else combo = 0;
+    }
+  };
   for (let i = 0; i < questions; i++) {
     const correct = rng() < accuracy;
     const fast = correct && rng() < fastRate;
-    spent += costFor(correct, fast);
+    spent += costFor(correct, fast, highRoller);
     if (!correct) continue;
-    m.enter(rng() < 0.08 ? 2 : 1);
+    const q = normalPool[Math.floor(rng() * normalPool.length)];
+    // 役満直撃（通常時のみ）
+    if (q.yakuman && !m.rush) m.holds.unshift({ hit: true, kakuhen: true, color: 4 });
+    else m.enter(1);
     for (let r = m.spin(); r; r = m.spin()) {
-      if (r.hit) won += payoutFor(r.symbols[0] === PREMIUM_SYMBOL);
+      if (r.hit) jackpot(r.symbols[0] === PREMIUM_SYMBOL);
       m.settle(r);
     }
   }
-  return (won - spent) / spent;
+  return won / spent;
 }
 
 describe('経済バランス（シミュレーション）', () => {
-  it('上級（95%・速答80%）はプラス', () => {
-    expect(simulate(0.95, 0.8, 1)).toBeGreaterThan(0.3);
-  });
-  it('中級（85%・速答50%）はほぼトントン（±15%）', () => {
-    const r = simulate(0.85, 0.5, 2);
-    expect(Math.abs(r)).toBeLessThan(0.15);
-  });
-  it('初心者（60%・速答20%）はマイナス', () => {
-    expect(simulate(0.6, 0.2, 3)).toBeLessThan(-0.3);
+  for (const mode of ['hayami', 'fu', 'jissen'] as Mode[]) {
+    it(`${mode}：中級はほぼ100%、上級は大きくプラス、初心者は大きくマイナス`, () => {
+      const mid = simulate(mode, 0.85, 0.5);
+      expect(mid).toBeGreaterThan(0.85);
+      expect(mid).toBeLessThan(1.15);
+      expect(simulate(mode, 0.95, 0.8, false, 2)).toBeGreaterThan(1.6);
+      expect(simulate(mode, 0.6, 0.2, false, 3)).toBeLessThan(0.5);
+    });
+  }
+  it('ハイローラーは中級で回収率が上がる（高リスク・高リターン）', () => {
+    expect(simulate('jissen', 0.85, 0.5, true, 4)).toBeGreaterThan(simulate('jissen', 0.85, 0.5, false, 4));
   });
 });

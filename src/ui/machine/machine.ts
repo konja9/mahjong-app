@@ -5,8 +5,8 @@
  */
 import { type EffectLevel, type Rng, type Suspense, drawSuspense } from '../effects/performance';
 
-export const NORMAL_ODDS = 8; // 通常時 1/8
-export const RUSH_ODDS = 2; // 確変（ST）中 1/2
+export const NORMAL_ODDS = 20; // 通常時 1/20
+export const RUSH_ODDS = 3; // 確変（ST）中 1/3
 export const ST_SPINS = 8; // 確変の回転数
 export const KAKUHEN_RATE = 0.6; // 大当りのうち確変になる割合
 export const MAX_HOLDS = 4;

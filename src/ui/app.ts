@@ -5,7 +5,17 @@ import { EAST } from '../core/tiles';
 import { configureAudio, sfx, unlockAudio } from './audio';
 import { Fx, type WinTier } from './effects/pachinko';
 import type { EffectLevel } from './effects/performance';
-import { ECONOMY, type Wallet, applyDelta, costFor, freshWallet, isBankrupt, loadWallet, saveWallet } from './machine/economy';
+import {
+  ECONOMY,
+  type Wallet,
+  applyDelta,
+  costFor,
+  freshWallet,
+  isBankrupt,
+  loadWallet,
+  roundPrize,
+  saveWallet,
+} from './machine/economy';
 import { MachinePanel } from './machine/panel';
 import { practiceScore, speedMultiplier } from '../core/practiceScore';
 import { doraLabel, handExplain, hayamiExplain, situationChips, situationLabel } from './explain';
@@ -77,6 +87,17 @@ export class App {
   private wallet: Wallet = loadWallet();
   private shownBalance = this.wallet.balance;
   private betRaf = 0;
+  /** 大当りのラウンド（賞金タイム）。null なら通常時 */
+  private round: {
+    n: number;
+    total: number;
+    combo: number;
+    premium: boolean;
+    highRoller: boolean;
+    resolve: (total: number) => void;
+  } | null = null;
+  /** 今出ている問題がラウンド問題か */
+  private isRoundQ = false;
   private awaitingBankrupt = false;
   private choices: Choice[] = [];
   private picked = -1;
@@ -90,9 +111,8 @@ export class App {
         this.renderProgress();
         this.checkBankrupt();
       },
-      onPayout: (amount, premium) =>
-        this.fx.payout(amount, premium, $('#wallet'), () => this.changeBalance(amount, 1400)),
-      onGenerous: () => this.toggleGenerous(),
+      onJackpot: ({ premium }) => this.startRound(premium),
+      onHighRoller: () => this.toggleHighRoller(),
       onCashout: () => this.showSummary('settle'),
     });
     this.applyTheme();
@@ -237,6 +257,7 @@ export class App {
 
   /** resetMachine=false ならノーマルの台（保留・確変）を引き継ぐ */
   private startSession(resetMachine = false): void {
+    this.endRound();
     this.fx.reset();
     if (this.practice) this.panel.stop();
     else if (resetMachine || this.panel.stopped) this.panel.reset();
@@ -249,7 +270,7 @@ export class App {
     this.session.startBalance = this.wallet.balance;
     this.awaitingBankrupt = false;
     this.renderWallet(false);
-    this.panel.setGenerous(this.s.generous);
+    this.panel.setHighRoller(this.s.highRoller);
     $('#summary').hidden = true;
     $('#stage').hidden = false;
     this.next();
@@ -265,10 +286,16 @@ export class App {
       this.showSummary();
       return;
     }
-    // 確変中は役満（高打点）が出やすい
-    const boost = !this.practice && this.panel.rush;
-    const generous = !this.practice && this.s.generous;
-    this.q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, boost, generous);
+    // ラウンドを消化しきったら大当り終了（台の V・確変分岐へ）
+    if (this.round && this.round.n >= ECONOMY.rounds) this.endRound();
+    this.isRoundQ = !!this.round;
+    if (this.round) {
+      this.round.n++;
+      this.panel.roundStatus(`ROUND ${this.round.n}/${ECONOMY.rounds}`);
+    }
+    // 確変中は役満（高打点）が出やすい。ラウンド問題は高打点中心
+    const boost = !this.practice && this.panel.rush && !this.isRoundQ;
+    this.q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, boost, this.isRoundQ);
     this.input = '';
     this.picked = -1;
     this.choices = this.isChoice ? makeChoices(this.q, this.s.rules) : [];
@@ -283,14 +310,34 @@ export class App {
     this.startTimer();
     this.startBetRing();
     $('#stage').classList.toggle('boost', boost);
-    $('#stage').classList.toggle('generous', generous);
+    $('#stage').classList.toggle('round', this.isRoundQ);
+    $('#stage').classList.toggle('highroller', !this.practice && this.s.highRoller && !this.isRoundQ);
   }
 
-  /** 大盤振る舞いの切り替え（次の問題から反映） */
-  private toggleGenerous(): void {
-    this.update({ generous: !this.s.generous }, false);
-    this.panel.setGenerous(this.s.generous);
+  /** ハイローラーの切り替え（次の問題から反映。ラウンドの倍率は大当り時点で固定） */
+  private toggleHighRoller(): void {
+    this.update({ highRoller: !this.s.highRoller }, false);
+    this.panel.setHighRoller(this.s.highRoller);
     if (this.fxLevel !== 'off') sfx.lampUp();
+    if (this.phase === 'answering') this.startBetRing();
+  }
+
+  /** 大当り：ラウンド問題を出題し、終わったら出玉合計を返す */
+  private startRound(premium: boolean): Promise<number> {
+    return new Promise((resolve) => {
+      this.round = { n: 0, total: 0, combo: 0, premium, highRoller: this.s.highRoller, resolve };
+      this.renderProgress();
+      // 回答待ちの問題はそのまま。次の問題からラウンド問題になる
+      if (this.phase === 'answering' && !this.isRoundQ) this.hint(this.compact ? '' : '次の問題から BONUS ラウンド');
+    });
+  }
+
+  private endRound(): void {
+    const r = this.round;
+    if (!r) return;
+    this.round = null;
+    this.isRoundQ = false;
+    r.resolve(r.total);
   }
 
   /** 回答にかかった時間（発展リーチ・大当りで止まっていた時間は除く） */
@@ -311,13 +358,19 @@ export class App {
       return;
     }
     el.classList.remove('expired');
-    el.innerHTML = `<span class="bet-chip" style="--half:${ECONOMY.fastSeconds}s">BET <b>${ECONOMY.fastCost}</b></span>`;
+    if (this.isRoundQ && this.round) {
+      el.innerHTML = `<span class="bet-chip round-chip">BONUS ROUND <b>${this.round.n}/${ECONOMY.rounds}</b></span><span class="round-total">出玉 <b>+${this.round.total.toLocaleString()}</b></span>`;
+      return;
+    }
+    const hr = this.s.highRoller;
+    const fastSec = ECONOMY.fastSeconds[this.s.mode];
+    el.innerHTML = `<span class="bet-chip${hr ? ' hr' : ''}" style="--half:${fastSec}s">BET <b>${costFor(true, true, hr)}</b></span>`;
     const chip = el.querySelector<HTMLElement>('.bet-chip b')!;
     const tick = () => {
       if (this.phase !== 'answering') return;
-      if (this.activeElapsed() >= ECONOMY.fastSeconds) {
+      if (this.activeElapsed() >= fastSec) {
         el.classList.add('expired');
-        chip.textContent = String(ECONOMY.cost);
+        chip.textContent = String(costFor(true, false, hr));
         return;
       }
       this.betRaf = requestAnimationFrame(tick);
@@ -517,33 +570,59 @@ export class App {
         const pts = practiceScore(this.s.mode, true, elapsed);
         ss.score += pts;
         extra = `<span class="pts">+${pts}</span><span class="muted">速さ ×${speedMultiplier(this.s.mode, elapsed).toFixed(1)}</span>`;
+      } else if (this.isRoundQ && this.round) {
+        const r = this.round;
+        r.combo++;
+        const s = scoreOf(this.q);
+        const prize = roundPrize({
+          mode: this.s.mode,
+          limit: s.limit,
+          dealer: s.dealer,
+          fast: elapsed <= ECONOMY.fastSeconds[this.s.mode],
+          combo: r.combo,
+          premium: r.premium,
+          highRoller: r.highRoller,
+        });
+        r.total += prize;
+        extra = `<span class="yan-cost prize">+${prize.toLocaleString()} yan</span>${r.combo > 1 ? `<span class="muted">${r.combo}連続</span>` : ''}`;
+        this.fx.roundWin(prize, answerEl, $('#wallet'), () => this.changeBalance(prize, 900));
       } else if (!this.practice) {
-        const fast = elapsed <= ECONOMY.fastSeconds;
-        extra = `<span class="yan-cost${fast ? ' fast' : ''}">−${costFor(true, fast)} yan${fast ? '（速答半額）' : ''}</span>`;
+        const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
+        extra = `<span class="yan-cost${fast ? ' fast' : ''}">−${costFor(true, fast, this.s.highRoller)} yan${fast ? '（速答半額）' : ''}</span>`;
       }
       $('#result').innerHTML = `<div class="verdict ok"><span class="mark">正解</span><span class="ans">${this.correctText()}</span><span class="muted">${elapsed.toFixed(1)}s</span>${extra}</div>${explain}`;
       const streak = ss.streak;
       if (!this.practice) {
         this.fx.hit(streak, answerEl);
         this.fx.combo(streak);
-        // 正解＝始動口入賞。高打点の手は電チュー開放で保留+2
-        const big = this.q.mode !== 'hayami' && (scoreOf(this.q).limit !== '' || this.q.ev.yakuman > 0);
-        void this.panel.enter(big ? 2 : 1, answerEl);
-        void this.fx.win(tier, label, answerEl).then(async () => {
+        // 正解＝始動口入賞。通常時の役満は直撃で確変大当り確定。ラウンド中は台に玉を入れない
+        if (!this.isRoundQ) {
+          if (this.q.mode !== 'hayami' && this.q.ev.yakuman > 0 && !this.panel.rush) this.panel.direct();
+          else void this.panel.enter(1, answerEl);
+        }
+        // ラウンド中はほぼ毎問が高い手なので、役満以外の大演出は省いてテンポを保つ
+        const t = this.isRoundQ && tier < 3 ? 0 : tier;
+        void this.fx.win(t, label, answerEl).then(async () => {
           if (this.phase === 'result') await this.fx.milestone(streak);
         });
       }
     } else {
       ss.streak = 0;
       this.fx.combo(0);
+      if (this.isRoundQ && this.round) this.round.combo = 0;
       ss.misses.push({ q: this.q, input: yours });
-      const penalty = this.practice ? '' : `<span class="yan-cost miss">−${costFor(false, false)} yan</span>`;
+      const penalty = this.practice
+        ? ''
+        : this.isRoundQ
+          ? '<span class="yan-cost miss">パンク（賞金なし）</span>'
+          : `<span class="yan-cost miss">−${costFor(false, false, this.s.highRoller)} yan</span>`;
       $('#result').innerHTML = `<div class="verdict ng"><span class="mark">不正解</span><span class="yours">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${explain}`;
       this.fx.lose(this.isChoice ? $('#choices') : answerEl, false);
     }
-    if (!this.practice) {
-      this.changeBalance(-costFor(correct, correct && elapsed <= ECONOMY.fastSeconds));
+    if (!this.practice && !this.isRoundQ) {
+      this.changeBalance(-costFor(correct, correct && elapsed <= ECONOMY.fastSeconds[this.s.mode], this.s.highRoller));
     }
+    if (this.isRoundQ) this.startBetRing();
     this.renderProgress();
     this.renderInput();
     this.hint(this.compact ? '' : correct ? 'クリック / 任意のキーで次へ' : 'クリック / Enter / Space で次へ');
@@ -672,6 +751,7 @@ export class App {
       <span class="muted">正答率 ${acc}%</span>
       <span class="streak${ss.streak >= 5 ? ' hot' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>
       ${!this.practice && this.panel.rush ? '<span class="kakuhen-badge">確変中</span>' : ''}
+      ${this.round ? `<span class="round-badge">BONUS ${this.round.n}/${ECONOMY.rounds}R</span>` : ''}
       ${this.practice && this.s.count ? `<span class="score">SCORE <b>${ss.score.toLocaleString()}</b></span>` : ''}`;
   }
 

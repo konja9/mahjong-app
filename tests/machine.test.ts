@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CONFIRMED_CUTINS } from '../src/ui/effects/performance';
-import { MAX_HOLDS, Machine, NORMAL_ODDS, ST_SPINS, isKakuhenSymbol } from '../src/ui/machine/machine';
+import { MAX_HOLDS, Machine, NORMAL_ODDS, RUSH_ODDS, ST_SPINS, isKakuhenSymbol } from '../src/ui/machine/machine';
 
 function mulberry32(seed: number) {
   return () => {
@@ -29,11 +29,11 @@ describe('Machine', () => {
       const r = m.spin()!;
       if (r.hit) hits++;
     }
-    expect(hits / n).toBeGreaterThan(1 / NORMAL_ODDS - 0.015);
-    expect(hits / n).toBeLessThan(1 / NORMAL_ODDS + 0.015);
+    expect(hits / n).toBeGreaterThan(1 / NORMAL_ODDS - 0.01);
+    expect(hits / n).toBeLessThan(1 / NORMAL_ODDS + 0.01);
   });
 
-  it('確変中はおよそ 1/2', () => {
+  it('確変中はおよそ 1/RUSH_ODDS', () => {
     const m = new Machine(() => 'max', mulberry32(3));
     let hits = 0;
     const n = 10000;
@@ -43,8 +43,8 @@ describe('Machine', () => {
       m.enter();
       if (m.spin()!.hit) hits++;
     }
-    expect(hits / n).toBeGreaterThan(0.47);
-    expect(hits / n).toBeLessThan(0.53);
+    expect(hits / n).toBeGreaterThan(1 / RUSH_ODDS - 0.03);
+    expect(hits / n).toBeLessThan(1 / RUSH_ODDS + 0.03);
   });
 
   it('ハズレでは確定演出・虹保留が出ず、図柄もそろわない', () => {

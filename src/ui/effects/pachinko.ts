@@ -420,28 +420,78 @@ export class Fx {
   }
 
   /** 大当り：図柄揃い → ラウンド → V入賞 → 確変分岐 */
-  async jackpot(o: { kakuhen: boolean; premium: boolean; rush: boolean; chain: number }): Promise<void> {
+  /** 大当り開始：図柄揃い → 大当り演出 → ラウンド開始の告知 */
+  async jackpotIntro(o: { premium: boolean; rush: boolean; chain: number; rounds: number }): Promise<void> {
     if (!this.enabled) return;
     this.skipped = false;
-    const label = o.premium ? 'PREMIUM' : o.rush ? `RUSH ${o.chain + (o.kakuhen ? 1 : 0)}連` : '大当り';
+    const label = o.premium ? 'PREMIUM' : o.rush ? `RUSH ${o.chain + 1}連` : '大当り';
     await this.win(o.premium ? 3 : 2, label, null);
     if (this.skipped) return;
     this.skipped = false;
+    this.show(
+      `<div class="rounds"><small>BONUS</small><span class="round-n">${o.rounds}R</span><div class="round-note">高い手を当てて稼げ！</div></div>`,
+      this.full ? 'rays gold-rays' : '',
+    );
+    sfx.round(1);
+    sfx.kakuhen();
+    await this.sleep(1200);
+    this.clear();
+  }
 
-    // ラウンド
-    this.show('<div class="rounds"><small>ROUND</small><span class="round-n">1</span><div class="round-bar"><i></i></div></div>', this.full ? 'rays' : '');
-    const n = this.overlay.querySelector<HTMLElement>('.round-n');
-    const bar = this.overlay.querySelector<HTMLElement>('.round-bar i');
-    for (let r = 1; r <= 10 && !this.skipped; r++) {
-      if (n) n.textContent = String(r);
-      if (bar) bar.style.width = `${r * 10}%`;
-      sfx.round(r);
-      if (this.full) this.particles.burst(innerWidth / 2, innerHeight * 0.6, 8, 'coin', 0.9);
-      await this.sleep(r === 10 ? 350 : 130);
+  /** ラウンド問題に正解：賞金のコインが所持金へ */
+  roundWin(amount: number, from: HTMLElement | null, to: HTMLElement | null, onArrive: () => void): void {
+    if (!this.enabled) {
+      onArrive();
+      return;
     }
-    if (this.skipped) return;
+    const [x0, y0] = this.center(from);
+    const [x1, y1] = this.center(to);
+    this.particles.burst(x0, y0, this.full ? 40 : 12, 'coin', 1.1);
+    sfx.register();
+    const count = this.full ? Math.min(28, 6 + Math.round(amount / 12)) : 6;
+    let arrived = false;
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('div');
+      el.className = 'pcoin';
+      document.body.appendChild(el);
+      const sx = x0 + (Math.random() - 0.5) * 80;
+      const mx = (sx + x1) / 2 + (Math.random() - 0.5) * 200;
+      const my = Math.min(y0, y1) - 60 - Math.random() * 120;
+      const anim = el.animate(
+        [
+          { transform: `translate(${sx}px, ${y0}px) scale(0.5)`, opacity: 0 },
+          { transform: `translate(${mx}px, ${my}px) scale(1.1)`, opacity: 1, offset: 0.5 },
+          { transform: `translate(${x1}px, ${y1}px) scale(0.6)`, opacity: 1 },
+        ],
+        { duration: 600 + Math.random() * 250, delay: i * 30, easing: 'cubic-bezier(0.4, 0, 0.6, 1)', fill: 'backwards' },
+      );
+      anim.onfinish = () => {
+        el.remove();
+        if (!arrived) {
+          arrived = true;
+          onArrive();
+          if (to) this.pulse('payout-glow', 900, to);
+        }
+        if (i % 3 === 0) sfx.coin();
+      };
+    }
+    if (count === 0) onArrive();
+  }
 
-    // V 入賞
+  /** ラウンド問題を外した */
+  roundMiss(anchor: HTMLElement | null): void {
+    if (!this.enabled) return;
+    sfx.glitch();
+    if (anchor) this.pulse('shake-x', 350, anchor);
+  }
+
+  /** 大当り終了：出玉合計 → V 入賞 → 確変分岐 */
+  async jackpotOutro(o: { kakuhen: boolean; premium: boolean; rush: boolean; chain: number; total: number }): Promise<void> {
+    if (!this.enabled) return;
+    this.skipped = false;
+    await this.payout(o.total, o.premium, null, () => undefined, false);
+    if (this.skipped) return;
+    this.skipped = false;
     this.show('<div class="vzone"><div class="v-target">V</div><div class="v-ball"></div></div>', 'dim');
     sfx.reach();
     await this.sleep(700);
@@ -453,7 +503,7 @@ export class Fx {
       await this.sleep(700);
       if (!o.rush) await this.kakuhenStart();
       else {
-        this.show(`<div class="banner kakuhen"><span>RUSH継続</span><small>${o.chain + 1}連</small></div>`, this.full ? 'rays' : '');
+        this.show(`<div class="banner kakuhen"><span>RUSH継続</span><small>${o.chain}連</small></div>`, this.full ? 'rays' : '');
         sfx.kakuhen();
         await this.sleep(1000);
       }
@@ -469,7 +519,13 @@ export class Fx {
    * 払い出し：PAYOUT カウンター → コインが所持金へ流れ込む。
    * onArrive は最初のコインが所持金に届いたときに呼ぶ（そこで残高を増やす）
    */
-  async payout(amount: number, premium: boolean, to: HTMLElement | null, onArrive: () => void): Promise<void> {
+  async payout(
+    amount: number,
+    premium: boolean,
+    to: HTMLElement | null,
+    onArrive: () => void,
+    flow = true,
+  ): Promise<void> {
     if (!this.enabled) {
       onArrive();
       return;
@@ -477,7 +533,7 @@ export class Fx {
     this.skipped = false;
     const full = this.full;
     this.show(
-      `<div class="payout${premium ? ' premium' : ''}"><small>${premium ? 'PREMIUM PAYOUT' : 'PAYOUT'}</small><span class="payout-n">+0</span><em>yan</em></div>`,
+      `<div class="payout${premium ? ' premium' : ''}"><small>${flow ? (premium ? 'PREMIUM PAYOUT' : 'PAYOUT') : 'BONUS 獲得'}</small><span class="payout-n">+0</span><em>yan</em></div>`,
       full ? `rays ${premium ? 'rainbow-rays' : 'gold-rays'}` : '',
     );
     const n = this.overlay.querySelector<HTMLElement>('.payout-n');
@@ -497,6 +553,10 @@ export class Fx {
     }
     await this.sleep(premium ? 700 : 450);
     this.clear();
+    if (!flow) {
+      onArrive();
+      return;
+    }
 
     // コインが所持金へ流れ込む
     const [x0, y0] = [innerWidth / 2, innerHeight * 0.52];
