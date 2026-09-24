@@ -80,21 +80,39 @@ function fuAcceptRate(fu: number): number {
   return 1;
 }
 
-export function generateHayami(rules: Rules, f: Filters, rng: Rng = Math.random, boost = false): HayamiQuestion {
+export function generateHayami(
+  rules: Rules,
+  f: Filters,
+  rng: Rng = Math.random,
+  boost = false,
+  generous = false,
+): HayamiQuestion {
   for (;;) {
     const dealer = rollSeat(rng, f);
     const tsumo = rollTsumo(rng, f);
-    const han = weighted(rng, [
-      [1, 16],
-      [2, 26],
-      [3, 26],
-      [4, 20],
-      [5, 4],
-      [6, 3],
-      [8, 2],
-      [11, boost ? 10 : 1],
-      [13, boost ? 16 : 1],
-    ] as const);
+    const han = generous
+      ? weighted(rng, [
+          [1, 2],
+          [2, 4],
+          [3, 10],
+          [4, 20],
+          [5, 18],
+          [6, 14],
+          [8, 12],
+          [11, boost ? 14 : 8],
+          [13, boost ? 20 : 8],
+        ] as const)
+      : weighted(rng, [
+          [1, 16],
+          [2, 26],
+          [3, 26],
+          [4, 20],
+          [5, 4],
+          [6, 3],
+          [8, 2],
+          [11, boost ? 10 : 1],
+          [13, boost ? 16 : 1],
+        ] as const);
     const fu = han >= 5 ? 0 : weighted(rng, FU_WEIGHTS);
     if (han < 5 && !isValidHanFu(han, fu, tsumo)) continue;
     return { mode: 'hayami', han, fu, dealer, tsumo, score: calcScore(han, fu, dealer, tsumo, rules) };
@@ -304,9 +322,18 @@ export interface HandGenOptions {
   rng?: Rng;
   /** 確変中：役満（符計算では高打点）が出やすくなる */
   boost?: boolean;
+  /** 大盤振る舞い：高打点・役満が大幅に出やすくなる */
+  generous?: boolean;
 }
 
-export function generateHandQuestion({ mode, rules, filters, rng = Math.random, boost = false }: HandGenOptions): HandQuestion {
+export function generateHandQuestion({
+  mode,
+  rules,
+  filters,
+  rng = Math.random,
+  boost = false,
+  generous = false,
+}: HandGenOptions): HandQuestion {
   for (let attempt = 0; attempt < 5000; attempt++) {
     const flavor: Flavor = weighted(rng, [
       ['free', 40],
@@ -318,7 +345,8 @@ export function generateHandQuestion({ mode, rules, filters, rng = Math.random, 
       ['chiitoi', mode === 'fu' ? 3 : 6],
       ['kokushi', mode === 'fu' ? 0 : 0.5],
     ] as const);
-    const yakumanBoost = boost && mode === 'jissen' && rng() < 0.35;
+    const yakumanRate = mode === 'jissen' ? (boost ? 0.35 : 0) + (generous ? 0.2 : 0) : 0;
+    const yakumanBoost = rng() < yakumanRate;
     const built = yakumanBoost
       ? buildYakuman(rng)
       : flavor === 'chiitoi'
@@ -376,11 +404,13 @@ export function generateHandQuestion({ mode, rules, filters, rng = Math.random, 
     // 符の分布を実戦に寄せる（役満は符と無関係なので対象外）
     if (!ev.yakuman && rng() >= fuAcceptRate(ev.fu.fu)) continue;
     // 役満は出すぎないように間引く（確変中は間引かない）
-    if (ev.yakuman && !boost && rng() < 0.5) continue;
+    if (ev.yakuman && !boost && !generous && rng() < 0.5) continue;
     // 確変中の符計算は高打点の手を増やす
     if (boost && mode === 'fu' && ev.han < 3 && rng() < 0.6) continue;
+    // 大盤振る舞い：安い手はほとんど出さない
+    if (generous && !ev.yakuman && ev.han < (mode === 'fu' ? 3 : 4) && rng() < 0.85) continue;
     // ドラ過多の問題は間引く
-    if (ev.han >= 8 && !ev.yakuman && rng() < 0.6) continue;
+    if (ev.han >= 8 && !ev.yakuman && !generous && rng() < 0.6) continue;
     return { mode, hand, sit, ev };
   }
   throw new Error('failed to generate question');
@@ -392,7 +422,8 @@ export function generateQuestion(
   filters: Filters,
   rng: Rng = Math.random,
   boost = false,
+  generous = false,
 ): Question {
-  if (mode === 'hayami') return generateHayami(rules, filters, rng, boost);
-  return generateHandQuestion({ mode, rules, filters, rng, boost });
+  if (mode === 'hayami') return generateHayami(rules, filters, rng, boost, generous);
+  return generateHandQuestion({ mode, rules, filters, rng, boost, generous });
 }

@@ -107,3 +107,26 @@ describe('符の分布', () => {
     });
   }
 });
+
+describe('大盤振る舞い', () => {
+  it('実戦：満貫以上が6割以上、役満が15%以上', () => {
+    const rng = mulberry32(21);
+    let limit = 0;
+    let yakuman = 0;
+    const n = 1000;
+    for (let i = 0; i < n; i++) {
+      const q = generateHandQuestion({ mode: 'jissen', rules: DEFAULT_RULES, filters: anyFilter, rng, generous: true });
+      expect(decompose(q.hand, q.sit.tsumo).length).toBeGreaterThan(0);
+      if (q.ev.score.limit) limit++;
+      if (q.ev.yakuman) yakuman++;
+    }
+    expect(limit / n).toBeGreaterThan(0.6);
+    expect(yakuman / n).toBeGreaterThan(0.15);
+  });
+  it('早見：5翻以上が過半数', () => {
+    const rng = mulberry32(22);
+    let big = 0;
+    for (let i = 0; i < 1000; i++) if (generateHayami(DEFAULT_RULES, anyFilter, rng, false, true).han >= 5) big++;
+    expect(big).toBeGreaterThan(500);
+  });
+});

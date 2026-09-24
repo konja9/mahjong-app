@@ -10,6 +10,8 @@ export type PlayMode = 'normal' | 'practice';
 export interface Settings {
   /** 最上位タブ：ノーマル（パチンコ台あり）かプラクティス（演出なし） */
   playMode: PlayMode;
+  /** ノーマルの大盤振る舞いモード（高打点・役満が大幅に出やすい） */
+  generous: boolean;
   mode: Mode;
   /** 回答方式：4択か数値入力か */
   answerStyle: AnswerStyle;
@@ -28,6 +30,7 @@ const reducedMotion =
 
 export const DEFAULT_SETTINGS: Settings = {
   playMode: 'normal',
+  generous: false,
   mode: 'hayami',
   answerStyle: 'choice',
   count: 25,

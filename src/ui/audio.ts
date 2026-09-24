@@ -231,6 +231,13 @@ export const sfx = {
     );
     tone({ type: 'sine', freq: 55, dur: 1.2, gain: 0.4 });
   },
+  /** 払い出し：レジのチャリーン */
+  register(): void {
+    tone({ type: 'square', freq: note(88), dur: 0.08, gain: 0.1 });
+    tone({ type: 'square', freq: note(93), start: 0.08, dur: 0.25, gain: 0.1 });
+    noise(0.05, 0.3, 0.12, 7000);
+    sfx.coins(10, 1.2);
+  },
   chucker(): void {
     tone({ type: 'square', freq: 1200, dur: 0.04, gain: 0.08 });
     tone({ type: 'triangle', freq: 700, start: 0.04, dur: 0.1, gain: 0.1 });

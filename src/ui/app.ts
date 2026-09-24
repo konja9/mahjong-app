@@ -90,7 +90,9 @@ export class App {
         this.renderProgress();
         this.checkBankrupt();
       },
-      onPayout: (amount) => this.changeBalance(amount),
+      onPayout: (amount, premium) =>
+        this.fx.payout(amount, premium, $('#wallet'), () => this.changeBalance(amount, 1400)),
+      onGenerous: () => this.toggleGenerous(),
       onCashout: () => this.showSummary('settle'),
     });
     this.applyTheme();
@@ -247,6 +249,7 @@ export class App {
     this.session.startBalance = this.wallet.balance;
     this.awaitingBankrupt = false;
     this.renderWallet(false);
+    this.panel.setGenerous(this.s.generous);
     $('#summary').hidden = true;
     $('#stage').hidden = false;
     this.next();
@@ -264,7 +267,8 @@ export class App {
     }
     // 確変中は役満（高打点）が出やすい
     const boost = !this.practice && this.panel.rush;
-    this.q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, boost);
+    const generous = !this.practice && this.s.generous;
+    this.q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, boost, generous);
     this.input = '';
     this.picked = -1;
     this.choices = this.isChoice ? makeChoices(this.q, this.s.rules) : [];
@@ -279,6 +283,14 @@ export class App {
     this.startTimer();
     this.startBetRing();
     $('#stage').classList.toggle('boost', boost);
+    $('#stage').classList.toggle('generous', generous);
+  }
+
+  /** 大盤振る舞いの切り替え（次の問題から反映） */
+  private toggleGenerous(): void {
+    this.update({ generous: !this.s.generous }, false);
+    this.panel.setGenerous(this.s.generous);
+    if (this.fxLevel !== 'off') sfx.lampUp();
   }
 
   /** 回答にかかった時間（発展リーチ・大当りで止まっていた時間は除く） */
@@ -287,7 +299,10 @@ export class App {
     return (now - this.startedAt) / 1000;
   }
 
-  /** BET 表示と速答リング（ノーマルのみ） */
+  /**
+   * BET 表示（ノーマルのみ）。時間は意識させないよう、数字は出さず
+   * チップの輝きがゆっくり薄れ、速答の締切を過ぎると静かに 40 に変わるだけにする。
+   */
   private startBetRing(): void {
     cancelAnimationFrame(this.betRaf);
     const el = $('#bet');
@@ -295,39 +310,29 @@ export class App {
       el.innerHTML = '';
       return;
     }
-    const R = 16;
-    const C = 2 * Math.PI * R;
-    el.innerHTML = `<span class="bet-chip">BET <b>${ECONOMY.fastCost}</b></span>
-      <svg class="bet-ring" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="${R}" class="track"/><circle cx="20" cy="20" r="${R}" class="bar" stroke-dasharray="${C}" stroke-dashoffset="0"/></svg>
-      <span class="bet-label">HALF <b>${ECONOMY.fastSeconds.toFixed(1)}</b>s</span>`;
-    const bar = el.querySelector<SVGCircleElement>('.bar')!;
-    const label = el.querySelector<HTMLElement>('.bet-label')!;
-    const chip = el.querySelector<HTMLElement>('.bet-chip b')!;
     el.classList.remove('expired');
+    el.innerHTML = `<span class="bet-chip" style="--half:${ECONOMY.fastSeconds}s">BET <b>${ECONOMY.fastCost}</b></span>`;
+    const chip = el.querySelector<HTMLElement>('.bet-chip b')!;
     const tick = () => {
       if (this.phase !== 'answering') return;
-      const left = Math.max(0, ECONOMY.fastSeconds - this.activeElapsed());
-      bar.setAttribute('stroke-dashoffset', String(C * (1 - left / ECONOMY.fastSeconds)));
-      if (left <= 0) {
+      if (this.activeElapsed() >= ECONOMY.fastSeconds) {
         el.classList.add('expired');
         chip.textContent = String(ECONOMY.cost);
-        label.innerHTML = 'BET <b>40</b>';
         return;
       }
-      label.innerHTML = `HALF <b>${left.toFixed(1)}</b>s`;
       this.betRaf = requestAnimationFrame(tick);
     };
     this.betRaf = requestAnimationFrame(tick);
   }
 
   /** 所持金の増減（浮き上がる差額とスランプグラフ） */
-  private changeBalance(delta: number): void {
+  private changeBalance(delta: number, rollMs = 500): void {
     this.wallet = applyDelta(this.wallet, delta);
     saveWallet(this.wallet);
-    this.renderWallet(true, delta);
+    this.renderWallet(true, delta, rollMs);
   }
 
-  private renderWallet(animate: boolean, delta = 0): void {
+  private renderWallet(animate: boolean, delta = 0, rollMs = 500): void {
     const w = $('#wallet');
     const val = w.querySelector<HTMLElement>('b')!;
     const target = this.wallet.balance;
@@ -339,7 +344,7 @@ export class App {
       const from = this.shownBalance;
       const t0 = performance.now();
       const step = (now: number) => {
-        const k = Math.min(1, (now - t0) / 500);
+        const k = Math.min(1, (now - t0) / rollMs);
         val.textContent = Math.round(from + (target - from) * (1 - (1 - k) ** 3)).toLocaleString();
         if (k < 1) requestAnimationFrame(step);
       };

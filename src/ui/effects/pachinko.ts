@@ -465,6 +465,90 @@ export class Fx {
     this.clear();
   }
 
+  /**
+   * 払い出し：PAYOUT カウンター → コインが所持金へ流れ込む。
+   * onArrive は最初のコインが所持金に届いたときに呼ぶ（そこで残高を増やす）
+   */
+  async payout(amount: number, premium: boolean, to: HTMLElement | null, onArrive: () => void): Promise<void> {
+    if (!this.enabled) {
+      onArrive();
+      return;
+    }
+    this.skipped = false;
+    const full = this.full;
+    this.show(
+      `<div class="payout${premium ? ' premium' : ''}"><small>${premium ? 'PREMIUM PAYOUT' : 'PAYOUT'}</small><span class="payout-n">+0</span><em>yan</em></div>`,
+      full ? `rays ${premium ? 'rainbow-rays' : 'gold-rays'}` : '',
+    );
+    const n = this.overlay.querySelector<HTMLElement>('.payout-n');
+    sfx.register();
+    const steps = 20;
+    for (let i = 1; i <= steps && !this.skipped; i++) {
+      if (n) n.textContent = `+${Math.round((amount * i) / steps).toLocaleString()}`;
+      if (i % 2 === 0) sfx.coin();
+      if (full && i % 3 === 0) this.particles.burst(innerWidth / 2, innerHeight * 0.52, premium ? 18 : 10, 'coin', 1.1);
+      await this.sleep(55);
+    }
+    if (n) n.textContent = `+${amount.toLocaleString()}`;
+    this.pulse('flash', 450);
+    if (full) {
+      this.particles.burst(innerWidth / 2, innerHeight * 0.52, premium ? 120 : 60, 'coin', 1.4);
+      if (premium) this.particles.tileRain(60);
+    }
+    await this.sleep(premium ? 700 : 450);
+    this.clear();
+
+    // コインが所持金へ流れ込む
+    const [x0, y0] = [innerWidth / 2, innerHeight * 0.52];
+    const [x1, y1] = this.center(to);
+    const count = full ? (premium ? 46 : 26) : 8;
+    let arrived = false;
+    const flights: Promise<void>[] = [];
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('div');
+      el.className = 'pcoin';
+      document.body.appendChild(el);
+      const sx = x0 + (Math.random() - 0.5) * 160;
+      const sy = y0 + (Math.random() - 0.5) * 60;
+      const mx = (sx + x1) / 2 + (Math.random() - 0.5) * 240;
+      const my = Math.min(sy, y1) - 60 - Math.random() * 140;
+      const anim = el.animate(
+        [
+          { transform: `translate(${sx}px, ${sy}px) scale(0.4)`, opacity: 0 },
+          { transform: `translate(${mx}px, ${my}px) scale(1.2)`, opacity: 1, offset: 0.5 },
+          { transform: `translate(${x1}px, ${y1}px) scale(0.6)`, opacity: 1 },
+        ],
+        { duration: 650 + Math.random() * 250, delay: i * 28, easing: 'cubic-bezier(0.4, 0, 0.6, 1)', fill: 'backwards' },
+      );
+      flights.push(
+        new Promise((res) => {
+          anim.onfinish = () => {
+            el.remove();
+            if (!arrived) {
+              arrived = true;
+              onArrive();
+            }
+            if (i % 3 === 0) sfx.coin();
+            res();
+          };
+          anim.oncancel = () => {
+            el.remove();
+            res();
+          };
+        }),
+      );
+    }
+    await Promise.race([Promise.all(flights), this.sleep(2200)]);
+    if (!arrived) {
+      arrived = true;
+      onArrive();
+    }
+    if (to) {
+      this.particles.burst(x1, y1, full ? 40 : 10, 'spark', 1);
+      this.pulse('payout-glow', 900, to);
+    }
+  }
+
   /** 玉が始動口へ飛び込む */
   ball(from: HTMLElement | null, to: HTMLElement | null): Promise<void> {
     if (!this.enabled || !to) return Promise.resolve();

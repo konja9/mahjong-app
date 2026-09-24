@@ -3389,3 +3389,177 @@ body[data-phase='suspense'] #bet {
     animation: none !important;
   }
 }
+
+/* ============================================================ BET：時間を意識させない控えめ表示 */
+#bet .bet-chip {
+  animation: half-fade var(--half, 10s) linear forwards;
+}
+body.busy #bet .bet-chip {
+  animation-play-state: paused;
+}
+@keyframes half-fade {
+  from {
+    box-shadow: 0 0 14px rgba(255, 200, 61, 0.55);
+    filter: saturate(1.1);
+  }
+  to {
+    box-shadow: 0 0 0 rgba(255, 200, 61, 0);
+    filter: saturate(0.75);
+  }
+}
+#bet.expired .bet-chip {
+  animation: none;
+  transition: background 0.6s, color 0.6s;
+}
+
+/* ============================================================ 大盤振る舞いボタン */
+.m-generous {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #2a0a18, #14050c);
+  box-shadow: inset 0 0 0 1px rgba(255, 159, 182, 0.35), 0 3px 0 #000;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 900;
+  color: #ff9fb6;
+  letter-spacing: 0.08em;
+  transition: transform 0.08s, box-shadow 0.2s;
+}
+.m-generous:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 0 0 1px rgba(255, 159, 182, 0.35), 0 1px 0 #000;
+}
+.m-generous .g-state {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: #0a0204;
+  color: #6b3040;
+}
+#machine.generous .m-generous {
+  color: #2a1a00;
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #ffd84a, #ffc371, #ff5f6d);
+  background-size: 200% 100%;
+  box-shadow: 0 0 22px rgba(255, 200, 61, 0.7), 0 3px 0 #7a5200;
+  animation: slide-bg 2.5s linear infinite;
+}
+#machine.generous .m-generous .g-state {
+  background: #2a1a00;
+  color: #ffd84a;
+  text-shadow: 0 0 6px #ffd84a;
+}
+#stage.generous #progress::before {
+  content: '大盤振る舞い';
+  order: 9;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: #2a1a00;
+  background: linear-gradient(90deg, #ff5f6d, #ffc371);
+}
+
+/* ============================================================ 払い出し演出 */
+.payout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  animation: pop 0.6s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.payout small {
+  font-weight: 800;
+  font-size: clamp(18px, 3vw, 28px);
+  letter-spacing: 0.5em;
+  color: #fff;
+  text-shadow: 0 0 16px #ffb300;
+}
+.payout-n {
+  font-weight: 800;
+  font-size: clamp(80px, 16vw, 170px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, #fffbe0, #ffd84a 45%, #e08a00 70%, #fff3a6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 6px 0 #7a4b00) drop-shadow(0 0 40px rgba(255, 200, 0, 0.7));
+}
+.payout em {
+  font-style: normal;
+  font-weight: 800;
+  font-size: clamp(22px, 4vw, 40px);
+  color: #ffd84a;
+  letter-spacing: 0.2em;
+}
+.payout.premium .payout-n {
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: slide-bg 1s linear infinite;
+}
+.pcoin {
+  position: fixed;
+  left: -10px;
+  top: -10px;
+  z-index: 65;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle at 35% 30%, #fffbe0, #ffd84a 45%, #b07800);
+  box-shadow: 0 0 10px rgba(255, 216, 74, 0.8);
+}
+#wallet.payout-glow {
+  animation: payout-glow 0.9s ease-out;
+}
+@keyframes payout-glow {
+  0% {
+    box-shadow: inset 0 0 0 1px rgba(255, 200, 61, 0.35), 0 0 0 rgba(255, 200, 61, 0);
+    transform: scale(1);
+  }
+  30% {
+    box-shadow: inset 0 0 0 2px #ffd84a, 0 0 50px rgba(255, 200, 61, 0.9);
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (max-width: 640px) {
+  .m-generous {
+    grid-area: generous;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  #machine {
+    grid-template-areas:
+      'marquee marquee'
+      'screen head'
+      'screen msg'
+      'screen bottom'
+      'generous generous'
+      'slump slump' !important;
+  }
+}
+@media (min-width: 641px) and (max-width: 1023px) {
+  .m-generous {
+    grid-area: generous;
+  }
+  #machine {
+    grid-template-areas:
+      'marquee marquee'
+      'screen head'
+      'screen msg'
+      'screen bottom'
+      'screen data'
+      'generous generous'
+      'log log'
+      'slump cash' !important;
+  }
+}

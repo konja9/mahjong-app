@@ -13,7 +13,9 @@ export interface PanelHooks {
   /** 状態（通常/確変）が変わった・回転が終わった */
   onState(): void;
   /** 大当りの払い出し */
-  onPayout(amount: number, premium: boolean): void;
+  onPayout(amount: number, premium: boolean): Promise<void>;
+  /** 大盤振る舞いボタン */
+  onGenerous(): void;
   /** 精算ボタン */
   onCashout(): void;
 }
@@ -38,6 +40,7 @@ export class MachinePanel {
       <div class="m-marquee" aria-hidden="true"><span class="m-title">パチふと</span></div>
       <div class="m-head"><span class="m-state">通常</span><span class="m-st"></span></div>
       <div class="m-screen"><div class="m-payline" aria-hidden="true"></div></div>
+      <button class="m-generous" type="button" aria-pressed="false"><span class="g-label">大盤振る舞い</span><span class="g-state">OFF</span></button>
       <div class="m-msg" aria-live="polite"></div>
       <div class="m-bottom">
         <div class="m-holds">${Array.from({ length: MAX_HOLDS }, () => '<span class="hold"></span>').join('')}</div>
@@ -51,6 +54,10 @@ export class MachinePanel {
       <div class="m-log" aria-label="大当り履歴"></div>
       <div class="m-slump" aria-label="スランプグラフ"></div>
       <button class="m-cashout" type="button">精算</button>`;
+    root.querySelector('.m-generous')!.addEventListener('click', (e) => {
+      e.stopPropagation();
+      hooks.onGenerous();
+    });
     root.querySelector('.m-cashout')!.addEventListener('click', (e) => {
       e.stopPropagation();
       hooks.onCashout();
@@ -66,6 +73,13 @@ export class MachinePanel {
 
   get stopped(): boolean {
     return this.isStopped;
+  }
+
+  setGenerous(on: boolean): void {
+    this.root.classList.toggle('generous', on);
+    const b = this.root.querySelector<HTMLElement>('.m-generous')!;
+    b.setAttribute('aria-pressed', String(on));
+    b.querySelector('.g-state')!.textContent = on ? 'ON' : 'OFF';
   }
 
   /** 保留も回転もない */
@@ -200,7 +214,8 @@ export class MachinePanel {
         chain: this.machine.data.rushChain,
       });
       if (g !== this.gen) return;
-      this.hooks.onPayout(payoutFor(premium), premium);
+      await this.hooks.onPayout(payoutFor(premium), premium);
+      if (g !== this.gen) return;
       this.hooks.onBusy(false);
     } else {
       if (developed) this.hooks.onBusy(false);
