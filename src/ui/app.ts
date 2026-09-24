@@ -1167,7 +1167,7 @@ const SHELL = `
     <div id="result"></div>
   </section>
   <section id="summary" hidden></section>
-  <aside id="machine" data-skin="velvet" aria-label="パチンコ台"></aside>
+  <aside id="machine" data-skin="gold" aria-label="パチンコ台"></aside>
 </main>
 <div id="combo" aria-live="polite"></div>
 <div id="numpad">

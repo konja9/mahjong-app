@@ -3181,9 +3181,9 @@ body.busy #bet .bet-chip {
   }
 }
 
-/* ============================================================ 台のデザイン：ワインレッドのベルベット × 金 */
+/* ============================================================ 台のデザイン：ブラック & ゴールド */
 
-#machine[data-skin='velvet'] {
+#machine[data-skin='gold'] {
   --gold: #d4af37;
   background: linear-gradient(180deg, #121214, #07070a) !important;
   box-shadow:
@@ -3193,21 +3193,21 @@ body.busy #bet .bet-chip {
     0 20px 50px rgba(0, 0, 0, 0.6) !important;
   font-family: 'JetBrains Mono', monospace;
 }
-#machine[data-skin='velvet'] .m-head {
+#machine[data-skin='gold'] .m-head {
   color: var(--gold);
   letter-spacing: 0.35em;
   font-weight: 700;
 }
-#machine[data-skin='velvet'] .m-screen {
+#machine[data-skin='gold'] .m-screen {
   background: #000 !important;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent), inset 0 12px 30px rgba(212, 175, 55, 0.08) !important;
 }
-#machine[data-skin='velvet'] .m-msg {
+#machine[data-skin='gold'] .m-msg {
   color: var(--gold);
   text-shadow: none;
   letter-spacing: 0.3em;
 }
-#machine[data-skin='velvet'] .hold {
+#machine[data-skin='gold'] .hold {
   width: 10px;
   height: 10px;
   transform: rotate(45deg);
@@ -3215,58 +3215,58 @@ body.busy #bet .bet-chip {
   background: #1c1c20;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 40%, transparent);
 }
-#machine[data-skin='velvet'] .hold.on {
+#machine[data-skin='gold'] .hold.on {
   background: var(--lamp);
   box-shadow: 0 0 8px var(--lamp);
 }
-#machine[data-skin='velvet'] .m-chucker {
+#machine[data-skin='gold'] .m-chucker {
   border-color: var(--gold);
 }
-#machine[data-skin='velvet'] .m-data {
+#machine[data-skin='gold'] .m-data {
   border-top: 1px solid color-mix(in srgb, var(--gold) 35%, transparent);
 }
-#machine[data-skin='velvet'] .m-data small {
+#machine[data-skin='gold'] .m-data small {
   color: color-mix(in srgb, var(--gold) 60%, #444);
   letter-spacing: 0.2em;
 }
-#machine[data-skin='velvet'] .m-data b {
+#machine[data-skin='gold'] .m-data b {
   color: #f3e3a6;
   text-shadow: none;
   font-weight: 400;
   font-size: 22px;
 }
-#machine[data-skin='velvet'] .m-log .hit {
+#machine[data-skin='gold'] .m-log .hit {
   background: transparent;
   color: var(--gold);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent);
 }
-#machine[data-skin='velvet'] .m-log .hit.p {
+#machine[data-skin='gold'] .m-log .hit.p {
   background: var(--gold);
   color: #000;
 }
-#machine[data-skin='velvet'] .m-generous,
-#machine[data-skin='velvet'] .m-cashout {
+#machine[data-skin='gold'] .m-generous,
+#machine[data-skin='gold'] .m-cashout {
   background: transparent;
   color: var(--gold);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 60%, transparent);
   letter-spacing: 0.25em;
 }
-#machine[data-skin='velvet'] .m-generous .g-state {
+#machine[data-skin='gold'] .m-generous .g-state {
   background: transparent;
   color: color-mix(in srgb, var(--gold) 50%, #444);
 }
-#machine[data-skin='velvet'].generous .m-generous {
+#machine[data-skin='gold'].generous .m-generous {
   background: linear-gradient(180deg, #f3e3a6, var(--gold));
   color: #000;
   box-shadow: 0 0 20px color-mix(in srgb, var(--gold) 50%, transparent);
   animation: none;
 }
-#machine[data-skin='velvet'].generous .m-generous .g-state {
+#machine[data-skin='gold'].generous .m-generous .g-state {
   color: #000;
   text-shadow: none;
 }
-#machine[data-skin='velvet'].reach,
-#machine[data-skin='velvet'].hot {
+#machine[data-skin='gold'].reach,
+#machine[data-skin='gold'].hot {
   box-shadow:
     inset 0 0 0 1px var(--gold),
     inset 0 0 0 4px #07070a,
@@ -3275,84 +3275,54 @@ body.busy #bet .bet-chip {
 }
 
 
-/* ---- ベルベットの地と真珠の保留ランプ */
-#machine[data-skin='velvet'] {
-  background:
-    radial-gradient(ellipse at 50% 0%, rgba(255, 120, 150, 0.12), transparent 60%),
-    repeating-radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.015) 0 1px, transparent 1px 3px),
-    linear-gradient(180deg, #3a0a18, #1a040b 60%, #0d0206) !important;
-}
-#machine[data-skin='velvet'] .m-screen {
-  background: #050102 !important;
-}
-#machine[data-skin='velvet'] .hold {
-  width: 13px;
-  height: 13px;
-  transform: none;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #5a3a42, #1a0a0e 70%);
-}
-#machine[data-skin='velvet'] .hold.on {
-  background: radial-gradient(circle at 35% 30%, #fff 0 15%, var(--lamp) 50%, color-mix(in srgb, var(--lamp) 45%, #000));
-}
-#machine[data-skin='velvet'] .m-data {
-  border-top-color: color-mix(in srgb, var(--gold) 45%, transparent);
-}
-#machine[data-skin='velvet'] .m-data b {
-  color: #ffe8a8;
-  text-shadow: 0 0 10px rgba(212, 175, 55, 0.45);
-}
-#machine[data-skin='velvet'].generous .m-generous {
-  background: linear-gradient(180deg, #f3e3a6, var(--gold));
-}
 /* ============================================================ 台パネルのフォント（アプリ共通の Google Fonts） */
-#machine[data-skin='velvet'] {
+#machine[data-skin='gold'] {
   --m-jp: 'Noto Sans JP', sans-serif;
   --m-cap: 'JetBrains Mono', 'Noto Sans JP', monospace;
   --m-num: 'JetBrains Mono', monospace;
 }
-#machine[data-skin='velvet'] {
+#machine[data-skin='gold'] {
   font-family: var(--m-jp);
 }
-#machine[data-skin='velvet'] .m-head {
+#machine[data-skin='gold'] .m-head {
   font-family: var(--m-jp);
   font-weight: 600;
   font-size: 13px;
   letter-spacing: 0.18em;
 }
-#machine[data-skin='velvet'] .m-st {
+#machine[data-skin='gold'] .m-st {
   font-family: var(--m-cap);
   letter-spacing: 0.08em;
 }
-#machine[data-skin='velvet'] .m-msg {
+#machine[data-skin='gold'] .m-msg {
   font-family: var(--m-jp);
   font-weight: 800;
   letter-spacing: 0.12em;
 }
-#machine[data-skin='velvet'] .m-data small {
+#machine[data-skin='gold'] .m-data small {
   font-family: var(--m-cap);
   font-size: 10px;
   letter-spacing: 0.14em;
 }
-#machine[data-skin='velvet'] .m-data b {
+#machine[data-skin='gold'] .m-data b {
   font-family: var(--m-num);
   font-weight: 600;
   font-size: 26px;
   letter-spacing: 0.02em;
   font-variant-numeric: lining-nums tabular-nums;
 }
-#machine[data-skin='velvet'] .m-log .hit {
+#machine[data-skin='gold'] .m-log .hit {
   font-family: var(--m-num);
   font-weight: 600;
   font-size: 12px;
 }
-#machine[data-skin='velvet'] .m-generous,
-#machine[data-skin='velvet'] .m-cashout {
+#machine[data-skin='gold'] .m-generous,
+#machine[data-skin='gold'] .m-cashout {
   font-family: var(--m-jp);
   font-weight: 600;
   letter-spacing: 0.16em;
 }
-#machine[data-skin='velvet'] .m-generous .g-state {
+#machine[data-skin='gold'] .m-generous .g-state {
   font-family: var(--m-cap);
   letter-spacing: 0.1em;
 }
