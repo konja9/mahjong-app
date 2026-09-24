@@ -53,3 +53,24 @@ describe('generateHandQuestion', () => {
     });
   }
 });
+
+describe('確変ブースト', () => {
+  it('実戦で役満が3割以上出る・すべて正しい和了形', () => {
+    const rng = mulberry32(99);
+    let yakuman = 0;
+    for (let i = 0; i < 1000; i++) {
+      const q = generateHandQuestion({ mode: 'jissen', rules: DEFAULT_RULES, filters: anyFilter, rng, boost: true });
+      expect(decompose(q.hand, q.sit.tsumo).length).toBeGreaterThan(0);
+      const counts = toCounts([...allTiles(q.hand), ...q.sit.doraIndicators, ...q.sit.uraIndicators]);
+      expect(Math.max(...counts)).toBeLessThanOrEqual(4);
+      if (q.ev.yakuman) yakuman++;
+    }
+    expect(yakuman).toBeGreaterThan(300);
+  });
+  it('早見で13翻・11翻が増える', () => {
+    const rng = mulberry32(5);
+    let big = 0;
+    for (let i = 0; i < 1000; i++) if (generateHayami(DEFAULT_RULES, anyFilter, rng, true).han >= 11) big++;
+    expect(big).toBeGreaterThan(150);
+  });
+});

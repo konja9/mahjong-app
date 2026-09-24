@@ -231,6 +231,19 @@ export const sfx = {
     );
     tone({ type: 'sine', freq: 55, dur: 1.2, gain: 0.4 });
   },
+  chucker(): void {
+    tone({ type: 'square', freq: 1200, dur: 0.04, gain: 0.08 });
+    tone({ type: 'triangle', freq: 700, start: 0.04, dur: 0.1, gain: 0.1 });
+  },
+  round(r: number): void {
+    tone({ type: 'square', freq: note(72 + r), dur: 0.08, gain: 0.08 });
+    sfx.coin();
+  },
+  gimmick(): void {
+    tone({ type: 'sawtooth', freq: 900, to: 120, dur: 0.4, gain: 0.12, filter: 2000 });
+    tone({ type: 'sine', freq: 80, to: 30, start: 0.38, dur: 0.5, gain: 0.5 });
+    noise(0.38, 0.3, 0.3, 600);
+  },
   end(): void {
     tone({ type: 'triangle', freq: note(67), dur: 0.15, gain: 0.1 });
     tone({ type: 'triangle', freq: note(72), start: 0.15, dur: 0.3, gain: 0.1 });

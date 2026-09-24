@@ -3,8 +3,9 @@ import { type HandQuestion, type Mode, type Question, generateQuestion } from '.
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
 import { EAST } from '../core/tiles';
 import { configureAudio, sfx, unlockAudio } from './audio';
-import { Fx, LAMP_NAMES, type WinTier } from './effects/pachinko';
-import { drawNotice, drawSuspense } from './effects/performance';
+import { Fx, type WinTier } from './effects/pachinko';
+import type { EffectLevel } from './effects/performance';
+import { MachinePanel } from './machine/panel';
 import { doraLabel, handExplain, hayamiExplain, situationChips, situationLabel } from './explain';
 import { type Settings, loadSettings, saveSettings } from './settings';
 import { load, save } from './storage';
@@ -23,8 +24,6 @@ interface Session {
   streak: number;
   maxStreak: number;
   times: number[];
-  kakuhen: boolean;
-  kakuhenCount: number;
   byCat: Record<string, { c: number; n: number }>;
   misses: Miss[];
 }
@@ -42,7 +41,7 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = 
   root.querySelector(sel) as T;
 
 function newSession(): Session {
-  return { answered: 0, correct: 0, streak: 0, maxStreak: 0, times: [], kakuhen: false, kakuhenCount: 0, byCat: {}, misses: [] };
+  return { answered: 0, correct: 0, streak: 0, maxStreak: 0, times: [], byCat: {}, misses: [] };
 }
 
 function questionMeta(q: Question): { dealer: boolean; tsumo: boolean } {
@@ -61,22 +60,26 @@ export class App {
   private q!: Question;
   private input = '';
   private startedAt = 0;
-  private lamp = 0;
-  private lamps: number[] = [];
   private best = load<Record<string, Best>>(BEST_KEY, {});
   private fx: Fx;
   private timerRaf = 0;
   private autoNext = 0;
   private lastCorrect = false;
-  private lastPlanCutin = 'none';
+  private panel: MachinePanel;
+  private busy = false;
+  private pausedAt = 0;
   private choices: Choice[] = [];
   private picked = -1;
 
   constructor(private root: HTMLElement) {
     this.root.innerHTML = SHELL;
-    this.fx = new Fx($('#overlay'), $('#notice'), $('#combo'), $<HTMLCanvasElement>('#fx'), document.body, () => this.s.effects);
+    this.fx = new Fx($('#overlay'), $('#notice'), $('#combo'), $<HTMLCanvasElement>('#fx'), document.body, () => this.fxLevel);
+    this.panel = new MachinePanel($('#machine'), this.fx, () => this.fxLevel, {
+      onBusy: (b) => this.setBusy(b),
+      onState: () => this.renderProgress(),
+    });
     this.applyTheme();
-    configureAudio(this.s.sound, this.s.volume);
+    this.configureSound();
     this.renderConfig();
     this.bind();
     this.startSession();
@@ -84,8 +87,22 @@ export class App {
 
   // ------------------------------------------------------------ 設定
 
+  private get practice(): boolean {
+    return this.s.playMode === 'practice';
+  }
+
+  /** プラクティスでは演出を一切出さない */
+  private get fxLevel(): EffectLevel {
+    return this.practice ? 'off' : this.s.effects;
+  }
+
+  private configureSound(): void {
+    configureAudio(this.s.sound && !this.practice, this.s.volume);
+  }
+
   private applyTheme(): void {
     document.documentElement.dataset.theme = this.s.theme;
+    document.documentElement.dataset.play = this.s.playMode;
     document.documentElement.dataset.effects = this.s.effects;
     document.documentElement.dataset.answer = this.s.answerStyle;
   }
@@ -94,7 +111,7 @@ export class App {
     this.s = { ...this.s, ...patch };
     saveSettings(this.s);
     this.applyTheme();
-    configureAudio(this.s.sound, this.s.volume);
+    this.configureSound();
     this.renderConfig();
     if (restart) this.startSession();
   }
@@ -141,6 +158,11 @@ export class App {
         ['tsumo', 'ツモ', s.filters.win === 'tsumo'],
       ]),
     ].join('<span class="cfg-sep"></span>') + '<button class="cfg-done" type="button" data-close-cfg>閉じる</button>';
+    document.querySelectorAll<HTMLElement>('[data-play]').forEach((b) => {
+      const on = b.dataset.play === s.playMode;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', String(on));
+    });
     const count = s.count ? `${s.count}問` : '∞';
     $('#cfg-toggle').innerHTML = `${MODE_NAMES[s.mode]}<span class="dot-sep">·</span>${s.answerStyle === 'choice' ? '4択' : '入力'}<span class="dot-sep">·</span>${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
   }
@@ -186,26 +208,14 @@ export class App {
 
   private startSession(): void {
     this.fx.reset();
+    if (this.practice) this.panel.stop();
+    else this.panel.reset();
+    this.setBusy(false);
     clearTimeout(this.autoNext);
     this.session = newSession();
-    this.lamps = Array.from({ length: 4 }, () => this.rollLamp());
     $('#summary').hidden = true;
     $('#stage').hidden = false;
-    $('#lamps').hidden = false;
     this.next();
-  }
-
-  private rollLamp(): number {
-    const k = this.session.kakuhen;
-    const heat = Math.min(this.session.streak, 15);
-    const weights = k ? [20, 30, 28, 17, 5] : [56 - heat, 25, 13 + heat * 0.5, 5 + heat * 0.4, 1 + heat * 0.1];
-    const total = weights.reduce((a, b) => a + b, 0);
-    let r = Math.random() * total;
-    for (let i = 0; i < weights.length; i++) {
-      r -= weights[i];
-      if (r < 0) return i;
-    }
-    return 0;
   }
 
   private next(): void {
@@ -215,9 +225,9 @@ export class App {
       this.showSummary();
       return;
     }
-    this.q = generateQuestion(this.s.mode, this.s.rules, this.s.filters);
-    this.lamp = this.lamps.shift() ?? 0;
-    this.lamps.push(this.rollLamp());
+    // 確変中は役満（高打点）が出やすい
+    const boost = !this.practice && this.panel.rush;
+    this.q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, boost);
     this.input = '';
     this.picked = -1;
     this.choices = this.isChoice ? makeChoices(this.q, this.s.rules) : [];
@@ -225,13 +235,30 @@ export class App {
     this.startedAt = performance.now();
     this.renderQuestion();
     this.renderInput();
-    this.renderLamps();
     this.renderProgress();
     $('#result').innerHTML = '';
     $('#stage').classList.remove('correct', 'wrong');
     document.querySelector('main')?.scrollTo({ top: 0 });
     this.startTimer();
-    this.fx.notice(drawNotice(this.lamp, this.session.streak, this.session.kakuhen, this.s.effects), this.lamp);
+    $('#stage').classList.toggle('boost', boost);
+  }
+
+  /** 発展リーチ・大当り中は回答と制限時間を止める */
+  private setBusy(b: boolean): void {
+    if (b === this.busy) return;
+    this.busy = b;
+    document.body.classList.toggle('busy', b);
+    if (b) {
+      this.pausedAt = performance.now();
+      cancelAnimationFrame(this.timerRaf);
+    } else {
+      if (this.pausedAt && this.phase === 'answering') {
+        this.startedAt += performance.now() - this.pausedAt;
+        this.startTimer();
+      }
+      this.pausedAt = 0;
+      this.scheduleAutoNext();
+    }
   }
 
   private startTimer(): void {
@@ -300,22 +327,6 @@ export class App {
     this.setPhase('suspense');
     const elapsed = (performance.now() - this.startedAt) / 1000;
     const correct = !timeout && this.isCorrect(this.input);
-    const score = scoreOf(this.q);
-    const highValue = this.q.mode !== 'hayami' && (score.limit !== '' || this.q.ev.han >= 4);
-
-    const plan = drawSuspense({
-      correct,
-      lamp: this.lamp,
-      highValue,
-      streak: this.session.streak,
-      kakuhen: this.session.kakuhen,
-      level: this.s.effects,
-    });
-    this.lastPlanCutin = plan.cutin;
-    const locked = this.answerAnchor();
-    locked.classList.add('locked');
-    await this.fx.suspense(plan);
-    locked.classList.remove('locked');
     this.reveal(correct, elapsed, timeout);
   }
 
@@ -343,30 +354,26 @@ export class App {
       ss.byCat[cat].c++;
       const { tier, label } = this.tier();
       $('#result').innerHTML = `<div class="verdict ok"><span class="mark">正解</span><span class="ans">${this.correctText()}</span><span class="muted">${elapsed.toFixed(1)}s</span></div>${explain}`;
-      const enterKakuhen = !ss.kakuhen && ss.streak >= 5;
-      if (enterKakuhen) {
-        ss.kakuhen = true;
-        ss.kakuhenCount++;
-        document.body.classList.add('kakuhen');
-      }
       const streak = ss.streak;
-      this.fx.hit(streak, answerEl);
-      this.fx.combo(streak);
-      void this.fx.win(tier, label, answerEl).then(async () => {
-        if (enterKakuhen && this.phase === 'result') await this.fx.kakuhenStart();
-        if (ss.kakuhen && this.phase === 'result') await this.fx.milestone(streak);
-        this.renderProgress();
+      if (this.practice) {
         this.scheduleAutoNext();
-      });
-      this.maybeLampChange();
+      } else {
+        this.fx.hit(streak, answerEl);
+        this.fx.combo(streak);
+        // 正解＝始動口入賞。高打点の手は電チュー開放で保留+2
+        const big = this.q.mode !== 'hayami' && (scoreOf(this.q).limit !== '' || this.q.ev.yakuman > 0);
+        void this.panel.enter(big ? 2 : 1, answerEl);
+        void this.fx.win(tier, label, answerEl).then(async () => {
+          if (this.phase === 'result') await this.fx.milestone(streak);
+          this.scheduleAutoNext();
+        });
+      }
     } else {
-      const wasKakuhen = ss.kakuhen;
-      ss.kakuhen = false;
       ss.streak = 0;
       this.fx.combo(0);
       ss.misses.push({ q: this.q, input: yours });
       $('#result').innerHTML = `<div class="verdict ng"><span class="mark">不正解</span><span class="yours">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span></div>${explain}`;
-      this.fx.lose(this.isChoice ? $('#choices') : answerEl, wasKakuhen);
+      this.fx.lose(this.isChoice ? $('#choices') : answerEl, false);
     }
     this.renderProgress();
     this.renderInput();
@@ -381,40 +388,25 @@ export class App {
 
   private scheduleAutoNext(): void {
     clearTimeout(this.autoNext);
-    if (this.phase !== 'result' || !this.lastCorrect) return;
+    if (this.phase !== 'result' || !this.lastCorrect || this.busy) return;
     const wait = this.q.mode === 'hayami' ? 450 : 2200;
     this.autoNext = window.setTimeout(() => {
       if (this.phase === 'result') this.next();
     }, wait);
   }
 
+  /** 手の打点に応じた正解演出の段階 */
   private tier(): { tier: WinTier; label: string } {
     const q = this.q;
     const streak = this.session.streak;
-    const cut = this.lastPlanCutin;
-    const hand = q.mode !== 'hayami';
     const limit = scoreOf(q).limit;
-    if (hand && q.ev.yakuman) return { tier: 3, label: limit };
-    if (cut === 'rainbow') return { tier: 3, label: '確定' };
-    if (hand && limit && limit !== '満貫') return { tier: 2, label: limit };
-    if (cut === 'gold' || cut === 'zebra' || this.lamp >= 3) return { tier: 2, label: '大当り' };
-    if (streak > 0 && streak % 10 === 0) return { tier: 2, label: `${streak}連` };
-    if (hand && limit) return { tier: 1, label: limit };
-    if (cut !== 'none' || this.lamp === 2 || (streak > 0 && streak % 5 === 0) || limit) {
-      return { tier: 1, label: limit || '当り' };
+    if (q.mode !== 'hayami') {
+      if (q.ev.yakuman) return { tier: 3, label: limit };
+      if (limit && limit !== '満貫') return { tier: 2, label: limit };
+      if (limit) return { tier: 1, label: limit };
     }
+    if (streak > 0 && streak % 5 === 0 && streak % 10 !== 0) return { tier: 1, label: `${streak}連` };
     return { tier: 0, label: '' };
-  }
-
-  /** 正解時に保留が昇格することがある（保留変化） */
-  private maybeLampChange(): void {
-    const chance = this.session.kakuhen ? 0.5 : 0.25;
-    if (Math.random() > chance) return;
-    const idx = Math.floor(Math.random() * this.lamps.length);
-    if (this.lamps[idx] >= 4) return;
-    this.lamps[idx]++;
-    this.renderLamps();
-    setTimeout(() => this.fx.lampUp(document.querySelectorAll('#lamps .lamp.next')[idx] ?? null), 250);
   }
 
   // ------------------------------------------------------------ 描画
@@ -511,13 +503,6 @@ export class App {
     $('#hint').innerHTML = html;
   }
 
-  private renderLamps(): void {
-    const lamp = (lv: number, cls: string) => `<span class="lamp ${cls} ${LAMP_NAMES[lv]}"></span>`;
-    $('#lamps').innerHTML = `${lamp(this.lamp, 'current')}<span class="lamp-sep"></span>${this.lamps
-      .map((l) => lamp(l, 'next'))
-      .join('')}`;
-  }
-
   private renderProgress(): void {
     const ss = this.session;
     const total = this.s.count ? `/${this.s.count}` : '';
@@ -525,7 +510,7 @@ export class App {
     $('#progress').innerHTML = `<span>${ss.answered + (this.phase === 'answering' || this.phase === 'suspense' ? 1 : 0)}${total}</span>
       <span class="muted">正答率 ${acc}%</span>
       <span class="streak${ss.streak >= 5 ? ' hot' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>
-      ${ss.kakuhen ? '<span class="kakuhen-badge">確変中</span>' : ''}`;
+      ${!this.practice && this.panel.rush ? '<span class="kakuhen-badge">確変中</span>' : ''}`;
   }
 
   private showSummary(): void {
@@ -534,7 +519,7 @@ export class App {
     const ss = this.session;
     const acc = ss.answered ? (ss.correct / ss.answered) * 100 : 0;
     const avg = ss.times.length ? ss.times.reduce((a, b) => a + b, 0) / ss.times.length : 0;
-    const key = `${this.s.mode}:${this.s.count}`;
+    const key = `${this.s.playMode}:${this.s.mode}:${this.s.count}`;
     const prev = this.best[key];
     const newBest = !prev || acc > prev.acc || (acc === prev.acc && avg > 0 && avg < prev.avg);
     if (newBest && ss.answered) {
@@ -559,7 +544,6 @@ export class App {
       .join('');
 
     $('#stage').hidden = true;
-    $('#lamps').hidden = true;
     const sum = $('#summary');
     sum.hidden = false;
     sum.innerHTML = `
@@ -567,7 +551,11 @@ export class App {
         <div class="stat"><div class="label">正答率</div><div class="value">${Math.round(acc)}<small>%</small></div></div>
         <div class="stat"><div class="label">平均回答</div><div class="value">${avg.toFixed(1)}<small>s</small></div></div>
         <div class="stat"><div class="label">最大連チャン</div><div class="value">${ss.maxStreak}</div></div>
-        <div class="stat"><div class="label">確変突入</div><div class="value">${ss.kakuhenCount}<small>回</small></div></div>
+        ${
+          this.practice
+            ? `<div class="stat"><div class="label">問題数</div><div class="value">${ss.answered}</div></div>`
+            : `<div class="stat"><div class="label">大当り</div><div class="value">${this.panel.machine.data.hits}<small>回</small></div></div>`
+        }
       </div>
       ${newBest && ss.answered ? '<div class="new-best">自己ベスト更新</div>' : prev ? `<div class="muted small">自己ベスト ${Math.round(prev.acc)}% / ${prev.avg.toFixed(1)}s</div>` : ''}
       <div class="sum-cols">
@@ -596,6 +584,12 @@ export class App {
   private bind(): void {
     addEventListener('keydown', (e) => this.onKey(e));
     addEventListener('mousemove', () => document.body.classList.remove('typing'));
+    document.querySelectorAll<HTMLElement>('[data-play]').forEach((b) =>
+      b.addEventListener('click', () => {
+        if (b.dataset.play !== this.s.playMode) this.update({ playMode: b.dataset.play as Settings['playMode'] });
+        b.blur();
+      }),
+    );
     $('#cfg-toggle').addEventListener('click', () => this.toggleConfigSheet());
     $('#cfg-backdrop').addEventListener('click', () => this.toggleConfigSheet(false));
     $('#next-btn').addEventListener('click', (e) => {
@@ -664,6 +658,10 @@ export class App {
   }
 
   private handleKey(key: string): void {
+    if (this.busy) {
+      this.fx.tap();
+      return;
+    }
     switch (this.phase) {
       case 'suspense':
         this.fx.tap();
@@ -831,6 +829,10 @@ export class App {
 const SHELL = `
 <header id="top">
   <div class="logo">tensu<span class="dot">.</span><span class="sub">麻雀点数計算トレーナー</span></div>
+  <div class="play-tabs" role="tablist" aria-label="モード">
+    <button class="play-tab" role="tab" data-play="normal">ノーマル</button>
+    <button class="play-tab" role="tab" data-play="practice">プラクティス</button>
+  </div>
   <div class="top-right">
     <button id="cfg-toggle" class="cfg-pill" type="button" aria-expanded="false" aria-controls="config"></button>
     <button id="open-settings" class="icon-btn" aria-label="設定">
@@ -854,8 +856,8 @@ const SHELL = `
     <div id="result"></div>
   </section>
   <section id="summary" hidden></section>
+  <aside id="machine" aria-label="パチンコ台"></aside>
 </main>
-<div id="lamps" title="保留ランプ：色が熱いほど演出の期待度アップ（青→緑→赤→金→虹）"></div>
 <div id="combo" aria-live="polite"></div>
 <div id="numpad">
   ${['1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '0', 'Backspace']

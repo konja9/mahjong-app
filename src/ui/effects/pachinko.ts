@@ -178,7 +178,8 @@ export class Fx {
 
   // ------------------------------------------------------------ 溜め
 
-  async suspense(plan: Suspense): Promise<void> {
+  /** preset を渡すと停止図柄 [左, 中, 右] を固定する（台パネルの発展リーチ用） */
+  async suspense(plan: Suspense, preset?: [number, number, number]): Promise<void> {
     this.skipped = false;
     if (!this.enabled || plan.kind === 'quick') return;
 
@@ -216,13 +217,16 @@ export class Fx {
     }
     if (this.skipped) return;
 
-    const sym = Reel.randomSymbol();
+    const sym = preset ? preset[0] : Reel.randomSymbol();
     reel.stop(0, sym);
     sfx.reelStop(0);
     await this.sleep(260);
-    reel.stop(2, sym);
+    reel.stop(2, preset ? preset[2] : sym);
     sfx.reelStop(2);
     reel.slow(1);
+    if ((plan.cutin === 'gold' || plan.cutin === 'zebra' || plan.cutin === 'rainbow') && Math.random() < 0.5) {
+      this.gimmick();
+    }
 
     // リーチ成立
     reel.setClass(`cut-${plan.cutin}`);
@@ -247,7 +251,7 @@ export class Fx {
     }
     if (this.skipped) return;
 
-    const final = plan.hit ? sym : (sym + (Math.random() < 0.5 ? 1 : 8)) % 9;
+    const final = preset ? preset[1] : plan.hit ? sym : (sym + (Math.random() < 0.5 ? 1 : 8)) % 9;
     reel.stop(1, final);
     sfx.reelStop(1);
     this.stopTick();
@@ -353,42 +357,144 @@ export class Fx {
     if (this.enabled) this.pulse('bump', 300, el);
   }
 
+  /** 確変（RUSH）開始：BGM と画面枠 */
   async kakuhenStart(): Promise<void> {
     this.root.classList.add('kakuhen');
     if (!this.enabled) return;
     this.skipped = false;
     sfx.kakuhen();
     if (this.full) bgm.start(150);
-    this.show('<div class="banner kakuhen"><span>確変突入</span><small>KAKUHEN RUSH</small></div>', this.full ? 'rays' : '');
+    this.show('<div class="banner kakuhen"><span>確変突入</span><small>RUSH START</small></div>', this.full ? 'rays' : '');
     if (this.full) this.particles.burst(innerWidth / 2, innerHeight / 2, 80, 'confetti', 1.3);
     await this.sleep(1200);
     this.clear();
   }
 
-  /** 連チャンの節目（10連で超確変、20連ごとに神） */
+  /** 確変状態の見た目と BGM を合わせる（演出を飛ばしても状態は反映する） */
+  syncRush(on: boolean): void {
+    if (on) {
+      this.root.classList.add('kakuhen');
+      if (this.full) bgm.start(150);
+    }
+  }
+
+  /** RUSH 中の連チャン数に応じた演出（5連以上で超確変） */
+  rushChain(chain: number): void {
+    if (chain >= 5) {
+      if (!this.root.classList.contains('chou')) {
+        this.root.classList.add('chou');
+        if (this.full) {
+          bgm.setTempo(178);
+          this.startAmbient();
+        }
+      }
+    }
+  }
+
+  /** 連続正解の節目（10連・20連ごと） */
   async milestone(streak: number): Promise<void> {
-    if (!this.enabled) return;
+    if (!this.enabled || streak < 10 || streak % 10 !== 0) return;
     this.skipped = false;
     if (streak === 10) {
-      this.root.classList.add('chou');
-      if (this.full) {
-        bgm.setTempo(178);
-        this.startAmbient();
-      }
       sfx.gekiatsu();
-      this.show('<div class="banner chou"><span>超確変</span><small>10 COMBO</small></div>', this.full ? 'rays rainbow-rays' : '');
+      this.show('<div class="banner chou"><span>10 COMBO</span><small>止まらない</small></div>', this.full ? 'rays' : '');
       this.particles.tileRain(this.full ? 40 : 10);
-      await this.sleep(1300);
-      this.clear();
-    } else if (streak >= 20 && streak % 10 === 0) {
+      await this.sleep(1100);
+    } else {
       this.root.classList.add('god');
       sfx.god();
       this.show(`<div class="bigtext rainbow spin-in"><span>神</span><small>${streak} COMBO</small></div>`, 'rays rainbow-rays');
       this.particles.tileRain(this.full ? 120 : 20);
       this.flash(2);
-      await this.sleep(1800);
-      this.clear();
+      await this.sleep(1600);
     }
+    this.clear();
+  }
+
+  /** 大当り：図柄揃い → ラウンド → V入賞 → 確変分岐 */
+  async jackpot(o: { kakuhen: boolean; premium: boolean; rush: boolean; chain: number }): Promise<void> {
+    if (!this.enabled) return;
+    this.skipped = false;
+    const label = o.premium ? 'PREMIUM' : o.rush ? `RUSH ${o.chain + (o.kakuhen ? 1 : 0)}連` : '大当り';
+    await this.win(o.premium ? 3 : 2, label, null);
+    if (this.skipped) return;
+    this.skipped = false;
+
+    // ラウンド
+    this.show('<div class="rounds"><small>ROUND</small><span class="round-n">1</span><div class="round-bar"><i></i></div></div>', this.full ? 'rays' : '');
+    const n = this.overlay.querySelector<HTMLElement>('.round-n');
+    const bar = this.overlay.querySelector<HTMLElement>('.round-bar i');
+    for (let r = 1; r <= 10 && !this.skipped; r++) {
+      if (n) n.textContent = String(r);
+      if (bar) bar.style.width = `${r * 10}%`;
+      sfx.round(r);
+      if (this.full) this.particles.burst(innerWidth / 2, innerHeight * 0.6, 8, 'coin', 0.9);
+      await this.sleep(r === 10 ? 350 : 130);
+    }
+    if (this.skipped) return;
+
+    // V 入賞
+    this.show('<div class="vzone"><div class="v-target">V</div><div class="v-ball"></div></div>', 'dim');
+    sfx.reach();
+    await this.sleep(700);
+    if (this.skipped) return;
+    if (o.kakuhen) {
+      sfx.align();
+      this.pulse('flash', 450);
+      this.show('<div class="vzone hit"><div class="v-target">V</div><div class="v-text">V入賞!!</div></div>', 'dim');
+      await this.sleep(700);
+      if (!o.rush) await this.kakuhenStart();
+      else {
+        this.show(`<div class="banner kakuhen"><span>RUSH継続</span><small>${o.chain + 1}連</small></div>`, this.full ? 'rays' : '');
+        sfx.kakuhen();
+        await this.sleep(1000);
+      }
+    } else {
+      this.show('<div class="vzone miss"><div class="v-target">V</div><div class="v-text">通常大当り</div></div>', 'dim');
+      sfx.kakuhenEnd();
+      await this.sleep(900);
+    }
+    this.clear();
+  }
+
+  /** 玉が始動口へ飛び込む */
+  ball(from: HTMLElement | null, to: HTMLElement | null): Promise<void> {
+    if (!this.enabled || !to) return Promise.resolve();
+    const [x0, y0] = this.center(from);
+    const [x1, y1] = this.center(to);
+    const el = document.createElement('div');
+    el.className = 'pball';
+    document.body.appendChild(el);
+    const mx = (x0 + x1) / 2;
+    const my = Math.min(y0, y1) - 120;
+    const anim = el.animate(
+      [
+        { transform: `translate(${x0}px, ${y0}px) scale(0.6)` },
+        { transform: `translate(${mx}px, ${my}px) scale(1.1)`, offset: 0.5 },
+        { transform: `translate(${x1}px, ${y1}px) scale(0.8)` },
+      ],
+      { duration: this.full ? 520 : 300, easing: 'cubic-bezier(0.3, 0.1, 0.5, 1)' },
+    );
+    return new Promise((res) => {
+      anim.onfinish = () => {
+        el.remove();
+        sfx.chucker();
+        this.particles.burst(x1, y1, 10, 'spark', 0.6);
+        res();
+      };
+    });
+  }
+
+  /** 役物ギミック：巨大な中牌が落ちてくる */
+  gimmick(): void {
+    if (!this.full) return;
+    const el = document.createElement('div');
+    el.className = 'gimmick';
+    el.innerHTML = tileSvg(33);
+    this.noticeLayer.appendChild(el);
+    sfx.gimmick();
+    setTimeout(() => this.pulse('shake', 400), 380);
+    setTimeout(() => el.remove(), 1400);
   }
 
   kakuhenEnd(): void {

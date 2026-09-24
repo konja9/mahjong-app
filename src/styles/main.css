@@ -1353,7 +1353,6 @@ body.kakuhen #progress {
     linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)) padding-box,
     conic-gradient(#ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d) border-box;
   box-shadow: 0 0 60px rgba(255, 255, 255, 0.5);
-  animation: hue 2s linear infinite;
 }
 .reel-sub {
   min-height: 70px;
@@ -2003,5 +2002,511 @@ body.god::before {
   }
   .set-row .cfg {
     padding: 8px 12px;
+  }
+}
+
+/* ============================================================ ノーマル／プラクティス タブ */
+#top {
+  gap: 16px;
+}
+.play-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--sub-bg);
+  margin-right: auto;
+  margin-left: 24px;
+}
+.play-tab {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sub);
+  transition: color 0.15s, background 0.15s;
+}
+.play-tab:hover {
+  color: var(--text);
+}
+.play-tab.on {
+  background: var(--main);
+  color: var(--bg);
+}
+.play-tab[data-play='practice'].on {
+  background: var(--text);
+}
+
+/* プラクティス：パチンコ要素を出さない */
+[data-play='practice'] #machine,
+[data-play='practice'] #combo,
+[data-play='practice'] #notice,
+[data-play='practice'] #overlay,
+[data-play='practice'] #fx {
+  display: none !important;
+}
+
+/* ============================================================ パチンコ台パネル */
+#machine {
+  --reel-h: 64px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--sub-bg) 80%, #000), var(--sub-bg));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sub) 40%, transparent), 0 10px 30px rgba(0, 0, 0, 0.25);
+  font-family: 'JetBrains Mono', 'Noto Sans JP', monospace;
+  transition: box-shadow 0.3s;
+}
+#machine.reach {
+  box-shadow: inset 0 0 0 2px #ff3b5c, 0 0 30px rgba(255, 59, 92, 0.45);
+}
+#machine.hot {
+  box-shadow: inset 0 0 0 2px #ffd84a, 0 0 40px rgba(255, 216, 74, 0.6);
+}
+#machine.win {
+  box-shadow: inset 0 0 0 3px #fff, 0 0 50px rgba(255, 255, 255, 0.6);
+}
+#machine.rush::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 18px;
+  padding: 2px;
+  background: conic-gradient(#ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: hue 3s linear infinite;
+  pointer-events: none;
+}
+.m-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--sub);
+}
+#machine.rush .m-state {
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.m-st {
+  color: var(--main);
+}
+.m-screen {
+  display: flex;
+  justify-content: center;
+  padding: 10px 6px;
+  border-radius: 10px;
+  background: radial-gradient(circle at 50% 30%, #1d2233, #0c0e14);
+}
+.reel-machine.mini {
+  --reel-h: inherit;
+  gap: 0;
+  animation: none;
+}
+#machine .reel-machine.mini {
+  --reel-h: var(--panel-reel, 64px);
+}
+.reel-machine.mini .reel-title,
+.reel-machine.mini .reel-sub {
+  display: none;
+}
+.reel-machine.mini .reels {
+  gap: 6px;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+.reel-machine.mini .reel {
+  border-radius: 6px;
+}
+.reel-machine.mini .reel.spinning .strip {
+  filter: blur(1.5px);
+}
+.m-msg {
+  min-height: 20px;
+  text-align: center;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+.m-msg:not(:empty) {
+  animation: pop 0.3s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+.m-msg.reach {
+  color: #ff5f7a;
+  text-shadow: 0 0 10px #ff3b5c;
+}
+.m-msg.hot {
+  color: #ffd84a;
+  text-shadow: 0 0 12px #ffb300;
+}
+.m-msg.win {
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: pop 0.3s cubic-bezier(0.2, 1.6, 0.4, 1), slide-bg 1s linear infinite;
+}
+.m-msg.denchu {
+  color: #47e5bc;
+  text-shadow: 0 0 10px #47e5bc;
+}
+.m-msg.end {
+  color: var(--sub);
+}
+.m-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.m-holds {
+  display: flex;
+  gap: 8px;
+}
+.hold {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--sub) 35%, transparent);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.hold.on {
+  --lamp: #3b82f6;
+  background: var(--lamp);
+  box-shadow: 0 0 8px var(--lamp);
+}
+.hold.on.blue { --lamp: #3b82f6; }
+.hold.on.green { --lamp: #22c55e; }
+.hold.on.red { --lamp: #ef4444; }
+.hold.on.gold {
+  --lamp: #fbbf24;
+  background: radial-gradient(circle at 35% 30%, #fff7c2, #fbbf24 45%, #b7791f);
+}
+.hold.on.rainbow {
+  --lamp: #ff6bd6;
+  background: conic-gradient(#ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d);
+  animation: spin 2s linear infinite;
+}
+.m-chucker {
+  width: 38px;
+  height: 22px;
+  border: 3px solid color-mix(in srgb, var(--sub) 80%, #fff);
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  position: relative;
+}
+.m-chucker span {
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  border-radius: 50%;
+  background: var(--main);
+  opacity: 0.4;
+}
+.m-data {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed color-mix(in srgb, var(--sub) 45%, transparent);
+  text-align: center;
+}
+.m-data small {
+  display: block;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 10px;
+  color: var(--sub);
+}
+.m-data b {
+  font-size: 18px;
+  color: #ff5f6d;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 8px rgba(255, 95, 109, 0.5);
+}
+
+/* 始動口に飛ぶ玉 */
+.pball {
+  position: fixed;
+  left: -9px;
+  top: -9px;
+  z-index: 60;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle at 35% 30%, #fff, #c9ced6 45%, #6b7280);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+}
+
+/* 役物ギミック（巨大な中牌が落ちてくる） */
+.gimmick {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  --tile-h: min(46vh, 360px);
+  transform: translate(-50%, -110%);
+  animation: gimmick-drop 1.4s cubic-bezier(0.5, 0, 0.7, 1) forwards;
+  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.6));
+}
+@keyframes gimmick-drop {
+  0% { transform: translate(-50%, -110%) rotate(-8deg); }
+  30% { transform: translate(-50%, 18vh) rotate(0); }
+  38% { transform: translate(-50%, 14vh) rotate(2deg); }
+  46% { transform: translate(-50%, 18vh) rotate(0); }
+  85% { transform: translate(-50%, 18vh); opacity: 1; }
+  100% { transform: translate(-50%, 18vh) scale(1.1); opacity: 0; }
+}
+
+/* ラウンド・V入賞 */
+.rounds {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  animation: pop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.rounds small {
+  font-weight: 800;
+  letter-spacing: 0.5em;
+  color: #fff;
+  font-size: 22px;
+}
+.round-n {
+  font-size: clamp(90px, 20vw, 180px);
+  font-weight: 800;
+  line-height: 1;
+  color: #ffd84a;
+  text-shadow: 0 0 30px #ffb300, 0 6px 0 #7a4b00;
+  font-variant-numeric: tabular-nums;
+}
+.round-bar {
+  width: min(360px, 70vw);
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+.round-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #ffc371, #ffd84a);
+  transition: width 0.12s;
+}
+.vzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.v-target {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 64px;
+  font-weight: 900;
+  color: #fff;
+  background: radial-gradient(circle, #ff3b5c, #7a0014);
+  box-shadow: 0 0 40px #ff3b5c;
+}
+.v-ball {
+  position: absolute;
+  top: -160px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, #c9ced6 45%, #6b7280);
+  animation: v-drop 0.6s cubic-bezier(0.5, 0, 0.8, 1) forwards;
+}
+@keyframes v-drop {
+  to { transform: translateY(205px); }
+}
+.vzone.hit .v-target {
+  background: radial-gradient(circle, #fff6c4, #ffc300);
+  color: #3b1d00;
+  box-shadow: 0 0 80px #ffd84a;
+  animation: pop 0.4s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+.vzone.miss .v-target {
+  background: radial-gradient(circle, #555, #222);
+  box-shadow: none;
+}
+.v-text {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 900;
+  font-size: clamp(36px, 8vw, 64px);
+  color: #fff;
+  animation: pop 0.4s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+.vzone.hit .v-text {
+  color: #ffd84a;
+  text-shadow: 0 0 24px #ffb300;
+}
+
+/* 確変中の出題（役満ブースト）表示 */
+#stage.boost #progress::after {
+  content: '役満UP';
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: #111;
+  background: linear-gradient(90deg, #ffc371, #ffd84a);
+}
+
+/* 発展リーチ・大当り中は回答を受け付けない */
+body.busy #choices,
+body.busy #answer {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* ---- 配置：PC は右列、タブレット幅は上部バー */
+@media (min-width: 1024px) {
+  [data-play='normal'] main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 250px;
+    column-gap: 40px;
+    align-items: center;
+  }
+  [data-play='normal'] #stage,
+  [data-play='normal'] #summary {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  [data-play='normal'] #machine {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+  [data-play='normal'] #app {
+    max-width: 1320px;
+  }
+  [data-play='normal'] #combo {
+    top: 84px;
+  }
+}
+@media (min-width: 641px) and (max-width: 1023px) {
+  #machine {
+    order: -1;
+    --panel-reel: 52px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'screen head'
+      'screen msg'
+      'screen bottom'
+      'screen data';
+    column-gap: 16px;
+    row-gap: 4px;
+    margin-bottom: 12px;
+  }
+  .m-screen { grid-area: screen; align-self: center; }
+  .m-head { grid-area: head; }
+  .m-msg { grid-area: msg; text-align: left; }
+  .m-bottom { grid-area: bottom; justify-content: flex-start; }
+  .m-data { grid-area: data; }
+}
+
+/* ---- スマホ：画面上部に固定の細い帯 */
+@media (max-width: 640px) {
+  .play-tabs {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(52px + env(safe-area-inset-top));
+    margin: 0 16px;
+    justify-content: stretch;
+  }
+  .play-tab {
+    flex: 1;
+    padding: 7px 0;
+  }
+  #top {
+    position: relative;
+    padding-bottom: 54px;
+  }
+  #machine {
+    order: -1;
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    --panel-reel: 40px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'screen head'
+      'screen msg'
+      'screen bottom';
+    column-gap: 12px;
+    row-gap: 2px;
+    margin: 0 16px 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+  }
+  .m-screen {
+    grid-area: screen;
+    align-self: center;
+    padding: 6px 4px;
+  }
+  .m-head {
+    grid-area: head;
+    font-size: 11px;
+  }
+  .m-msg {
+    grid-area: msg;
+    min-height: 16px;
+    font-size: 13px;
+    text-align: left;
+  }
+  .m-bottom {
+    grid-area: bottom;
+  }
+  .m-data {
+    display: none;
+  }
+  .hold {
+    width: 11px;
+    height: 11px;
+  }
+  .m-chucker {
+    width: 30px;
+    height: 16px;
+  }
+  main {
+    display: flex;
+    flex-direction: column;
+  }
+  #combo {
+    top: calc(170px + env(safe-area-inset-top));
+  }
+  [data-play='practice'] #top {
+    padding-bottom: 54px;
+  }
+}
+@media (max-width: 640px) {
+  #stage {
+    min-height: 0;
+    flex: 1 0 auto;
   }
 }

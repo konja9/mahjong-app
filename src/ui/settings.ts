@@ -5,8 +5,11 @@ import { load, save } from './storage';
 export type EffectLevel = 'off' | 'lite' | 'max';
 export type Theme = 'serika' | 'paper' | 'neon';
 export type AnswerStyle = 'choice' | 'input';
+export type PlayMode = 'normal' | 'practice';
 
 export interface Settings {
+  /** 最上位タブ：ノーマル（パチンコ台あり）かプラクティス（演出なし） */
+  playMode: PlayMode;
   mode: Mode;
   /** 回答方式：4択か数値入力か */
   answerStyle: AnswerStyle;
@@ -24,6 +27,7 @@ const reducedMotion =
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export const DEFAULT_SETTINGS: Settings = {
+  playMode: 'normal',
   mode: 'hayami',
   answerStyle: 'choice',
   count: 25,

@@ -71,7 +71,7 @@ const FU_WEIGHTS = [
   [110, 2],
 ] as const;
 
-export function generateHayami(rules: Rules, f: Filters, rng: Rng = Math.random): HayamiQuestion {
+export function generateHayami(rules: Rules, f: Filters, rng: Rng = Math.random, boost = false): HayamiQuestion {
   for (;;) {
     const dealer = rollSeat(rng, f);
     const tsumo = rollTsumo(rng, f);
@@ -83,8 +83,8 @@ export function generateHayami(rules: Rules, f: Filters, rng: Rng = Math.random)
       [5, 4],
       [6, 3],
       [8, 2],
-      [11, 1],
-      [13, 1],
+      [11, boost ? 10 : 1],
+      [13, boost ? 16 : 1],
     ] as const);
     const fu = han >= 5 ? 0 : weighted(rng, FU_WEIGHTS);
     if (han < 5 && !isValidHanFu(han, fu, tsumo)) continue;
@@ -224,6 +224,62 @@ function buildChiitoi(rng: Rng): Built {
   return { hand: { concealed, melds: [], winTile, akaTiles: [] }, kans: 0 };
 }
 
+/** 役満の手を直接作る（確変中の役満ブースト用） */
+function buildYakuman(rng: Rng): Built | null {
+  const kind = weighted(rng, [
+    ['daisangen', 30],
+    ['suuankou', 25],
+    ['kokushi', 15],
+    ['shousuushii', 15],
+    ['tsuuiisou', 15],
+  ] as const);
+  if (kind === 'kokushi') return buildKokushi(rng);
+
+  const used = new Array<number>(34).fill(0);
+  const koutsu: Tile[] = [];
+  let pair: Tile;
+  const numeric = () => {
+    for (;;) {
+      const t = Math.floor(rng() * 27);
+      if (used[t] === 0) {
+        used[t] = 1;
+        return t;
+      }
+    }
+  };
+  if (kind === 'daisangen') {
+    koutsu.push(31, 32, 33, numeric());
+    pair = numeric();
+  } else if (kind === 'shousuushii') {
+    const winds = [EAST, SOUTH, WEST, NORTH].sort(() => rng() - 0.5);
+    koutsu.push(winds[0], winds[1], winds[2], numeric());
+    pair = winds[3];
+  } else if (kind === 'tsuuiisou') {
+    const honors = [27, 28, 29, 30, 31, 32, 33].sort(() => rng() - 0.5);
+    koutsu.push(...honors.slice(0, 4));
+    pair = honors[4];
+  } else {
+    // 四暗刻単騎
+    while (koutsu.length < 4) {
+      const t = Math.floor(rng() * 34);
+      if (!koutsu.includes(t)) koutsu.push(t);
+    }
+    do pair = Math.floor(rng() * 34);
+    while (koutsu.includes(pair));
+  }
+  const melds: Meld[] = [];
+  const closed: Tile[] = [pair, pair];
+  for (const t of koutsu) {
+    if (kind !== 'suuankou' && melds.length < 2 && rng() < 0.3) melds.push({ type: 'pon', tile: t });
+    else closed.push(t, t, t);
+  }
+  // 四暗刻は単騎待ちで和了（ロンでも四暗刻が成立する）
+  const winIdx = kind === 'suuankou' ? 0 : Math.floor(rng() * closed.length);
+  const winTile = closed[winIdx];
+  const concealed = closed.filter((_, i) => i !== winIdx).sort((a, b) => a - b);
+  return { hand: { concealed, melds, winTile, akaTiles: [] }, kans: 0 };
+}
+
 function buildKokushi(rng: Rng): Built {
   const tiles = [...YAOCHU, pick(rng, YAOCHU)];
   const winIdx = Math.floor(rng() * tiles.length);
@@ -237,9 +293,11 @@ export interface HandGenOptions {
   rules: Rules;
   filters: Filters;
   rng?: Rng;
+  /** 確変中：役満（符計算では高打点）が出やすくなる */
+  boost?: boolean;
 }
 
-export function generateHandQuestion({ mode, rules, filters, rng = Math.random }: HandGenOptions): HandQuestion {
+export function generateHandQuestion({ mode, rules, filters, rng = Math.random, boost = false }: HandGenOptions): HandQuestion {
   for (let attempt = 0; attempt < 5000; attempt++) {
     const flavor: Flavor = weighted(rng, [
       ['free', 40],
@@ -251,8 +309,10 @@ export function generateHandQuestion({ mode, rules, filters, rng = Math.random }
       ['chiitoi', mode === 'fu' ? 3 : 6],
       ['kokushi', mode === 'fu' ? 0 : 0.5],
     ] as const);
-    const built =
-      flavor === 'chiitoi'
+    const yakumanBoost = boost && mode === 'jissen' && rng() < 0.35;
+    const built = yakumanBoost
+      ? buildYakuman(rng)
+      : flavor === 'chiitoi'
         ? buildChiitoi(rng)
         : flavor === 'kokushi'
           ? buildKokushi(rng)
@@ -304,8 +364,10 @@ export function generateHandQuestion({ mode, rules, filters, rng = Math.random }
     // 符モードでは符が意味を持つ（満貫未満）問題を中心にする
     if (mode === 'fu' && (ev.yakuman || ev.fu.fu === 0)) continue;
     if (mode === 'fu' && ev.han >= 5 && rng() < 0.8) continue;
-    // 役満は出すぎないように間引く
-    if (ev.yakuman && rng() < 0.5) continue;
+    // 役満は出すぎないように間引く（確変中は間引かない）
+    if (ev.yakuman && !boost && rng() < 0.5) continue;
+    // 確変中の符計算は高打点の手を増やす
+    if (boost && mode === 'fu' && ev.han < 3 && rng() < 0.6) continue;
     // ドラ過多の問題は間引く
     if (ev.han >= 8 && !ev.yakuman && rng() < 0.6) continue;
     return { mode, hand, sit, ev };
@@ -313,7 +375,13 @@ export function generateHandQuestion({ mode, rules, filters, rng = Math.random }
   throw new Error('failed to generate question');
 }
 
-export function generateQuestion(mode: Mode, rules: Rules, filters: Filters, rng: Rng = Math.random): Question {
-  if (mode === 'hayami') return generateHayami(rules, filters, rng);
-  return generateHandQuestion({ mode, rules, filters, rng });
+export function generateQuestion(
+  mode: Mode,
+  rules: Rules,
+  filters: Filters,
+  rng: Rng = Math.random,
+  boost = false,
+): Question {
+  if (mode === 'hayami') return generateHayami(rules, filters, rng, boost);
+  return generateHandQuestion({ mode, rules, filters, rng, boost });
 }
