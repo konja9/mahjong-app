@@ -2669,39 +2669,12 @@ body.kakuhen #wallet b {
   color: #2a1a00;
   box-shadow: 0 0 12px rgba(255, 200, 61, 0.45);
 }
-.bet-ring {
-  width: 26px;
-  height: 26px;
-  transform: rotate(-90deg);
-}
-.bet-ring circle {
-  fill: none;
-  stroke-width: 4;
-}
-.bet-ring .track {
-  stroke: color-mix(in srgb, var(--sub) 40%, transparent);
-}
-.bet-ring .bar {
-  stroke: var(--main);
-  stroke-linecap: round;
-  filter: drop-shadow(0 0 3px var(--main));
-}
-.bet-label {
-  color: var(--main);
-}
 #bet.expired .bet-chip {
   background: var(--sub-bg);
   color: var(--sub);
   box-shadow: none;
 }
-#bet.expired .bet-ring .bar {
-  stroke: var(--sub);
-  filter: none;
-}
-#bet.expired .bet-label {
-  color: var(--sub);
-}
-body[data-phase='result'] #bet,
+#bet.expired body[data-phase='result'] #bet,
 body[data-phase='suspense'] #bet {
   opacity: 0.4;
 }
@@ -3007,28 +2980,6 @@ body[data-phase='suspense'] #bet {
   #config .cfg-group[data-group='mode'] {
     display: none;
   }
-}
-
-/* ============================================================ BET：時間を意識させない控えめ表示 */
-#bet .bet-chip {
-  animation: half-fade var(--half, 10s) linear forwards;
-}
-body.busy #bet .bet-chip {
-  animation-play-state: paused;
-}
-@keyframes half-fade {
-  from {
-    box-shadow: 0 0 14px rgba(255, 200, 61, 0.55);
-    filter: saturate(1.1);
-  }
-  to {
-    box-shadow: 0 0 0 rgba(255, 200, 61, 0);
-    filter: saturate(0.75);
-  }
-}
-#bet.expired .bet-chip {
-  animation: none;
-  transition: background 0.6s, color 0.6s;
 }
 
 /* ============================================================ 大盤振る舞いボタン */
@@ -3402,12 +3353,13 @@ body.busy #bet .bet-chip {
   }
 }
 
-/* ============================================================ 速答ボーナス（半額）の表示案 */
-#bet[data-ui] {
+/* ============================================================ 速答ボーナス（半額）：取り消し線＋残りバー */
+#bet {
   min-height: 30px;
 }
-/* 案A：取り消し線（定価に線、半額を大きく） */
 .bet-a {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: baseline;
   gap: 8px;
@@ -3442,53 +3394,30 @@ body.busy #bet .bet-chip {
   background: var(--main);
   color: var(--bg);
 }
-#bet.expired .bet-a {
+#bet.expired .bet-a,
+.bet-a.expired {
   background: transparent;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sub) 50%, transparent);
 }
-#bet.expired .bet-a b {
+#bet.expired .bet-a b,
+.bet-a.expired b {
   color: var(--text);
   text-shadow: none;
   font-size: 16px;
 }
 
-/* 案B：残りバー（数字は出さず、バーが静かに減る） */
-.bet-b {
-  position: relative;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 5px 14px 8px;
-  border-radius: 8px;
-  background: rgba(255, 200, 61, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(255, 200, 61, 0.45);
-  overflow: hidden;
-}
-.bet-b .lbl {
-  font-family: 'Noto Sans JP', sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--main);
-}
-.bet-b b {
-  font-size: 18px;
-  color: var(--main);
-}
-.bet-b .unit {
-  font-size: 11px;
-  color: var(--sub);
-}
-.bet-b .bar {
+/* 残りバー：チップの下辺が --half 秒かけて縮む（発展リーチ・大当り中は停止） */
+.bet-a .bar {
   position: absolute;
   left: 0;
   bottom: 0;
-  height: 3px;
+  height: 2px;
   width: 100%;
   background: linear-gradient(90deg, #ffe28a, var(--main));
   transform-origin: left;
   animation: bet-bar var(--half, 10s) linear forwards;
 }
-body.busy .bet-b .bar {
+body.busy .bet-a .bar {
   animation-play-state: paused;
 }
 @keyframes bet-bar {
@@ -3496,77 +3425,11 @@ body.busy .bet-b .bar {
     transform: scaleX(0);
   }
 }
-#bet.expired .bet-b {
-  background: transparent;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sub) 50%, transparent);
-}
-#bet.expired .bet-b .lbl,
-#bet.expired .bet-b b {
-  color: var(--sub);
-}
-#bet.expired .bet-b .bar {
-  display: none;
-}
-
-/* 案D：値札（HALF タグ＋ 40 → 20） */
-.bet-d {
-  display: inline-flex;
-  align-items: stretch;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(255, 200, 61, 0.55), 0 0 16px rgba(255, 200, 61, 0.2);
-}
-.bet-d .tag {
-  display: grid;
-  place-items: center;
-  padding: 0 10px;
-  background: linear-gradient(180deg, #ffe28a, #ffc83d);
-  color: #2a1a00;
-  font-weight: 800;
-  font-size: 12px;
-  letter-spacing: 0.1em;
-}
-.bet-d .price {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 4px 12px;
-  background: rgba(255, 200, 61, 0.08);
-}
-.bet-d s {
-  color: var(--sub);
-  font-size: 13px;
-}
-.bet-d .arrow {
-  color: var(--sub);
-  font-size: 12px;
-}
-.bet-d b {
-  font-size: 20px;
-  color: var(--main);
-}
-.bet-d small {
-  color: var(--sub);
-  font-size: 11px;
-}
-#bet.expired .bet-d {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--sub) 50%, transparent);
-}
-#bet.expired .bet-d .tag {
-  background: var(--sub-bg);
-  color: var(--sub);
-}
-#bet.expired .bet-d b {
-  color: var(--text);
-  font-size: 16px;
-}
-.bet-a.hr b,
-.bet-b.hr b,
-.bet-d.hr b {
+.bet-a.hr b {
   color: #ff7aa3;
 }
 
-/* 正解時のスタンプ（どの案にも共通） */
+/* 正解時のスタンプ */
 .fast-stamp {
   display: inline-flex;
   align-items: baseline;

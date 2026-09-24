@@ -87,8 +87,6 @@ export class App {
   private wallet: Wallet = loadWallet();
   private shownBalance = this.wallet.balance;
   private betRaf = 0;
-  /** 速答ボーナスの表示案（比較用） a: 取り消し線 / b: 残りバー / d: 値札 */
-  betUi: 'a' | 'b' | 'd' = 'a';
   /** 大当りのラウンド（賞金タイム）。null なら通常時 */
   private round: {
     n: number;
@@ -368,16 +366,12 @@ export class App {
     const fastSec = ECONOMY.fastSeconds[this.s.mode];
     const full = costFor(true, false, hr);
     const half = costFor(true, true, hr);
-    el.dataset.ui = this.betUi;
     el.style.setProperty('--half', `${fastSec}s`);
-    const html = {
-      a: (exp: boolean) =>
-        `<span class="bet-a${hr ? ' hr' : ''}"><span class="lbl">BET</span>${exp ? '' : `<s>${full}</s>`}<b>${exp ? full : half}</b>${exp ? '' : '<em>速答で半額</em>'}</span>`,
-      b: (exp: boolean) =>
-        `<span class="bet-b${hr ? ' hr' : ''}"><span class="lbl">${exp ? 'BET' : '速答ボーナス中'}</span><b>${exp ? full : half}</b><span class="unit">yan</span><i class="bar"></i></span>`,
-      d: (exp: boolean) =>
-        `<span class="bet-d${hr ? ' hr' : ''}"><span class="tag">${exp ? '通常' : 'HALF'}</span><span class="price">${exp ? '' : `<s>${full}</s><span class="arrow">→</span>`}<b>${exp ? full : half}</b><small>yan</small></span></span>`,
-    }[this.betUi];
+    // 締切前：定価に取り消し線＋半額、下辺のバーが静かに減る。締切後：定価だけ
+    const html = (exp: boolean) =>
+      exp
+        ? `<span class="bet-a expired${hr ? ' hr' : ''}"><span class="lbl">BET</span><b>${full}</b></span>`
+        : `<span class="bet-a${hr ? ' hr' : ''}"><span class="lbl">BET</span><s>${full}</s><b>${half}</b><em>速答で半額</em><i class="bar"></i></span>`;
     el.innerHTML = html(false);
     const tick = () => {
       if (this.phase !== 'answering') return;
