@@ -1,0 +1,55 @@
+import { describe, expect, it } from 'vitest';
+import { decompose } from '../src/core/decompose';
+import { generateHandQuestion, generateHayami } from '../src/core/generator';
+import { allTiles } from '../src/core/hand';
+import { DEFAULT_RULES } from '../src/core/rules';
+import { isValidHanFu } from '../src/core/score';
+import { EAST, toCounts } from '../src/core/tiles';
+
+function mulberry32(seed: number) {
+  return () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const anyFilter = { seat: 'any', win: 'any' } as const;
+
+describe('generateHayami', () => {
+  it('常に有効な翻符を出す', () => {
+    const rng = mulberry32(1);
+    for (let i = 0; i < 2000; i++) {
+      const q = generateHayami(DEFAULT_RULES, anyFilter, rng);
+      expect(isValidHanFu(q.han, q.fu, q.tsumo)).toBe(true);
+    }
+  });
+  it('フィルタを守る', () => {
+    const rng = mulberry32(2);
+    for (let i = 0; i < 200; i++) {
+      const q = generateHayami(DEFAULT_RULES, { seat: 'dealer', win: 'tsumo' }, rng);
+      expect(q.dealer && q.tsumo).toBe(true);
+    }
+  });
+});
+
+describe('generateHandQuestion', () => {
+  for (const mode of ['fu', 'jissen'] as const) {
+    it(`${mode}: 1000問すべて和了形・役あり・牌が4枚以内`, () => {
+      const rng = mulberry32(mode === 'fu' ? 3 : 4);
+      for (let i = 0; i < 1000; i++) {
+        const q = generateHandQuestion({ mode, rules: DEFAULT_RULES, filters: anyFilter, rng });
+        const tiles = allTiles(q.hand);
+        const kanCount = q.hand.melds.filter((m) => m.type.endsWith('kan')).length;
+        expect(tiles.length).toBe(14 + kanCount);
+        const counts = toCounts([...tiles, ...q.sit.doraIndicators, ...q.sit.uraIndicators]);
+        expect(Math.max(...counts)).toBeLessThanOrEqual(4);
+        expect(decompose(q.hand, q.sit.tsumo).length).toBeGreaterThan(0);
+        expect(q.ev.yaku.length).toBeGreaterThan(0);
+        expect(q.ev.score.dealer).toBe(q.sit.seatWind === EAST);
+      }
+    });
+  }
+});
