@@ -70,7 +70,6 @@ export class App {
   private best = load<Record<string, Best>>(BEST_KEY, {});
   private fx: Fx;
   private timerRaf = 0;
-  private autoNext = 0;
   private lastCorrect = false;
   private panel: MachinePanel;
   private busy = false;
@@ -238,7 +237,6 @@ export class App {
       this.fx.rushChain(this.panel.machine.data.rushChain);
     }
     this.setBusy(false);
-    clearTimeout(this.autoNext);
     this.session = newSession();
     this.session.startBalance = this.wallet.balance;
     this.awaitingBankrupt = false;
@@ -249,7 +247,6 @@ export class App {
   }
 
   private next(): void {
-    clearTimeout(this.autoNext);
     if (this.awaitingBankrupt) {
       this.hint('保留の抽選結果を待っています…');
       return;
@@ -408,7 +405,6 @@ export class App {
         this.startTimer();
       }
       this.pausedAt = 0;
-      this.scheduleAutoNext();
     }
   }
 
@@ -516,9 +512,7 @@ export class App {
       }
       $('#result').innerHTML = `<div class="verdict ok"><span class="mark">正解</span><span class="ans">${this.correctText()}</span><span class="muted">${elapsed.toFixed(1)}s</span>${extra}</div>${explain}`;
       const streak = ss.streak;
-      if (this.practice) {
-        this.scheduleAutoNext();
-      } else {
+      if (!this.practice) {
         this.fx.hit(streak, answerEl);
         this.fx.combo(streak);
         // 正解＝始動口入賞。高打点の手は電チュー開放で保留+2
@@ -526,7 +520,6 @@ export class App {
         void this.panel.enter(big ? 2 : 1, answerEl);
         void this.fx.win(tier, label, answerEl).then(async () => {
           if (this.phase === 'result') await this.fx.milestone(streak);
-          this.scheduleAutoNext();
         });
       }
     } else {
@@ -542,7 +535,7 @@ export class App {
     }
     this.renderProgress();
     this.renderInput();
-    this.hint(this.compact ? '' : correct ? '任意のキーで次へ' : 'Enter / Space で次へ');
+    this.hint(this.compact ? '' : correct ? 'クリック / 任意のキーで次へ' : 'クリック / Enter / Space で次へ');
     if (!this.practice) this.checkBankrupt();
     if (this.compact) {
       // 解説の先頭（判定）が見える位置までスクロール
@@ -550,15 +543,6 @@ export class App {
       const res = $('#result');
       if (main) main.scrollTo({ top: Math.max(0, res.offsetTop - main.offsetTop - 8), behavior: 'smooth' });
     }
-  }
-
-  private scheduleAutoNext(): void {
-    clearTimeout(this.autoNext);
-    if (this.phase !== 'result' || !this.lastCorrect || this.busy) return;
-    const wait = this.q.mode === 'hayami' ? 450 : 2200;
-    this.autoNext = window.setTimeout(() => {
-      if (this.phase === 'result') this.next();
-    }, wait);
   }
 
   /** 手の打点に応じた正解演出の段階 */
@@ -584,7 +568,7 @@ export class App {
       const main =
         q.han >= 5
           ? `<span class="big">${q.han}<small>翻</small></span>`
-          : `<span class="big">${q.fu}<small>符</small></span><span class="big">${q.han}<small>翻</small></span>`;
+          : `<span class="big">${q.han}<small>翻</small></span><span class="big">${q.fu}<small>符</small></span>`;
       el.innerHTML = `<div class="q-hayami"><div class="q-main">${main}</div>
         <div class="q-sub"><span class="chip strong">${q.dealer ? '親' : '子'}</span><span class="chip strong">${q.tsumo ? 'ツモ' : 'ロン'}</span></div></div>`;
       return;
@@ -787,7 +771,7 @@ export class App {
 
   private missLabel(q: Question): string {
     const { dealer, tsumo } = questionMeta(q);
-    if (q.mode === 'hayami') return `${q.han >= 5 ? '' : `${q.fu}符`}${q.han}翻 ${situationLabel(dealer, tsumo)}`;
+    if (q.mode === 'hayami') return `${q.han}翻${q.han >= 5 ? '' : `${q.fu}符`} ${situationLabel(dealer, tsumo)}`;
     return `${situationLabel(dealer, tsumo)}の手`;
   }
 
@@ -1057,7 +1041,7 @@ export class App {
 
 const SHELL = `
 <header id="top">
-  <div class="logo">tensu<span class="dot">.</span><span class="sub">麻雀点数計算トレーナー</span></div>
+  <div class="logo" aria-label="パチふと"><span class="logo-pachi">パチ</span><span class="logo-futo">ふと</span><span class="sub">パチンコ符計算トレーニング</span></div>
   <div class="play-tabs" role="tablist" aria-label="モード">
     <button class="play-tab" role="tab" data-play="normal">ノーマル</button>
     <button class="play-tab" role="tab" data-play="practice">プラクティス</button>

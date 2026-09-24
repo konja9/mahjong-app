@@ -36,7 +36,7 @@ export function formulaHtml(s: ScoreResult): string {
 
 export function hayamiExplain(q: HayamiQuestion): string {
   return `<div class="explain">
-    <div class="ex-title">${q.han >= 5 ? `${q.han}翻` : `${q.fu}符${q.han}翻`}・${situationLabel(q.dealer, q.tsumo)}</div>
+    <div class="ex-title">${q.han >= 5 ? `${q.han}翻` : `${q.han}翻${q.fu}符`}・${situationLabel(q.dealer, q.tsumo)}</div>
     ${formulaHtml(q.score)}
   </div>`;
 }
@@ -66,7 +66,7 @@ export function handExplain(q: HandQuestion): string {
   const main =
     q.mode === 'fu'
       ? `<div class="ex-cols"><div><div class="ex-h">符の内訳 <span class="muted">${waitNote(ev)}</span></div>${fuTable(ev)}</div>
-         <div><div class="ex-h">参考：役と点数</div>${yakuTable(ev)}<div class="muted small">${ev.fu.fu}符${ev.han}翻 → ${formatAnswer(ev.score)}</div></div></div>`
+         <div><div class="ex-h">参考：役と点数</div>${yakuTable(ev)}<div class="muted small">${ev.han}翻${ev.fu.fu}符 → ${formatAnswer(ev.score)}</div></div></div>`
       : `<div class="ex-cols"><div><div class="ex-h">役</div>${yakuTable(ev)}</div>
          ${ev.yakuman ? '' : `<div><div class="ex-h">符 <span class="muted">${waitNote(ev)}</span></div>${fuTable(ev)}</div>`}
          <div><div class="ex-h">点数</div>${formulaHtml(ev.score)}</div></div>`;

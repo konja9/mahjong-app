@@ -2927,3 +2927,49 @@ body[data-phase='suspense'] #bet {
     animation: none;
   }
 }
+
+/* ---- ロゴ：パチふと */
+.logo {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 900;
+  font-size: 28px;
+  letter-spacing: 0.02em;
+  gap: 0;
+}
+.logo-pachi {
+  color: var(--main);
+}
+.logo-futo {
+  color: var(--text);
+}
+:root[data-play='normal'] .logo-pachi {
+  background: linear-gradient(180deg, #fff3b0, #ffc83d 55%, #e08a00);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 10px rgba(255, 200, 61, 0.45));
+}
+:root[data-play='normal'] .logo-futo {
+  color: #fff;
+  text-shadow: 0 0 12px rgba(255, 61, 127, 0.55);
+}
+.logo .sub {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 700;
+}
+@media (max-width: 640px) {
+  .logo {
+    font-size: 22px;
+  }
+}
+:root[data-play='normal'] .choice.is-correct {
+  background: var(--main);
+  color: var(--bg);
+  border-color: var(--main);
+  box-shadow: 0 0 28px rgba(255, 200, 61, 0.55);
+}
+:root[data-play='normal'] .choice.is-wrong {
+  background: var(--error);
+  color: var(--bg);
+  border-color: var(--error);
+}
