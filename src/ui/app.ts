@@ -1,3 +1,4 @@
+import { type Choice, makeChoices } from '../core/choices';
 import { type HandQuestion, type Mode, type Question, generateQuestion } from '../core/generator';
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
 import { EAST } from '../core/tiles';
@@ -69,6 +70,8 @@ export class App {
   private timerRaf = 0;
   private autoNext = 0;
   private lastCorrect = false;
+  private choices: Choice[] = [];
+  private picked = -1;
 
   constructor(private root: HTMLElement) {
     this.root.innerHTML = SHELL;
@@ -86,6 +89,7 @@ export class App {
   private applyTheme(): void {
     document.documentElement.dataset.theme = this.s.theme;
     document.documentElement.dataset.effects = this.s.effects;
+    document.documentElement.dataset.answer = this.s.answerStyle;
   }
 
   private update(patch: Partial<Settings>, restart = true): void {
@@ -108,6 +112,10 @@ export class App {
         'mode',
         (['hayami', 'fu', 'jissen'] as Mode[]).map((m) => [m, MODE_NAMES[m], s.mode === m]),
       ),
+      group('answer', [
+        ['choice', '4択', s.answerStyle === 'choice'],
+        ['input', '入力', s.answerStyle === 'input'],
+      ]),
       group(
         'count',
         [10, 25, 50, 0].map((n) => [String(n), n ? String(n) : '∞', s.count === n]),
@@ -133,6 +141,9 @@ export class App {
     switch (name) {
       case 'mode':
         this.update({ mode: v as Mode });
+        break;
+      case 'answer':
+        this.update({ answerStyle: v as Settings['answerStyle'] });
         break;
       case 'count':
         this.update({ count: Number(v) });
@@ -187,6 +198,8 @@ export class App {
     this.lamp = this.lamps.shift() ?? 0;
     this.lamps.push(this.rollLamp());
     this.input = '';
+    this.picked = -1;
+    this.choices = this.isChoice ? makeChoices(this.q, this.s.rules) : [];
     this.phase = 'answering';
     this.startedAt = performance.now();
     this.renderQuestion();
@@ -220,19 +233,25 @@ export class App {
     this.timerRaf = requestAnimationFrame(tick);
   }
 
+  private get isChoice(): boolean {
+    return this.s.answerStyle === 'choice';
+  }
+
   private needsPair(): boolean {
-    if (this.q.mode === 'fu') return false;
+    if (this.isChoice || this.q.mode === 'fu') return false;
     const { dealer, tsumo } = questionMeta(this.q);
     return tsumo && !dealer;
   }
 
   private isCorrect(input: string): boolean {
+    if (this.isChoice) return this.choices[this.picked]?.correct ?? false;
     if (this.q.mode === 'fu') return Number(input) === this.q.ev.fu.fu;
     return checkPointsAnswer(input, scoreOf(this.q));
   }
 
   /** 動作確認用：現在の問題の正解入力 */
   debugAnswer(): string {
+    if (this.isChoice) return String(this.choices.findIndex((c) => c.correct) + 1);
     if (this.q.mode === 'fu') return String(this.q.ev.fu.fu);
     const s = scoreOf(this.q);
     if (!s.tsumo) return String(s.payment.ron);
@@ -246,7 +265,7 @@ export class App {
 
   private async submit(timeout = false): Promise<void> {
     if (this.phase !== 'answering') return;
-    if (!timeout) {
+    if (!timeout && !this.isChoice) {
       if (!this.input) return;
       if (this.needsPair() && !/\d-\d/.test(this.input)) {
         this.hint('子ツモは「子の支払い-親の支払い」の2つを入力（例 1000-2000）');
@@ -261,9 +280,10 @@ export class App {
     const score = scoreOf(this.q);
     const highValue = this.q.mode !== 'hayami' && (score.limit !== '' || this.q.ev.han >= 4);
 
-    $('#answer').classList.add('locked');
+    const locked = this.answerAnchor();
+    locked.classList.add('locked');
     await this.fx.suspense(this.lamp, highValue);
-    $('#answer').classList.remove('locked');
+    locked.classList.remove('locked');
     this.reveal(correct, elapsed, timeout);
   }
 
@@ -280,7 +300,8 @@ export class App {
     stage.classList.add(correct ? 'correct' : 'wrong');
 
     const explain = this.q.mode === 'hayami' ? hayamiExplain(this.q) : handExplain(this.q);
-    const answerEl = $('#answer');
+    const answerEl = this.answerAnchor();
+    const yours = timeout ? '時間切れ' : this.isChoice ? this.choices[this.picked].label : this.input;
 
     if (correct) {
       ss.correct++;
@@ -311,10 +332,9 @@ export class App {
       ss.kakuhen = false;
       document.body.classList.remove('kakuhen');
       ss.streak = 0;
-      ss.misses.push({ q: this.q, input: timeout ? '時間切れ' : this.input });
-      const yours = timeout ? '時間切れ' : this.input;
+      ss.misses.push({ q: this.q, input: yours });
       $('#result').innerHTML = `<div class="verdict ng"><span class="mark">不正解</span><span class="yours">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span></div>${explain}`;
-      this.fx.lose(answerEl);
+      this.fx.lose(this.isChoice ? $('#choices') : answerEl);
     }
     this.renderProgress();
     this.renderInput();
@@ -407,7 +427,34 @@ export class App {
     return { unit: '点', ghost: '子 - 親' };
   }
 
+  /** 演出の起点になる要素（4択なら選んだボタン） */
+  private answerAnchor(): HTMLElement {
+    if (!this.isChoice) return $('#answer');
+    return (
+      document.querySelector<HTMLElement>(`#choices [data-choice="${this.picked}"]`) ?? $('#choices')
+    );
+  }
+
+  private renderChoices(): void {
+    const el = $('#choices');
+    const done = this.phase === 'result';
+    el.innerHTML = this.choices
+      .map((c, i) => {
+        const cls = done ? (c.correct ? ' is-correct' : i === this.picked ? ' is-wrong' : ' is-dim') : '';
+        const unit = this.q.mode === 'fu' || c.label.endsWith('オール') ? '' : '<span class="unit">点</span>';
+        return `<button class="choice${cls}" data-choice="${i}"${done ? ' disabled' : ''}><kbd>${i + 1}</kbd><span class="label">${c.label}</span>${unit}</button>`;
+      })
+      .join('');
+  }
+
   private renderInput(): void {
+    $('#answer').hidden = this.isChoice;
+    $('#choices').hidden = !this.isChoice;
+    if (this.isChoice) {
+      this.renderChoices();
+      if (this.phase === 'answering') this.hint(this.defaultHint());
+      return;
+    }
     const { unit, ghost } = this.promptUnit();
     const text = this.input
       ? this.input
@@ -423,6 +470,7 @@ export class App {
   }
 
   private defaultHint(): string {
+    if (this.isChoice) return '<kbd>1</kbd>-<kbd>4</kbd> 選択 · <kbd>Tab</kbd> パス · <kbd>Esc</kbd> やり直し';
     const pair = this.needsPair() ? '<kbd>-</kbd> 区切り · ' : '';
     return `${pair}<kbd>Enter</kbd> 回答 · <kbd>Tab</kbd> パス · <kbd>Esc</kbd> やり直し`;
   }
@@ -555,6 +603,14 @@ export class App {
       unlockAudio();
       this.handleKey(b.dataset.key!);
     });
+    $('#choices').addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-choice]');
+      if (!b || this.phase !== 'answering') return;
+      // ステージのクリック（次へ）に伝わらないようにする
+      e.stopPropagation();
+      unlockAudio();
+      this.pick(Number(b.dataset.choice));
+    });
     $('#overlay').addEventListener('click', () => this.fx.skip());
     $('#stage').addEventListener('click', () => {
       if (this.phase === 'result') this.next();
@@ -598,13 +654,19 @@ export class App {
         if (this.lastCorrect || key === 'Enter' || key === ' ' || key === 'Tab') {
           this.fx.skip();
           this.next();
-          if (/^\d$/.test(key)) this.handleKey(key);
+          // 数値入力では打ち始めた数字を次の問題に引き継ぐ（4択では誤選択を防ぐため引き継がない）
+          if (!this.isChoice && /^\d$/.test(key)) this.handleKey(key);
         }
         return;
       case 'answering':
         break;
     }
     document.body.classList.add('typing');
+    if (this.isChoice) {
+      if (/^[1-4]$/.test(key)) this.pick(Number(key) - 1);
+      else if (key === 'Tab') void this.submit(true);
+      return;
+    }
     if (/^\d$/.test(key)) {
       if (this.input.replace('-', '').length >= 10) return;
       if (this.input === '' && key === '0') return;
@@ -626,6 +688,14 @@ export class App {
       return;
     } else return;
     this.renderInput();
+  }
+
+  private pick(i: number): void {
+    if (this.phase !== 'answering' || !this.choices[i]) return;
+    this.picked = i;
+    sfx.key();
+    document.querySelector(`#choices [data-choice="${i}"]`)?.classList.add('is-picked');
+    void this.submit();
   }
 
   // ------------------------------------------------------------ 設定ダイアログ
@@ -756,6 +826,7 @@ const SHELL = `
     <div id="progress"></div>
     <div id="question"></div>
     <div id="answer" aria-live="polite"></div>
+    <div id="choices" role="group" aria-label="選択肢"></div>
     <div class="timer-track"><div id="timer"></div></div>
     <div id="hint" class="hint"></div>
     <div id="result"></div>

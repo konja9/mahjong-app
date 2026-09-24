@@ -431,6 +431,76 @@ main {
   font-family: 'JetBrains Mono', 'Noto Sans JP', monospace;
 }
 
+/* ------------------------------------------------------------ choices (4択) */
+#choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 760px;
+}
+.choice {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25em;
+  padding: 18px 16px;
+  border-radius: 10px;
+  background: var(--sub-bg);
+  border: 2px solid transparent;
+  font-size: clamp(22px, 3.4vw, 32px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  transition: border-color 0.12s, background 0.2s, opacity 0.2s, transform 0.08s;
+}
+.choice:not([disabled]):hover {
+  border-color: var(--main);
+}
+.choice:not([disabled]):active,
+.choice.is-picked {
+  transform: scale(0.97);
+  border-color: var(--main);
+}
+.choice kbd {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+.choice .unit {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 0.5em;
+  color: var(--sub);
+}
+.choice[disabled] {
+  cursor: default;
+}
+.choice.is-correct {
+  background: var(--main);
+  color: var(--bg);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--main) 45%, transparent);
+}
+.choice.is-correct .unit,
+.choice.is-wrong .unit {
+  color: inherit;
+  opacity: 0.7;
+}
+.choice.is-wrong {
+  background: var(--error);
+  color: var(--bg);
+}
+.choice.is-dim {
+  opacity: 0.35;
+}
+#choices.locked {
+  animation: locked 0.6s ease-in-out infinite alternate;
+}
+[data-answer='choice'] #numpad {
+  display: none !important;
+}
+
 /* ------------------------------------------------------------ result */
 #result:empty {
   display: none;
@@ -1149,5 +1219,8 @@ body.kakuhen #progress {
   }
   .explain {
     padding: 14px;
+  }
+  .choice {
+    padding: 16px 10px;
   }
 }

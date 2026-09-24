@@ -4,9 +4,12 @@ import { load, save } from './storage';
 
 export type EffectLevel = 'off' | 'lite' | 'max';
 export type Theme = 'serika' | 'paper' | 'neon';
+export type AnswerStyle = 'choice' | 'input';
 
 export interface Settings {
   mode: Mode;
+  /** 回答方式：4択か数値入力か */
+  answerStyle: AnswerStyle;
   count: number; // 0 = 無制限
   timeLimit: number; // 秒、0 = なし
   filters: Filters;
@@ -22,6 +25,7 @@ const reducedMotion =
 
 export const DEFAULT_SETTINGS: Settings = {
   mode: 'hayami',
+  answerStyle: 'choice',
   count: 25,
   timeLimit: 0,
   filters: { seat: 'any', win: 'any' },
