@@ -37,14 +37,13 @@ export class MachinePanel {
   ) {
     this.machine = new Machine(level);
     root.innerHTML = `
-      <div class="m-marquee" aria-hidden="true"><span class="m-title">パチふと</span></div>
       <div class="m-head"><span class="m-state">通常</span><span class="m-st"></span></div>
-      <div class="m-screen"><div class="m-payline" aria-hidden="true"></div></div>
+      <div class="m-screen"></div>
       <button class="m-generous" type="button" aria-pressed="false"><span class="g-label">大盤振る舞い</span><span class="g-state">OFF</span></button>
       <div class="m-msg" aria-live="polite"></div>
       <div class="m-bottom">
         <div class="m-holds">${Array.from({ length: MAX_HOLDS }, () => '<span class="hold"></span>').join('')}</div>
-        <div class="m-chucker" title="始動口"><i class="petal l"></i><span></span><i class="petal r"></i></div>
+        <div class="m-chucker" title="始動口"><span></span></div>
       </div>
       <div class="m-data">
         <div><small>回転</small><b data-k="sinceHit">0</b></div>

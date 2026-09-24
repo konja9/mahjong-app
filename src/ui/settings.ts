@@ -6,12 +6,15 @@ export type EffectLevel = 'off' | 'lite' | 'max';
 export type Theme = 'serika' | 'paper' | 'neon';
 export type AnswerStyle = 'choice' | 'input';
 export type PlayMode = 'normal' | 'practice';
+export type MachineSkin = 'classic' | 'neon' | 'luxe' | 'lcd';
 
 export interface Settings {
   /** 最上位タブ：ノーマル（パチンコ台あり）かプラクティス（演出なし） */
   playMode: PlayMode;
   /** ノーマルの大盤振る舞いモード（高打点・役満が大幅に出やすい） */
   generous: boolean;
+  /** 台のデザイン */
+  machineSkin: MachineSkin;
   mode: Mode;
   /** 回答方式：4択か数値入力か */
   answerStyle: AnswerStyle;
@@ -31,6 +34,7 @@ const reducedMotion =
 export const DEFAULT_SETTINGS: Settings = {
   playMode: 'normal',
   generous: false,
+  machineSkin: 'classic',
   mode: 'hayami',
   answerStyle: 'choice',
   count: 25,
