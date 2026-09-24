@@ -101,8 +101,16 @@ export class App {
 
   private renderConfig(): void {
     const s = this.s;
+    const LABELS: Record<string, string> = {
+      mode: 'モード',
+      answer: '回答',
+      count: '問題数',
+      time: '制限時間',
+      seat: '親子',
+      win: '和了',
+    };
     const group = (name: string, items: [string, string, boolean][]) =>
-      `<div class="cfg-group">${items
+      `<div class="cfg-group" data-group="${name}"><span class="cfg-label">${LABELS[name]}</span>${items
         .map(([v, label, on]) => `<button class="cfg${on ? ' on' : ''}" data-cfg="${name}" data-v="${v}">${label}</button>`)
         .join('')}</div>`;
     $('#config').innerHTML = [
@@ -132,7 +140,23 @@ export class App {
         ['ron', 'ロン', s.filters.win === 'ron'],
         ['tsumo', 'ツモ', s.filters.win === 'tsumo'],
       ]),
-    ].join('<span class="cfg-sep"></span>');
+    ].join('<span class="cfg-sep"></span>') + '<button class="cfg-done" type="button" data-close-cfg>閉じる</button>';
+    const count = s.count ? `${s.count}問` : '∞';
+    $('#cfg-toggle').innerHTML = `${MODE_NAMES[s.mode]}<span class="dot-sep">·</span>${s.answerStyle === 'choice' ? '4択' : '入力'}<span class="dot-sep">·</span>${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+  }
+
+  private setPhase(phase: Phase): void {
+    this.phase = phase;
+    document.body.dataset.phase = phase;
+  }
+
+  private get compact(): boolean {
+    return typeof matchMedia === 'function' && matchMedia('(max-width: 640px)').matches;
+  }
+
+  private toggleConfigSheet(open = !document.body.classList.contains('cfg-open')): void {
+    document.body.classList.toggle('cfg-open', open);
+    $('#cfg-toggle').setAttribute('aria-expanded', String(open));
   }
 
   private onConfig(name: string, v: string): void {
@@ -197,7 +221,7 @@ export class App {
     this.input = '';
     this.picked = -1;
     this.choices = this.isChoice ? makeChoices(this.q, this.s.rules) : [];
-    this.phase = 'answering';
+    this.setPhase('answering');
     this.startedAt = performance.now();
     this.renderQuestion();
     this.renderInput();
@@ -205,6 +229,7 @@ export class App {
     this.renderProgress();
     $('#result').innerHTML = '';
     $('#stage').classList.remove('correct', 'wrong');
+    document.querySelector('main')?.scrollTo({ top: 0 });
     this.startTimer();
     this.fx.notice(drawNotice(this.lamp, this.session.streak, this.session.kakuhen, this.s.effects), this.lamp);
   }
@@ -272,7 +297,7 @@ export class App {
       }
     }
     cancelAnimationFrame(this.timerRaf);
-    this.phase = 'suspense';
+    this.setPhase('suspense');
     const elapsed = (performance.now() - this.startedAt) / 1000;
     const correct = !timeout && this.isCorrect(this.input);
     const score = scoreOf(this.q);
@@ -301,7 +326,7 @@ export class App {
     ss.answered++;
     ss.byCat[cat] ??= { c: 0, n: 0 };
     ss.byCat[cat].n++;
-    this.phase = 'result';
+    this.setPhase('result');
     this.lastCorrect = correct;
     const stage = $('#stage');
     stage.classList.add(correct ? 'correct' : 'wrong');
@@ -345,7 +370,13 @@ export class App {
     }
     this.renderProgress();
     this.renderInput();
-    this.hint(correct ? '任意のキーで次へ' : 'Enter / Space で次へ');
+    this.hint(this.compact ? '' : correct ? '任意のキーで次へ' : 'Enter / Space で次へ');
+    if (this.compact) {
+      // 解説の先頭（判定）が見える位置までスクロール
+      const main = document.querySelector('main');
+      const res = $('#result');
+      if (main) main.scrollTo({ top: Math.max(0, res.offsetTop - main.offsetTop - 8), behavior: 'smooth' });
+    }
   }
 
   private scheduleAutoNext(): void {
@@ -470,6 +501,7 @@ export class App {
   }
 
   private defaultHint(): string {
+    if (this.compact) return this.isChoice ? '' : 'テンキーで入力して「回答」';
     if (this.isChoice) return '<kbd>1</kbd>-<kbd>4</kbd> 選択 · <kbd>Tab</kbd> パス · <kbd>Esc</kbd> やり直し';
     const pair = this.needsPair() ? '<kbd>-</kbd> 区切り · ' : '';
     return `${pair}<kbd>Enter</kbd> 回答 · <kbd>Tab</kbd> パス · <kbd>Esc</kbd> やり直し`;
@@ -497,7 +529,7 @@ export class App {
   }
 
   private showSummary(): void {
-    this.phase = 'summary';
+    this.setPhase('summary');
     cancelAnimationFrame(this.timerRaf);
     const ss = this.session;
     const acc = ss.answered ? (ss.correct / ss.answered) * 100 : 0;
@@ -542,7 +574,9 @@ export class App {
         <div><div class="ex-h">状況別 <span class="muted">${weakText}</span></div>${cats}</div>
         ${misses ? `<div><div class="ex-h">間違えた問題</div><ul class="misses">${misses}</ul></div>` : ''}
       </div>
-      <div class="hint"><kbd>Tab</kbd> / <kbd>Enter</kbd> もう一度</div>`;
+      <button class="again-btn" type="button" data-again>もう一度</button>
+      ${this.compact ? '' : '<div class="hint"><kbd>Tab</kbd> / <kbd>Enter</kbd> もう一度</div>'}`;
+    sum.querySelector('[data-again]')?.addEventListener('click', () => this.startSession());
     this.fx.sessionEnd(acc >= 80);
   }
 
@@ -562,7 +596,20 @@ export class App {
   private bind(): void {
     addEventListener('keydown', (e) => this.onKey(e));
     addEventListener('mousemove', () => document.body.classList.remove('typing'));
+    $('#cfg-toggle').addEventListener('click', () => this.toggleConfigSheet());
+    $('#cfg-backdrop').addEventListener('click', () => this.toggleConfigSheet(false));
+    $('#next-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (this.phase === 'result') {
+        this.fx.skip();
+        this.next();
+      } else if (this.phase === 'summary') this.startSession();
+    });
     $('#config').addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('[data-close-cfg]')) {
+        this.toggleConfigSheet(false);
+        return;
+      }
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-cfg]');
       if (b) {
         this.onConfig(b.dataset.cfg!, b.dataset.v!);
@@ -785,20 +832,25 @@ const SHELL = `
 <header id="top">
   <div class="logo">tensu<span class="dot">.</span><span class="sub">麻雀点数計算トレーナー</span></div>
   <div class="top-right">
+    <button id="cfg-toggle" class="cfg-pill" type="button" aria-expanded="false" aria-controls="config"></button>
     <button id="open-settings" class="icon-btn" aria-label="設定">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
   </div>
 </header>
-<nav id="config"></nav>
+<nav id="config" aria-label="出題設定"></nav>
+<div id="cfg-backdrop"></div>
 <main>
   <section id="stage">
     <div id="progress"></div>
     <div id="question"></div>
-    <div id="answer" aria-live="polite"></div>
-    <div id="choices" role="group" aria-label="選択肢"></div>
-    <div class="timer-track"><div id="timer"></div></div>
-    <div id="hint" class="hint"></div>
+    <div id="dock">
+      <div id="answer" aria-live="polite"></div>
+      <div id="choices" role="group" aria-label="選択肢"></div>
+      <div class="timer-track"><div id="timer"></div></div>
+      <div id="hint" class="hint"></div>
+      <button id="next-btn" type="button">次へ</button>
+    </div>
     <div id="result"></div>
   </section>
   <section id="summary" hidden></section>
