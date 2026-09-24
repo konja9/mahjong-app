@@ -3428,3 +3428,74 @@ body.busy #bet .bet-chip {
     animation: none;
   }
 }
+
+/* ============================================================ 台パネルのフォント
+   --m-jp: 日本語 / --m-cap: 英字の見出し / --m-num: 数字 */
+#machine[data-font='mincho'] {
+  --m-jp: 'Shippori Mincho', 'Noto Serif JP', serif;
+  --m-cap: 'Cinzel', 'Shippori Mincho', serif;
+  --m-num: 'Playfair Display', Georgia, serif;
+}
+#machine[data-font='classic-serif'] {
+  --m-jp: 'Zen Old Mincho', 'Noto Serif JP', serif;
+  --m-cap: 'Cormorant Garamond', 'Zen Old Mincho', serif;
+  --m-num: 'Cormorant Garamond', Georgia, serif;
+}
+#machine[data-font='modern'] {
+  --m-jp: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
+  --m-cap: 'Montserrat', 'Zen Kaku Gothic New', sans-serif;
+  --m-num: 'Montserrat', sans-serif;
+}
+#machine[data-skin^='luxe'] {
+  font-family: var(--m-jp);
+}
+#machine[data-skin^='luxe'] .m-head {
+  font-family: var(--m-jp);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+}
+#machine[data-skin^='luxe'] .m-st {
+  font-family: var(--m-cap);
+  letter-spacing: 0.08em;
+}
+#machine[data-skin^='luxe'] .m-msg {
+  font-family: var(--m-jp);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+#machine[data-skin^='luxe'] .m-data small {
+  font-family: var(--m-cap);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+#machine[data-skin^='luxe'] .m-data b {
+  font-family: var(--m-num);
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+#machine[data-font='modern'] .m-data b {
+  font-weight: 300;
+}
+#machine[data-skin^='luxe'] .m-log .hit {
+  font-family: var(--m-num);
+  font-weight: 600;
+  font-size: 12px;
+}
+#machine[data-skin^='luxe'] .m-generous,
+#machine[data-skin^='luxe'] .m-cashout {
+  font-family: var(--m-jp);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+#machine[data-skin^='luxe'] .m-generous .g-state {
+  font-family: var(--m-cap);
+  letter-spacing: 0.1em;
+}
+#machine[data-font='modern'] .m-generous,
+#machine[data-font='modern'] .m-cashout,
+#machine[data-font='modern'] .m-head {
+  font-weight: 500;
+}

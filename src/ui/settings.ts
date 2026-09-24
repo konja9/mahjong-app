@@ -6,6 +6,7 @@ export type EffectLevel = 'off' | 'lite' | 'max';
 export type Theme = 'serika' | 'paper' | 'neon';
 export type AnswerStyle = 'choice' | 'input';
 export type PlayMode = 'normal' | 'practice';
+export type MachineFont = 'mincho' | 'classic-serif' | 'modern';
 export type MachineSkin = 'classic' | 'luxe' | 'luxe-deco' | 'luxe-shine' | 'luxe-velvet';
 
 export interface Settings {
@@ -17,6 +18,8 @@ export interface Settings {
   machineSkin: MachineSkin;
   /** 台のデザインを利用者が選んだか（未選択なら標準のデザインに追従する） */
   skinChosen: boolean;
+  /** 台パネルのフォント */
+  machineFont: MachineFont;
   mode: Mode;
   /** 回答方式：4択か数値入力か */
   answerStyle: AnswerStyle;
@@ -36,8 +39,9 @@ const reducedMotion =
 export const DEFAULT_SETTINGS: Settings = {
   playMode: 'normal',
   generous: false,
-  machineSkin: 'luxe',
+  machineSkin: 'luxe-velvet',
   skinChosen: false,
+  machineFont: 'mincho',
   mode: 'hayami',
   answerStyle: 'choice',
   count: 25,
