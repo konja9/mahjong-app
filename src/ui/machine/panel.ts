@@ -4,13 +4,18 @@ import { LAMP_NAMES } from '../effects/pachinko';
 import { drawNotice } from '../effects/performance';
 import type { EffectLevel } from '../effects/performance';
 import { Reel } from '../effects/reel';
+import { payoutFor } from './economy';
 import { MAX_HOLDS, Machine, PREMIUM_SYMBOL, ST_SPINS, type SpinResult } from './machine';
 
 export interface PanelHooks {
   /** 発展リーチ・大当り中は回答を止める */
   onBusy(busy: boolean): void;
-  /** 状態（通常/確変）が変わった */
+  /** 状態（通常/確変）が変わった・回転が終わった */
   onState(): void;
+  /** 大当りの払い出し */
+  onPayout(amount: number, premium: boolean): void;
+  /** 精算ボタン */
+  onCashout(): void;
 }
 
 /** 常時表示のパチンコ台パネル。保留がある限り自動で回り続ける */
@@ -18,7 +23,7 @@ export class MachinePanel {
   readonly machine: Machine;
   private reel: Reel;
   private running = false;
-  private stopped = false;
+  private isStopped = false;
   private gen = 0;
   private timers: number[] = [];
 
@@ -38,10 +43,17 @@ export class MachinePanel {
         <div class="m-chucker" title="始動口"><span></span></div>
       </div>
       <div class="m-data">
-        <div><small>回転</small><b data-k="spins">0</b></div>
+        <div><small>回転</small><b data-k="sinceHit">0</b></div>
         <div><small>大当り</small><b data-k="hits">0</b></div>
         <div><small>最大RUSH</small><b data-k="maxChain">0</b></div>
-      </div>`;
+      </div>
+      <div class="m-log" aria-label="大当り履歴"></div>
+      <div class="m-slump" aria-label="スランプグラフ"></div>
+      <button class="m-cashout" type="button">精算</button>`;
+    root.querySelector('.m-cashout')!.addEventListener('click', (e) => {
+      e.stopPropagation();
+      hooks.onCashout();
+    });
     this.reel = new Reel(root.querySelector<HTMLElement>('.m-screen')!, 'mini');
     this.idleSymbols();
     this.render();
@@ -49,6 +61,20 @@ export class MachinePanel {
 
   get chucker(): HTMLElement {
     return this.root.querySelector<HTMLElement>('.m-chucker')!;
+  }
+
+  get stopped(): boolean {
+    return this.isStopped;
+  }
+
+  /** 保留も回転もない */
+  get idle(): boolean {
+    return !this.running && this.machine.holds.length === 0;
+  }
+
+  /** スランプグラフの描画先 */
+  get slumpEl(): HTMLElement {
+    return this.root.querySelector<HTMLElement>('.m-slump')!;
   }
 
   get rush(): boolean {
@@ -72,7 +98,7 @@ export class MachinePanel {
   }
 
   private kick(): void {
-    if (this.running || this.stopped) return;
+    if (this.running || this.isStopped) return;
     this.running = true;
     void this.loop(this.gen);
   }
@@ -95,7 +121,10 @@ export class MachinePanel {
       this.render();
       await this.wait(260);
     }
-    if (g === this.gen) this.running = false;
+    if (g === this.gen) {
+      this.running = false;
+      this.hooks.onState();
+    }
   }
 
   private wait(ms: number): Promise<void> {
@@ -159,12 +188,15 @@ export class MachinePanel {
       this.reel.hit();
       this.msg(r.kakuhen ? '確変大当り' : '大当り', 'win');
       if (!developed) this.hooks.onBusy(true);
+      const premium = r.symbols[0] === PREMIUM_SYMBOL;
       await this.fx.jackpot({
         kakuhen: r.kakuhen,
-        premium: r.symbols[0] === PREMIUM_SYMBOL,
+        premium,
         rush: this.machine.rush,
         chain: this.machine.data.rushChain,
       });
+      if (g !== this.gen) return;
+      this.hooks.onPayout(payoutFor(premium), premium);
       this.hooks.onBusy(false);
     } else {
       if (developed) this.hooks.onBusy(false);
@@ -190,10 +222,16 @@ export class MachinePanel {
       h.className = `hold${hold ? ` on ${LAMP_NAMES[hold.color]}` : ''}`;
     });
     if (pop && m.holds.length) holds[m.holds.length - 1]?.classList.add('lamp-pop');
-    for (const k of ['spins', 'hits', 'maxChain'] as const) {
+    for (const k of ['sinceHit', 'hits', 'maxChain'] as const) {
       const el = this.root.querySelector(`[data-k="${k}"]`);
       if (el) el.textContent = String(m.data[k]);
     }
+    this.root.querySelector('.m-log')!.innerHTML = m.data.log
+      .map(
+        (h) =>
+          `<span class="hit${h.kakuhen ? ' k' : ''}${h.premium ? ' p' : ''}" title="${h.at}回転で${h.kakuhen ? '確変' : '通常'}大当り">${h.at}</span>`,
+      )
+      .join('');
   }
 
   /** セッション開始時にリセット */
@@ -205,7 +243,7 @@ export class MachinePanel {
     });
     this.timers = [];
     this.running = false;
-    this.stopped = false;
+    this.isStopped = false;
     this.machine.reset();
     this.root.classList.remove('reach', 'hot', 'win', 'rush');
     this.msg('', '');
@@ -217,6 +255,6 @@ export class MachinePanel {
   /** プラクティスへ切り替えたときなどに停止 */
   stop(): void {
     this.reset();
-    this.stopped = true;
+    this.isStopped = true;
   }
 }

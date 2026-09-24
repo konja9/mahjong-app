@@ -2,7 +2,7 @@ import { bgm, sfx } from '../audio';
 import { tileSvg } from '../tileView';
 import { Particles } from './particles';
 import type { Cutin, EffectLevel, Notice, Suspense, WinTier } from './performance';
-import { Reel } from './reel';
+import { Reel, SYMBOL_COUNT } from './reel';
 
 export type { WinTier } from './performance';
 
@@ -202,7 +202,7 @@ export class Fx {
 
     for (let p = 1; p <= plan.pseudo && !this.skipped; p++) {
       const syms = [0, 1, 2].map(() => Reel.randomSymbol());
-      if (syms[0] === syms[2]) syms[2] = (syms[2] + 3) % 9;
+      if (syms[0] === syms[2]) syms[2] = (syms[2] + 3) % SYMBOL_COUNT;
       for (const i of [0, 2, 1]) {
         reel.stop(i, syms[i]);
         sfx.reelStop(i);
@@ -251,7 +251,11 @@ export class Fx {
     }
     if (this.skipped) return;
 
-    const final = preset ? preset[1] : plan.hit ? sym : (sym + (Math.random() < 0.5 ? 1 : 8)) % 9;
+    const final = preset
+      ? preset[1]
+      : plan.hit
+        ? sym
+        : (sym + (Math.random() < 0.5 ? 1 : SYMBOL_COUNT - 1)) % SYMBOL_COUNT;
     reel.stop(1, final);
     sfx.reelStop(1);
     this.stopTick();

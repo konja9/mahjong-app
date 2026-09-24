@@ -57,19 +57,28 @@ function rollTsumo(rng: Rng, f: Filters): boolean {
 
 // ------------------------------------------------------------ 早見モード
 
+/** 実戦の分布に寄せた符の出題比率（60符以上はまれ） */
 const FU_WEIGHTS = [
-  [20, 6],
-  [25, 6],
-  [30, 24],
-  [40, 24],
-  [50, 12],
-  [60, 9],
-  [70, 7],
-  [80, 4],
-  [90, 3],
-  [100, 2],
-  [110, 2],
+  [20, 7],
+  [25, 8],
+  [30, 42],
+  [40, 30],
+  [50, 8],
+  [60, 3],
+  [70, 1],
+  [80, 0.4],
+  [90, 0.3],
+  [100, 0.2],
+  [110, 0.1],
 ] as const;
+
+/** 生成した手の符に応じた採用率（高い符は実戦ではまれなので間引く） */
+function fuAcceptRate(fu: number): number {
+  if (fu >= 70) return 0.05;
+  if (fu >= 60) return 0.15;
+  if (fu >= 50) return 0.5;
+  return 1;
+}
 
 export function generateHayami(rules: Rules, f: Filters, rng: Rng = Math.random, boost = false): HayamiQuestion {
   for (;;) {
@@ -119,7 +128,7 @@ function buildPlan(rng: Rng, flavor: Flavor, used: number[]): Plan | null {
   const suit = Math.floor(rng() * 3);
   const allowed = allowedTiles(flavor, suit);
   const groups: Plan['groups'] = [];
-  const honorKoutsuRate = flavor === 'yakuhai' ? 0.6 : flavor === 'honitsu' ? 0.45 : 0.25;
+  const honorKoutsuRate = flavor === 'yakuhai' ? 0.6 : flavor === 'honitsu' ? 0.45 : 0.18;
   const koutsuRate = flavor === 'toitoi' ? 1 : 0.32;
 
   for (let i = 0; i < 4; i++) {
@@ -191,12 +200,12 @@ function buildStandard(rng: Rng, flavor: Flavor, openRate: number): Built | null
     }
     const canKan = used[g.tile] === 3 && kans < 2;
     if (openIdx.has(i)) {
-      if (canKan && rng() < 0.15) {
+      if (canKan && rng() < 0.06) {
         used[g.tile]++;
         kans++;
         melds.push({ type: 'minkan', tile: g.tile });
       } else melds.push({ type: 'pon', tile: g.tile });
-    } else if (canKan && rng() < 0.1) {
+    } else if (canKan && rng() < 0.04) {
       used[g.tile]++;
       kans++;
       melds.push({ type: 'ankan', tile: g.tile });
@@ -364,6 +373,8 @@ export function generateHandQuestion({ mode, rules, filters, rng = Math.random, 
     // 符モードでは符が意味を持つ（満貫未満）問題を中心にする
     if (mode === 'fu' && (ev.yakuman || ev.fu.fu === 0)) continue;
     if (mode === 'fu' && ev.han >= 5 && rng() < 0.8) continue;
+    // 符の分布を実戦に寄せる（役満は符と無関係なので対象外）
+    if (!ev.yakuman && rng() >= fuAcceptRate(ev.fu.fu)) continue;
     // 役満は出すぎないように間引く（確変中は間引かない）
     if (ev.yakuman && !boost && rng() < 0.5) continue;
     // 確変中の符計算は高打点の手を増やす

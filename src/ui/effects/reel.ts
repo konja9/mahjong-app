@@ -1,7 +1,17 @@
 import { tileSvg } from '../tileView';
 
-/** 図柄は萬子の1〜9 */
-const SYMBOLS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+/**
+ * 図柄は 1〜9 と白發中の12種類。数字ごとに種類を固定して、見た目で区別しやすくする。
+ * index 4（赤5筒）が PREMIUM。
+ */
+export const SYMBOLS = [0, 10, 20, 3, 13, 23, 6, 16, 26, 31, 32, 33];
+export const SYMBOL_COUNT = SYMBOLS.length;
+export const PREMIUM_INDEX = 4;
+
+const cell = (t: number, i: number) =>
+  i === PREMIUM_INDEX
+    ? `<div class="cell premium">${tileSvg(t, { red: true })}</div>`
+    : `<div class="cell">${tileSvg(t)}</div>`;
 
 /** 牌3枚の図柄リール（DOM + CSS アニメーション） */
 export class Reel {
@@ -9,7 +19,7 @@ export class Reel {
   private reels: HTMLElement[];
 
   constructor(host: HTMLElement, cls = '') {
-    const strip = [...SYMBOLS, ...SYMBOLS].map((t) => `<div class="cell">${tileSvg(t)}</div>`).join('');
+    const strip = [...SYMBOLS, ...SYMBOLS].map((t, i) => cell(t, i % SYMBOL_COUNT)).join('');
     host.insertAdjacentHTML(
       'beforeend',
       `<div class="reel-machine ${cls}">
@@ -71,6 +81,6 @@ export class Reel {
   }
 
   static randomSymbol(): number {
-    return Math.floor(Math.random() * SYMBOLS.length);
+    return Math.floor(Math.random() * SYMBOL_COUNT);
   }
 }

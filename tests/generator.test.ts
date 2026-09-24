@@ -74,3 +74,36 @@ describe('確変ブースト', () => {
     expect(big).toBeGreaterThan(150);
   });
 });
+
+describe('符の分布', () => {
+  it('早見：60符以上は8%以下、30符と40符で過半数', () => {
+    const rng = mulberry32(11);
+    let high = 0;
+    let mid = 0;
+    let n = 0;
+    for (let i = 0; i < 4000; i++) {
+      const q = generateHayami(DEFAULT_RULES, anyFilter, rng);
+      if (q.han >= 5) continue;
+      n++;
+      if (q.fu >= 60) high++;
+      if (q.fu === 30 || q.fu === 40) mid++;
+    }
+    expect(high / n).toBeLessThan(0.08);
+    expect(mid / n).toBeGreaterThan(0.5);
+  });
+  for (const mode of ['fu', 'jissen'] as const) {
+    it(`${mode}：60符以上は8%以下、30符と40符で過半数`, () => {
+      const rng = mulberry32(12);
+      let high = 0;
+      let mid = 0;
+      const n = 2000;
+      for (let i = 0; i < n; i++) {
+        const q = generateHandQuestion({ mode, rules: DEFAULT_RULES, filters: anyFilter, rng });
+        if (q.ev.fu.fu >= 60) high++;
+        if (q.ev.fu.fu === 30 || q.ev.fu.fu === 40) mid++;
+      }
+      expect(high / n).toBeLessThan(0.08);
+      expect(mid / n).toBeGreaterThan(0.5);
+    });
+  }
+});

@@ -41,6 +41,8 @@ function pointCandidates(
   const limit0 = yakuman0 > 0 || han0 >= 5;
   for (let han = 1; han <= 13; han++) {
     for (const fu of han >= 5 ? [30] : FU_LIST) {
+      // 正解が50符以下なら、実戦でまず出ない70符以上は誤答にしない
+      if (fu0 && fu0 <= 50 && fu >= 70) continue;
       if (!isValidHanFu(han, fu, tsumo)) continue;
       const label = formatAnswer(calcScore(han, fu, dealer, tsumo, rules));
       let dist: number;
@@ -73,7 +75,7 @@ export function makeChoices(q: Question, rules: Rules, rng: Rng = Math.random): 
   if (q.mode === 'fu') {
     const fu0 = q.ev.fu.fu;
     correct = `${fu0}符`;
-    cands = FU_LIST.map((f) => ({ label: `${f}符`, dist: Math.abs(f - fu0) / 10 }));
+    cands = FU_LIST.filter((f) => fu0 > 50 || f < 70).map((f) => ({ label: `${f}符`, dist: Math.abs(f - fu0) / 10 }));
   } else if (q.mode === 'hayami') {
     correct = formatAnswer(q.score);
     cands = pointCandidates(q.han, q.fu, 0, q.dealer, q.tsumo, rules);
