@@ -87,6 +87,8 @@ export class App {
   private wallet: Wallet = loadWallet();
   private shownBalance = this.wallet.balance;
   private betRaf = 0;
+  /** 速答ボーナスの表示案（比較用） a: 取り消し線 / b: 残りバー / d: 値札 */
+  betUi: 'a' | 'b' | 'd' = 'a';
   /** 大当りのラウンド（賞金タイム）。null なら通常時 */
   private round: {
     n: number;
@@ -364,13 +366,24 @@ export class App {
     }
     const hr = this.s.highRoller;
     const fastSec = ECONOMY.fastSeconds[this.s.mode];
-    el.innerHTML = `<span class="bet-chip${hr ? ' hr' : ''}" style="--half:${fastSec}s">BET <b>${costFor(true, true, hr)}</b></span>`;
-    const chip = el.querySelector<HTMLElement>('.bet-chip b')!;
+    const full = costFor(true, false, hr);
+    const half = costFor(true, true, hr);
+    el.dataset.ui = this.betUi;
+    el.style.setProperty('--half', `${fastSec}s`);
+    const html = {
+      a: (exp: boolean) =>
+        `<span class="bet-a${hr ? ' hr' : ''}"><span class="lbl">BET</span>${exp ? '' : `<s>${full}</s>`}<b>${exp ? full : half}</b>${exp ? '' : '<em>速答で半額</em>'}</span>`,
+      b: (exp: boolean) =>
+        `<span class="bet-b${hr ? ' hr' : ''}"><span class="lbl">${exp ? 'BET' : '速答ボーナス中'}</span><b>${exp ? full : half}</b><span class="unit">yan</span><i class="bar"></i></span>`,
+      d: (exp: boolean) =>
+        `<span class="bet-d${hr ? ' hr' : ''}"><span class="tag">${exp ? '通常' : 'HALF'}</span><span class="price">${exp ? '' : `<s>${full}</s><span class="arrow">→</span>`}<b>${exp ? full : half}</b><small>yan</small></span></span>`,
+    }[this.betUi];
+    el.innerHTML = html(false);
     const tick = () => {
       if (this.phase !== 'answering') return;
       if (this.activeElapsed() >= fastSec) {
         el.classList.add('expired');
-        chip.textContent = String(costFor(true, false, hr));
+        el.innerHTML = html(true);
         return;
       }
       this.betRaf = requestAnimationFrame(tick);
@@ -588,7 +601,9 @@ export class App {
         this.fx.roundWin(prize, answerEl, $('#wallet'), () => this.changeBalance(prize, 900));
       } else if (!this.practice) {
         const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
-        extra = `<span class="yan-cost${fast ? ' fast' : ''}">−${costFor(true, fast, this.s.highRoller)} yan${fast ? '（速答半額）' : ''}</span>`;
+        extra = fast
+          ? `<span class="fast-stamp">速答ボーナス<b>半額 −${costFor(true, true, this.s.highRoller)}</b></span>`
+          : `<span class="yan-cost">−${costFor(true, false, this.s.highRoller)} yan</span>`;
       }
       $('#result').innerHTML = `<div class="verdict ok"><span class="mark">正解</span><span class="ans">${this.correctText()}</span><span class="muted">${elapsed.toFixed(1)}s</span>${extra}</div>${explain}`;
       const streak = ss.streak;
