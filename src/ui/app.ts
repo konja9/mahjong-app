@@ -975,7 +975,7 @@ export class App {
         this.update({ effects: v as Settings['effects'] }, false);
         return;
       case 'skin':
-        this.update({ machineSkin: v as Settings['machineSkin'] }, false);
+        this.update({ machineSkin: v as Settings['machineSkin'], skinChosen: true }, false);
         return;
       case 'sound':
         this.update({ sound: bool }, false);
@@ -1039,7 +1039,7 @@ export class App {
       <div class="set-head"><span>設定</span><button class="icon-btn" data-set="close" data-v="" aria-label="閉じる">×</button></div>
       <div class="set-sec">表示・演出</div>
       ${row('テーマ', '', 'theme', [['serika', 'serika'], ['paper', 'paper'], ['neon', 'neon']], s.theme)}
-      ${row('台のデザイン', 'ノーマルのパチンコ台の見た目', 'skin', [['classic', 'クラシック'], ['neon', 'ネオン'], ['luxe', 'ブラック&ゴールド'], ['lcd', '液晶']], s.machineSkin)}
+      ${row('台のデザイン', 'ノーマルのパチンコ台の見た目', 'skin', [['luxe', 'ブラック&ゴールド'], ['luxe-deco', 'アールデコ'], ['luxe-shine', 'ゴールドシーン'], ['luxe-velvet', 'ベルベット'], ['classic', 'クラシック']], s.machineSkin)}
       ${row('演出', '点滅や揺れが苦手な場合は「控えめ」か「オフ」に', 'effects', [['max', '全開'], ['lite', '控えめ'], ['off', 'オフ']], s.effects)}
       ${row('サウンド', '', 'sound', yn, onOff(s.sound))}
       <div class="set-row"><div><div class="set-label">音量</div></div><input type="range" min="0" max="1" step="0.05" value="${s.volume}" data-set="volume" aria-label="音量"></div>

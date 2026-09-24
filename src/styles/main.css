@@ -3183,9 +3183,10 @@ body.busy #bet .bet-chip {
 
 /* ============================================================ 台のデザイン（スキン）
    classic: 元のデザイン（追加スタイルなし）
-   neon   : ネオン管の縁取りとガラス
-   luxe   : 黒×金のハイローラー
-   lcd    : 琥珀色の液晶・7セグ */
+   luxe       : 黒×金（標準）
+   luxe-deco  : アールデコ（扇の装飾と角金具）
+   luxe-shine : 金の光沢が流れる
+   luxe-velvet: ワインレッドのベルベット × 金 */
 
 /* ---- 共通：大盤振る舞いボタン（classic 用の落ち着いた見た目） */
 #machine[data-skin='classic'] .m-generous {
@@ -3198,80 +3199,8 @@ body.busy #bet .bet-chip {
   color: var(--sub);
 }
 
-/* ============================================================ neon */
-#machine[data-skin='neon'] {
-  --n1: #ff3d7f;
-  --n2: #3de6ff;
-  background: rgba(10, 12, 28, 0.78) !important;
-  backdrop-filter: blur(8px);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--n1) 70%, transparent),
-    0 0 0 1px rgba(0, 0, 0, 0.5),
-    0 0 24px color-mix(in srgb, var(--n1) 35%, transparent),
-    0 0 60px color-mix(in srgb, var(--n2) 12%, transparent) !important;
-}
-#machine[data-skin='neon'] .m-head {
-  color: var(--n2);
-  text-shadow: 0 0 8px var(--n2);
-  letter-spacing: 0.25em;
-}
-#machine[data-skin='neon'] .m-screen {
-  background: #03040a !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--n2) 55%, transparent), inset 0 0 26px color-mix(in srgb, var(--n2) 18%, transparent) !important;
-}
-#machine[data-skin='neon'] .reel-machine.mini .reel .tile {
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--n2) 55%, transparent));
-}
-#machine[data-skin='neon'] .hold {
-  background: transparent;
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--n2) 45%, transparent);
-}
-#machine[data-skin='neon'] .hold.on {
-  background: var(--lamp);
-  box-shadow: 0 0 10px var(--lamp), inset 0 0 0 1.5px #fff;
-}
-#machine[data-skin='neon'] .m-data {
-  border-top-color: color-mix(in srgb, var(--n1) 35%, transparent);
-}
-#machine[data-skin='neon'] .m-data b {
-  color: var(--n2);
-  text-shadow: 0 0 8px var(--n2);
-}
-#machine[data-skin='neon'] .m-generous {
-  background: transparent;
-  color: var(--n1);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--n1) 60%, transparent);
-  text-shadow: 0 0 8px var(--n1);
-}
-#machine[data-skin='neon'] .m-generous .g-state {
-  background: transparent;
-  color: color-mix(in srgb, var(--n1) 60%, #555);
-}
-#machine[data-skin='neon'].generous .m-generous {
-  background: color-mix(in srgb, var(--n1) 22%, transparent);
-  color: #fff;
-  box-shadow: inset 0 0 0 1.5px var(--n1), 0 0 22px var(--n1);
-  animation: none;
-}
-#machine[data-skin='neon'].generous .m-generous .g-state {
-  color: #fff;
-  text-shadow: 0 0 8px #fff;
-}
-#machine[data-skin='neon'] .m-cashout {
-  background: transparent;
-  color: var(--n2);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--n2) 60%, transparent);
-  text-shadow: 0 0 8px var(--n2);
-}
-#machine[data-skin='neon'].reach {
-  box-shadow: inset 0 0 0 1.5px var(--n1), 0 0 36px var(--n1) !important;
-}
-#machine[data-skin='neon'].hot {
-  box-shadow: inset 0 0 0 1.5px #ffd84a, 0 0 44px #ffd84a !important;
-}
-
 /* ============================================================ luxe（黒×金） */
-#machine[data-skin='luxe'] {
+#machine[data-skin^='luxe'] {
   --gold: #d4af37;
   background: linear-gradient(180deg, #121214, #07070a) !important;
   box-shadow:
@@ -3281,21 +3210,21 @@ body.busy #bet .bet-chip {
     0 20px 50px rgba(0, 0, 0, 0.6) !important;
   font-family: 'JetBrains Mono', monospace;
 }
-#machine[data-skin='luxe'] .m-head {
+#machine[data-skin^='luxe'] .m-head {
   color: var(--gold);
   letter-spacing: 0.35em;
   font-weight: 700;
 }
-#machine[data-skin='luxe'] .m-screen {
+#machine[data-skin^='luxe'] .m-screen {
   background: #000 !important;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent), inset 0 12px 30px rgba(212, 175, 55, 0.08) !important;
 }
-#machine[data-skin='luxe'] .m-msg {
+#machine[data-skin^='luxe'] .m-msg {
   color: var(--gold);
   text-shadow: none;
   letter-spacing: 0.3em;
 }
-#machine[data-skin='luxe'] .hold {
+#machine[data-skin^='luxe'] .hold {
   width: 10px;
   height: 10px;
   transform: rotate(45deg);
@@ -3303,58 +3232,58 @@ body.busy #bet .bet-chip {
   background: #1c1c20;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 40%, transparent);
 }
-#machine[data-skin='luxe'] .hold.on {
+#machine[data-skin^='luxe'] .hold.on {
   background: var(--lamp);
   box-shadow: 0 0 8px var(--lamp);
 }
-#machine[data-skin='luxe'] .m-chucker {
+#machine[data-skin^='luxe'] .m-chucker {
   border-color: var(--gold);
 }
-#machine[data-skin='luxe'] .m-data {
+#machine[data-skin^='luxe'] .m-data {
   border-top: 1px solid color-mix(in srgb, var(--gold) 35%, transparent);
 }
-#machine[data-skin='luxe'] .m-data small {
+#machine[data-skin^='luxe'] .m-data small {
   color: color-mix(in srgb, var(--gold) 60%, #444);
   letter-spacing: 0.2em;
 }
-#machine[data-skin='luxe'] .m-data b {
+#machine[data-skin^='luxe'] .m-data b {
   color: #f3e3a6;
   text-shadow: none;
   font-weight: 400;
   font-size: 22px;
 }
-#machine[data-skin='luxe'] .m-log .hit {
+#machine[data-skin^='luxe'] .m-log .hit {
   background: transparent;
   color: var(--gold);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent);
 }
-#machine[data-skin='luxe'] .m-log .hit.p {
+#machine[data-skin^='luxe'] .m-log .hit.p {
   background: var(--gold);
   color: #000;
 }
-#machine[data-skin='luxe'] .m-generous,
-#machine[data-skin='luxe'] .m-cashout {
+#machine[data-skin^='luxe'] .m-generous,
+#machine[data-skin^='luxe'] .m-cashout {
   background: transparent;
   color: var(--gold);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 60%, transparent);
   letter-spacing: 0.25em;
 }
-#machine[data-skin='luxe'] .m-generous .g-state {
+#machine[data-skin^='luxe'] .m-generous .g-state {
   background: transparent;
   color: color-mix(in srgb, var(--gold) 50%, #444);
 }
-#machine[data-skin='luxe'].generous .m-generous {
+#machine[data-skin^='luxe'].generous .m-generous {
   background: linear-gradient(180deg, #f3e3a6, var(--gold));
   color: #000;
   box-shadow: 0 0 20px color-mix(in srgb, var(--gold) 50%, transparent);
   animation: none;
 }
-#machine[data-skin='luxe'].generous .m-generous .g-state {
+#machine[data-skin^='luxe'].generous .m-generous .g-state {
   color: #000;
   text-shadow: none;
 }
-#machine[data-skin='luxe'].reach,
-#machine[data-skin='luxe'].hot {
+#machine[data-skin^='luxe'].reach,
+#machine[data-skin^='luxe'].hot {
   box-shadow:
     inset 0 0 0 1px var(--gold),
     inset 0 0 0 4px #07070a,
@@ -3362,88 +3291,140 @@ body.busy #bet .bet-chip {
     0 0 40px color-mix(in srgb, var(--gold) 45%, transparent) !important;
 }
 
-/* ============================================================ lcd（琥珀色の液晶） */
-#machine[data-skin='lcd'] {
-  --amber: #ffb000;
-  background: #0c0b09 !important;
-  box-shadow: inset 0 0 0 1px #2a241a, 0 16px 40px rgba(0, 0, 0, 0.55) !important;
-}
-#machine[data-skin='lcd'] .m-head,
-#machine[data-skin='lcd'] .m-msg {
-  color: var(--amber);
-  text-shadow: 0 0 6px color-mix(in srgb, var(--amber) 70%, transparent);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-#machine[data-skin='lcd'] .m-screen {
+
+/* ---- luxe-deco：アールデコ */
+#machine[data-skin='luxe-deco'] {
   background:
-    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 3px),
-    radial-gradient(ellipse at 50% 40%, #3a2a08, #140e02 80%) !important;
-  box-shadow: inset 0 0 0 2px #000, inset 0 0 22px rgba(0, 0, 0, 0.8), 0 0 0 1px #3a3020 !important;
+    linear-gradient(var(--gold), var(--gold)) top 10px left 10px / 22px 1.5px no-repeat,
+    linear-gradient(var(--gold), var(--gold)) top 10px left 10px / 1.5px 22px no-repeat,
+    linear-gradient(var(--gold), var(--gold)) top 10px right 10px / 22px 1.5px no-repeat,
+    linear-gradient(var(--gold), var(--gold)) top 10px right 10px / 1.5px 22px no-repeat,
+    linear-gradient(var(--gold), var(--gold)) bottom 10px left 10px / 22px 1.5px no-repeat,
+    linear-gradient(var(--gold), var(--gold)) bottom 10px left 10px / 1.5px 22px no-repeat,
+    linear-gradient(var(--gold), var(--gold)) bottom 10px right 10px / 22px 1.5px no-repeat,
+    linear-gradient(var(--gold), var(--gold)) bottom 10px right 10px / 1.5px 22px no-repeat,
+    linear-gradient(180deg, #121214, #07070a) !important;
 }
-#machine[data-skin='lcd'] .reel-machine.mini .reel .tile {
-  filter: sepia(0.35) saturate(1.2) brightness(0.95);
+#machine[data-skin='luxe-deco'] .m-head {
+  justify-content: center;
+  gap: 14px;
+  padding: 16px 0 6px;
+  background: repeating-conic-gradient(from -90deg at 50% 100%, color-mix(in srgb, var(--gold) 28%, transparent) 0 4deg, transparent 4deg 12deg)
+    top / 100% 100% no-repeat;
+  -webkit-mask: linear-gradient(#000, #000);
+  font-family: Georgia, 'Noto Serif JP', serif;
+  letter-spacing: 0.5em;
 }
-#machine[data-skin='lcd'] .hold {
-  width: 14px;
-  height: 8px;
-  border-radius: 1px;
-  background: #1f1a10;
-  box-shadow: inset 0 0 0 1px #3a3020;
+#machine[data-skin='luxe-deco'] .m-screen {
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 1px var(--gold),
+    inset 0 0 0 4px #000,
+    inset 0 0 0 5px color-mix(in srgb, var(--gold) 40%, transparent) !important;
 }
-#machine[data-skin='lcd'] .hold.on {
-  background: var(--amber);
-  box-shadow: 0 0 8px var(--amber);
+#machine[data-skin='luxe-deco'] .m-data b {
+  font-family: Georgia, 'Noto Serif JP', serif;
+  font-size: 26px;
+  color: #f3e3a6;
 }
-#machine[data-skin='lcd'] .hold.on.red,
-#machine[data-skin='lcd'] .hold.on.gold,
-#machine[data-skin='lcd'] .hold.on.rainbow {
-  background: var(--lamp);
-  box-shadow: 0 0 10px var(--lamp);
-}
-#machine[data-skin='lcd'] .m-data {
+#machine[data-skin='luxe-deco'] .m-data {
   border-top: 0;
-  padding: 8px;
-  border-radius: 6px;
-  background: #140e02;
-  box-shadow: inset 0 0 0 1px #3a3020;
+  background:
+    linear-gradient(90deg, transparent, var(--gold), transparent) top / 100% 1px no-repeat,
+    linear-gradient(90deg, transparent, var(--gold), transparent) bottom / 100% 1px no-repeat;
+  padding: 10px 0;
 }
-#machine[data-skin='lcd'] .m-data small {
-  color: #7a5a14;
-  letter-spacing: 0.15em;
+#machine[data-skin='luxe-deco'] .m-generous,
+#machine[data-skin='luxe-deco'] .m-cashout {
+  border-radius: 2px;
+  font-family: Georgia, 'Noto Serif JP', serif;
 }
-#machine[data-skin='lcd'] .m-data b {
-  color: var(--amber);
-  text-shadow: 0 0 8px var(--amber);
-  font-size: 22px;
+
+/* ---- luxe-shine：金の光沢が流れる */
+#machine[data-skin='luxe-shine'] {
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 1.5px transparent,
+    0 20px 50px rgba(0, 0, 0, 0.6),
+    0 0 30px color-mix(in srgb, var(--gold) 18%, transparent) !important;
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(180deg, #121214, #07070a) padding-box,
+    linear-gradient(115deg, #7a5a14, #f7e7a8 30%, #b8912a 50%, #fff4c8 70%, #7a5a14) border-box !important;
+  background-size: 100% 100%, 300% 100% !important;
+  animation: foil 6s linear infinite;
 }
-#machine[data-skin='lcd'] .m-log .hit {
-  background: #1f1a10;
-  color: var(--amber);
+#machine[data-skin='luxe-shine']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 42%, rgba(255, 236, 170, 0.14) 50%, transparent 58%);
+  background-size: 250% 100%;
+  animation: sheen 4.5s ease-in-out infinite;
 }
-#machine[data-skin='lcd'] .m-generous,
-#machine[data-skin='lcd'] .m-cashout {
-  background: #140e02;
-  color: var(--amber);
-  box-shadow: inset 0 0 0 1px #3a3020;
-  text-shadow: 0 0 6px color-mix(in srgb, var(--amber) 60%, transparent);
+@keyframes foil {
+  to {
+    background-position: 0 0, 300% 0;
+  }
 }
-#machine[data-skin='lcd'] .m-generous .g-state {
-  background: #0c0b09;
-  color: #7a5a14;
+@keyframes sheen {
+  0% {
+    background-position: 120% 0;
+  }
+  60%,
+  100% {
+    background-position: -120% 0;
+  }
 }
-#machine[data-skin='lcd'].generous .m-generous {
-  background: var(--amber);
-  color: #140e02;
-  text-shadow: none;
-  box-shadow: 0 0 20px color-mix(in srgb, var(--amber) 60%, transparent);
-  animation: none;
+#machine[data-skin='luxe-shine'] .m-data b,
+#machine[data-skin='luxe-shine'] .m-head .m-state {
+  background: linear-gradient(180deg, #fff4c8, #d4af37 55%, #8a6a1a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
-#machine[data-skin='lcd'].generous .m-generous .g-state {
-  background: #140e02;
-  color: var(--amber);
+#machine[data-skin='luxe-shine'] .m-data b {
+  font-weight: 700;
 }
-#machine[data-skin='lcd'].reach,
-#machine[data-skin='lcd'].hot {
-  box-shadow: inset 0 0 0 1px var(--amber), 0 0 36px color-mix(in srgb, var(--amber) 45%, transparent) !important;
+#machine[data-skin='luxe-shine'] .m-screen {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 70%, transparent), inset 0 0 30px rgba(212, 175, 55, 0.12) !important;
+}
+
+/* ---- luxe-velvet：ワインレッドのベルベット × 金 */
+#machine[data-skin='luxe-velvet'] {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 120, 150, 0.12), transparent 60%),
+    repeating-radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.015) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #3a0a18, #1a040b 60%, #0d0206) !important;
+}
+#machine[data-skin='luxe-velvet'] .m-screen {
+  background: #050102 !important;
+}
+#machine[data-skin='luxe-velvet'] .hold {
+  width: 13px;
+  height: 13px;
+  transform: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #5a3a42, #1a0a0e 70%);
+}
+#machine[data-skin='luxe-velvet'] .hold.on {
+  background: radial-gradient(circle at 35% 30%, #fff 0 15%, var(--lamp) 50%, color-mix(in srgb, var(--lamp) 45%, #000));
+}
+#machine[data-skin='luxe-velvet'] .m-data {
+  border-top-color: color-mix(in srgb, var(--gold) 45%, transparent);
+}
+#machine[data-skin='luxe-velvet'] .m-data b {
+  color: #ffe8a8;
+  text-shadow: 0 0 10px rgba(212, 175, 55, 0.45);
+}
+#machine[data-skin='luxe-velvet'].generous .m-generous {
+  background: linear-gradient(180deg, #f3e3a6, var(--gold));
+}
+@media (prefers-reduced-motion: reduce) {
+  #machine[data-skin='luxe-shine'],
+  #machine[data-skin='luxe-shine']::after {
+    animation: none;
+  }
 }
