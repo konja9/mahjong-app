@@ -115,15 +115,6 @@ kbd {
   align-items: center;
   gap: 14px;
 }
-#bank {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--main);
-  font-variant-numeric: tabular-nums;
-}
-#bank.bump {
-  animation: bump 0.35s ease-out;
-}
 .icon-btn {
   color: var(--sub);
   display: grid;
@@ -644,12 +635,6 @@ tr.yakuman td {
   background: conic-gradient(#ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d);
   animation: spin 2s linear infinite;
 }
-.lamp-mult {
-  font-size: 13px;
-  color: var(--sub);
-  font-weight: 700;
-  min-width: 3em;
-}
 .lamp-sep {
   width: 1px;
   height: 16px;
@@ -1001,18 +986,6 @@ input[type='range'] {
   color: var(--sub);
 }
 
-.float-gain {
-  position: fixed;
-  z-index: 60;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-  font-weight: 800;
-  font-size: 22px;
-  color: var(--main);
-  text-shadow: 0 0 12px color-mix(in srgb, var(--main) 60%, transparent);
-  animation: float-up 1.1s ease-out forwards;
-}
-
 /* 画面フラッシュ（1回のみ・輝度控えめ） */
 body.flash::after {
   content: '';
@@ -1139,12 +1112,6 @@ body.kakuhen #progress {
     opacity: 0;
   }
 }
-@keyframes float-up {
-  to {
-    transform: translate(-50%, -140px);
-    opacity: 0;
-  }
-}
 @keyframes flash {
   from {
     opacity: 0.4;
@@ -1223,4 +1190,460 @@ body.kakuhen #progress {
   .choice {
     padding: 16px 10px;
   }
+}
+
+/* ============================================================ 演出 v2 */
+
+/* ---- 予告レイヤー（クリックを妨げない） */
+#notice {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  pointer-events: none;
+  overflow: hidden;
+}
+.stamp {
+  position: absolute;
+  transform: translate(-50%, -50%) rotate(-12deg);
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 900;
+  font-size: clamp(40px, 7vw, 80px);
+  padding: 4px 22px;
+  border: 5px solid currentColor;
+  border-radius: 10px;
+  animation: stamp 0.9s cubic-bezier(0.2, 1.8, 0.4, 1) both;
+}
+.stamp.plain {
+  color: #fff;
+  text-shadow: 0 0 20px #6a8dff;
+}
+.stamp.red {
+  color: #ff3b5c;
+  background: rgba(40, 0, 8, 0.6);
+  text-shadow: 0 0 18px #ff3b5c;
+}
+.stamp.gold {
+  color: #ffd84a;
+  background: rgba(40, 25, 0, 0.7);
+  text-shadow: 0 0 24px #ffd84a;
+}
+.swarm-tile {
+  position: absolute;
+  left: 0;
+  --tile-h: calc(64px * var(--s));
+  animation: swarm 0.9s cubic-bezier(0.3, 0.1, 0.7, 1) both;
+}
+.swarm.gold .swarm-tile {
+  filter: drop-shadow(0 0 12px #ffd84a);
+}
+.stepup {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 14vh;
+  --c: #3b82f6;
+  box-shadow: inset 0 0 calc(var(--k, 1) * 26px) calc(var(--k, 1) * 4px) var(--c);
+  transition: box-shadow 0.12s;
+}
+.stepup span {
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--c);
+  letter-spacing: 0.2em;
+  text-shadow: 0 0 12px var(--c);
+}
+.stepup.step-1 { --k: 1; --c: #3b82f6; }
+.stepup.step-2 { --k: 1.6; --c: #22c55e; }
+.stepup.step-3 { --k: 2.2; --c: #ef4444; }
+.stepup.step-4 { --k: 2.8; --c: #fbbf24; }
+.stepup.step-5 { --k: 3.4; --c: #ff5fd2; animation: hue 1s linear infinite; }
+
+/* ---- 図柄リール */
+#overlay.reel-mode {
+  background: radial-gradient(circle at 50% 50%, rgba(10, 10, 20, 0.6), rgba(0, 0, 0, 0.88));
+}
+.reel-machine {
+  --reel-h: clamp(90px, 16vw, 130px);
+  --glow: #6a8dff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  animation: pop 0.35s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.reels {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 0 3px var(--glow), 0 0 40px var(--glow);
+  transition: box-shadow 0.3s;
+}
+.reel {
+  height: var(--reel-h);
+  width: calc(var(--reel-h) * 0.75);
+  overflow: hidden;
+  border-radius: 8px;
+  position: relative;
+}
+.reel .cell {
+  height: var(--reel-h);
+  display: grid;
+  place-items: center;
+  --tile-h: calc(var(--reel-h) * 0.94);
+}
+.reel .cell .tile {
+  filter: none;
+}
+.reel .strip {
+  transition: transform 0.28s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.reel.spinning .strip {
+  transition: none;
+  animation: reel-spin 0.32s linear infinite;
+  filter: blur(2px);
+}
+.reel.spinning.slow .strip {
+  animation-duration: 1.4s;
+  filter: blur(0.6px);
+}
+.reel.hit {
+  animation: reel-hit 0.5s ease-out 2;
+}
+.reel-title {
+  min-height: 1.2em;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  font-size: clamp(40px, 8vw, 84px);
+  letter-spacing: 0.08em;
+  color: #fff;
+}
+.reel-title.pop {
+  animation: pop 0.4s cubic-bezier(0.2, 1.8, 0.4, 1) both;
+}
+.reel-title.pseudo {
+  color: #7dd3fc;
+  text-shadow: 0 0 20px #38bdf8;
+}
+.reel-title.t-none,
+.reel-title.t-reach {
+  color: #fff;
+  text-shadow: 0 0 20px #ff3b5c, 3px 3px 0 #b3122e;
+}
+.reel-title.t-gold {
+  color: #ffd84a;
+  text-shadow: 0 0 24px #ffb300, 3px 3px 0 #7a4b00;
+}
+.reel-title.t-zebra,
+.reel-title.t-rainbow,
+.reel-title.t-hit {
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: pop 0.4s cubic-bezier(0.2, 1.8, 0.4, 1) both, slide-bg 1s linear infinite;
+  filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.6));
+}
+.reel-title.t-zebra {
+  background: repeating-linear-gradient(135deg, #ffd84a 0 14px, #3b2600 14px 22px);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.reel-machine.cut-reach { --glow: #ff3b5c; }
+.reel-machine.cut-gold { --glow: #ffd84a; }
+.reel-machine.cut-zebra .reels {
+  box-shadow: 0 0 0 6px transparent, 0 0 50px #ffd84a;
+  border: 6px solid transparent;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)) padding-box,
+    repeating-linear-gradient(135deg, #ffd84a 0 12px, #3b2600 12px 20px) border-box;
+}
+.reel-machine.cut-rainbow .reels {
+  border: 6px solid transparent;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)) padding-box,
+    conic-gradient(#ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d) border-box;
+  box-shadow: 0 0 60px rgba(255, 255, 255, 0.5);
+  animation: hue 2s linear infinite;
+}
+.reel-sub {
+  min-height: 70px;
+}
+.push-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+  font-size: clamp(28px, 5vw, 44px);
+  padding: 12px 42px;
+  border-radius: 999px;
+  color: #fff;
+  background: radial-gradient(circle at 50% 30%, #ff7a8a, #c8102e);
+  box-shadow: 0 8px 0 #6b0014, 0 0 40px #ff3b5c;
+  animation: push-beat 0.45s ease-in-out infinite alternate;
+}
+.push-btn.gold {
+  color: #3b1d00;
+  background: radial-gradient(circle at 50% 30%, #fff6c4, #ffc300 60%, #b07a00);
+  box-shadow: 0 8px 0 #6b4a00, 0 0 60px #ffd84a;
+}
+
+/* ---- カットイン追加分 */
+.cutin.zebra {
+  background: repeating-linear-gradient(135deg, #ffd84a 0 22px, #2a1a00 22px 36px);
+}
+.cutin.zebra span {
+  color: #fff;
+  -webkit-text-stroke: 3px #2a1a00;
+  text-shadow: 0 0 20px #ffd84a;
+}
+.cutin.rainbow {
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d);
+  background-size: 200% 100%;
+  animation: cutin 0.3s cubic-bezier(0.2, 1.4, 0.4, 1) both, slide-bg 1s linear infinite;
+}
+.cutin.rainbow span {
+  color: #fff;
+  -webkit-text-stroke: 3px #000;
+}
+
+/* ---- 放射光・暗転・ガラス */
+#overlay.rays::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 250vmax;
+  height: 250vmax;
+  margin: -125vmax 0 0 -125vmax;
+  z-index: -1;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--main) 40%, transparent) 0deg 8deg, transparent 8deg 20deg);
+  animation: spin 6s linear infinite;
+  mask-image: radial-gradient(circle, #000 0%, transparent 55%);
+}
+#overlay.gold-rays::before {
+  background: repeating-conic-gradient(from 0deg, rgba(255, 210, 60, 0.55) 0deg 7deg, transparent 7deg 18deg);
+  animation-duration: 3.5s;
+}
+#overlay.rainbow-rays {
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.8));
+}
+#overlay.rainbow-rays::before {
+  background: repeating-conic-gradient(from 0deg, #ff5f6d 0deg 6deg, #ffc371 6deg 12deg, #47e5bc 12deg 18deg, #6a8dff 18deg 24deg, #d66bff 24deg 30deg);
+  opacity: 0.6;
+  animation-duration: 4s;
+  mask-image: radial-gradient(circle, #000 0%, transparent 60%);
+}
+#overlay.freeze-dim {
+  background: rgba(0, 0, 0, 0.85);
+}
+#overlay.blackout {
+  background: #000;
+}
+.blackout-text {
+  color: #555;
+  font-size: 40px;
+  letter-spacing: 0.5em;
+  animation: fade-in 0.5s ease-out both;
+}
+.crack {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  animation: crack 1.4s ease-out forwards;
+}
+.bigtext.chroma span {
+  filter: drop-shadow(-4px 0 0 rgba(255, 0, 80, 0.8)) drop-shadow(4px 0 0 rgba(0, 200, 255, 0.8))
+    drop-shadow(0 0 30px rgba(255, 200, 0, 0.6));
+}
+.bigtext.spin-in {
+  animation: spin-in 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.banner.chou {
+  background: linear-gradient(90deg, #ff0080, #ff8c00, #ffe600, #00e676, #00b0ff, #d500f9, #ff0080);
+  background-size: 300% 100%;
+  animation: pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both, slide-bg 1s linear infinite;
+  color: #fff;
+  -webkit-text-stroke: 2px #000;
+  box-shadow: 0 0 80px rgba(255, 255, 255, 0.6);
+}
+.banner.end {
+  animation: pop 0.3s ease-out both, fall 1s 0.4s ease-in forwards;
+}
+
+/* ---- 画面効果 */
+body.punch #app {
+  animation: punch 0.18s ease-out;
+}
+body.glitch #stage {
+  animation: glitch 0.36s steps(2) both;
+}
+.pop {
+  animation: pop-small 0.3s ease-out;
+}
+
+/* ---- コンボ表示 */
+#combo {
+  position: fixed;
+  top: 84px;
+  right: 28px;
+  z-index: 38;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 0.9;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+#combo.show {
+  opacity: 1;
+  transform: none;
+}
+#combo .n {
+  font-size: clamp(44px, 7vw, 72px);
+  font-weight: 800;
+  color: var(--main);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--main) 50%, transparent);
+}
+#combo .t {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.35em;
+  color: var(--sub);
+}
+#combo.hot .n {
+  color: #ff5f6d;
+  text-shadow: 0 0 20px #ff5f6d;
+}
+#combo.fire .n {
+  background: linear-gradient(0deg, #ff3d00, #ffc400 60%, #fff59d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 14px #ff6d00);
+  animation: flicker 0.5s ease-in-out infinite alternate;
+}
+#combo.god .n {
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: slide-bg 1s linear infinite, flicker 0.5s ease-in-out infinite alternate;
+}
+#combo.bump {
+  animation: combo-bump 0.3s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+body.typing #combo {
+  opacity: 1;
+}
+
+/* ---- 確変・超確変・神 */
+body.kakuhen {
+  background:
+    radial-gradient(circle at 50% 120%, rgba(255, 95, 109, 0.18), transparent 60%),
+    var(--bg);
+}
+body.chou {
+  background:
+    radial-gradient(circle at 50% 120%, rgba(214, 107, 255, 0.28), transparent 60%),
+    radial-gradient(circle at 50% -20%, rgba(71, 229, 188, 0.18), transparent 60%),
+    var(--bg);
+}
+body.chou #progress,
+body.chou .streak,
+body.chou .caret,
+body.chou #combo .n {
+  animation: hue 3s linear infinite;
+}
+body.chou::before {
+  box-shadow: inset 0 0 0 4px #d66bff, inset 0 0 90px rgba(214, 107, 255, 0.55);
+}
+body.god::before {
+  box-shadow: inset 0 0 0 5px #fff, inset 0 0 120px rgba(255, 255, 255, 0.5);
+}
+
+[data-effects='off'] #combo.fire .n,
+[data-effects='off'] #combo.god .n,
+[data-effects='off'] body.chou #progress {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.punch #app,
+  body.glitch #stage,
+  .reel.hit,
+  .push-btn,
+  #overlay.rays::before {
+    animation: none;
+  }
+}
+@media (max-width: 640px) {
+  #combo {
+    top: 64px;
+    right: 16px;
+  }
+  .reels {
+    gap: 8px;
+    padding: 10px;
+  }
+}
+
+@keyframes stamp {
+  0% { transform: translate(-50%, -50%) rotate(-12deg) scale(3); opacity: 0; }
+  30% { transform: translate(-50%, -50%) rotate(-12deg) scale(1); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(-50%, -50%) rotate(-12deg) scale(1.05); opacity: 0; }
+}
+@keyframes swarm {
+  from { transform: translateX(-120px) scale(var(--s)) rotate(-20deg); }
+  to { transform: translateX(calc(100vw + 120px)) scale(var(--s)) rotate(20deg); }
+}
+@keyframes reel-spin {
+  from { transform: translateY(0); }
+  to { transform: translateY(calc(var(--reel-h) * -9)); }
+}
+@keyframes reel-hit {
+  50% { box-shadow: 0 0 30px 8px #fff; transform: scale(1.08); }
+}
+@keyframes push-beat {
+  to { transform: scale(1.1); }
+}
+@keyframes crack {
+  0% { opacity: 1; transform: scale(1); }
+  70% { opacity: 0.8; }
+  100% { opacity: 0; transform: scale(1.3); }
+}
+@keyframes spin-in {
+  0% { transform: scale(6) rotate(-30deg); opacity: 0; }
+  60% { transform: scale(0.9) rotate(4deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes fall {
+  to { transform: translateY(80vh) rotate(25deg); opacity: 0; }
+}
+@keyframes punch {
+  40% { transform: scale(1.015); }
+}
+@keyframes glitch {
+  0% { transform: translate(-4px, 0); filter: drop-shadow(4px 0 0 rgba(255, 0, 80, 0.7)) drop-shadow(-4px 0 0 rgba(0, 200, 255, 0.7)); clip-path: inset(10% 0 30% 0); }
+  50% { transform: translate(5px, 1px); clip-path: inset(40% 0 5% 0); }
+  100% { transform: none; filter: none; clip-path: none; }
+}
+@keyframes pop-small {
+  40% { transform: scale(1.08); }
+}
+@keyframes combo-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+@keyframes flicker {
+  to { filter: drop-shadow(0 0 22px #ff9100) brightness(1.2); }
 }

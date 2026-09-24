@@ -9,6 +9,7 @@ export function configureAudio(on: boolean, vol: number): void {
   enabled = on;
   volume = vol;
   if (master) master.gain.value = volume * 0.6;
+  if (!on) bgm.stop();
 }
 
 /** ユーザー操作の中で呼び、AudioContext を起こす */
@@ -172,8 +173,118 @@ export const sfx = {
   miss(): void {
     tone({ type: 'square', freq: 160, to: 110, dur: 0.35, gain: 0.12, filter: 900 });
   },
+  reelTick(): void {
+    tone({ type: 'square', freq: 1400 + Math.random() * 300, dur: 0.02, gain: 0.03, filter: 3000 });
+  },
+  gyuin(): void {
+    tone({ type: 'sawtooth', freq: 180, to: 1400, dur: 0.35, gain: 0.14, filter: 2600 });
+    tone({ type: 'sawtooth', freq: 1400, to: 300, start: 0.35, dur: 0.2, gain: 0.1, filter: 2600 });
+    noise(0, 0.5, 0.06, 1200);
+  },
+  pushAppear(): void {
+    [0, 0.09, 0.18].forEach((t, i) => tone({ type: 'square', freq: note(84 + i * 2), start: t, dur: 0.08, gain: 0.1 }));
+  },
+  push(): void {
+    tone({ type: 'sine', freq: 90, to: 40, dur: 0.3, gain: 0.5 });
+    noise(0, 0.15, 0.2, 800);
+  },
+  align(): void {
+    tone({ type: 'square', freq: note(96), dur: 0.08, gain: 0.12 });
+    tone({ type: 'square', freq: note(100), start: 0.08, dur: 0.08, gain: 0.12 });
+    tone({ type: 'square', freq: note(103), start: 0.16, dur: 0.3, gain: 0.12 });
+  },
+  shatter(): void {
+    noise(0, 0.5, 0.35, 5000);
+    noise(0.02, 0.35, 0.2, 9000);
+    tone({ type: 'sine', freq: 70, to: 35, dur: 0.5, gain: 0.5 });
+  },
+  /** 連チャン数に応じて音程が上がるヒット音 */
+  comboHit(streak: number): void {
+    const n = 72 + Math.min(streak, 24);
+    tone({ type: 'square', freq: note(n), dur: 0.09, gain: 0.1, filter: 5000 });
+    tone({ type: 'square', freq: note(n + 7), start: 0.06, dur: 0.12, gain: 0.08, filter: 5000 });
+    tone({ type: 'sine', freq: note(n + 12), start: 0.06, dur: 0.25, gain: 0.06 });
+  },
+  glitch(): void {
+    noise(0, 0.12, 0.2, 400);
+    tone({ type: 'square', freq: 90, dur: 0.18, gain: 0.1, filter: 600 });
+    noise(0.14, 0.08, 0.15, 2500);
+  },
+  swarm(): void {
+    noise(0, 0.8, 0.12, 1500);
+    tone({ type: 'sawtooth', freq: 200, to: 800, dur: 0.8, gain: 0.05, filter: 1500 });
+  },
+  step(i: number): void {
+    tone({ type: 'square', freq: note(76 + i * 3), dur: 0.1, gain: 0.1 });
+  },
+  stamp(): void {
+    tone({ type: 'sine', freq: 140, to: 60, dur: 0.2, gain: 0.4 });
+    tone({ type: 'square', freq: note(88), start: 0.02, dur: 0.1, gain: 0.08 });
+  },
+  kakuhenEnd(): void {
+    [79, 74, 70, 67].forEach((n, i) => tone({ type: 'triangle', freq: note(n), start: i * 0.12, dur: 0.18, gain: 0.1 }));
+    noise(0, 0.3, 0.12, 3000);
+  },
+  god(): void {
+    [60, 64, 67, 72, 76, 79, 84, 88].forEach((n, i) =>
+      tone({ type: 'sawtooth', freq: note(n), start: i * 0.06, dur: 0.9 - i * 0.05, gain: 0.05, filter: 5000 }),
+    );
+    tone({ type: 'sine', freq: 55, dur: 1.2, gain: 0.4 });
+  },
   end(): void {
     tone({ type: 'triangle', freq: note(67), dur: 0.15, gain: 0.1 });
     tone({ type: 'triangle', freq: note(72), start: 0.15, dur: 0.3, gain: 0.1 });
   },
 };
+
+/** 確変中に流れる合成 BGM（スケジューラ方式） */
+export const bgm = (() => {
+  let timer = 0;
+  let step = 0;
+  let nextTime = 0;
+  let bpm = 150;
+  const chords = [
+    [57, 60, 64, 69],
+    [53, 57, 60, 65],
+    [55, 59, 62, 67],
+    [52, 56, 59, 64],
+  ];
+  const schedule = () => {
+    const c = ready();
+    if (!c || !master) return;
+    const sixteenth = 60 / bpm / 4;
+    while (nextTime < c.currentTime + 0.12) {
+      const chord = chords[Math.floor(step / 16) % chords.length];
+      const start = nextTime - c.currentTime;
+      if (step % 4 === 0) {
+        tone({ type: 'sawtooth', freq: note(chord[0] - 12), start, dur: sixteenth * 3, gain: 0.07, filter: 700 });
+        tone({ type: 'sine', freq: 60, to: 40, start, dur: 0.12, gain: 0.25 });
+      }
+      if (step % 8 === 4) noise(start, 0.08, 0.06, 6000);
+      const arp = chord[(step * 3) % chord.length] + 12 + (step % 16 >= 8 ? 12 : 0);
+      tone({ type: 'square', freq: note(arp), start, dur: sixteenth * 0.9, gain: 0.025, filter: 3500 });
+      step++;
+      nextTime += sixteenth;
+    }
+  };
+  return {
+    start(tempo = 150): void {
+      bpm = tempo;
+      const c = ready();
+      if (!c || timer) return;
+      step = 0;
+      nextTime = c.currentTime + 0.05;
+      timer = window.setInterval(schedule, 25);
+    },
+    setTempo(tempo: number): void {
+      bpm = tempo;
+    },
+    stop(): void {
+      clearInterval(timer);
+      timer = 0;
+    },
+    get playing(): boolean {
+      return timer !== 0;
+    },
+  };
+})();

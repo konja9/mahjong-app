@@ -3,7 +3,8 @@ import { type HandQuestion, type Mode, type Question, generateQuestion } from '.
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
 import { EAST } from '../core/tiles';
 import { configureAudio, sfx, unlockAudio } from './audio';
-import { Fx, LAMP_MULT, LAMP_NAMES, type WinTier } from './effects/pachinko';
+import { Fx, LAMP_NAMES, type WinTier } from './effects/pachinko';
+import { drawNotice, drawSuspense } from './effects/performance';
 import { doraLabel, handExplain, hayamiExplain, situationChips, situationLabel } from './explain';
 import { type Settings, loadSettings, saveSettings } from './settings';
 import { load, save } from './storage';
@@ -22,8 +23,8 @@ interface Session {
   streak: number;
   maxStreak: number;
   times: number[];
-  balls: number;
   kakuhen: boolean;
+  kakuhenCount: number;
   byCat: Record<string, { c: number; n: number }>;
   misses: Miss[];
 }
@@ -35,15 +36,13 @@ interface Best {
 }
 
 const MODE_NAMES: Record<Mode, string> = { hayami: '早見', fu: '符計算', jissen: '実戦' };
-const BASE_GAIN: Record<Mode, number> = { hayami: 100, fu: 150, jissen: 300 };
-const BANK_KEY = 'tensu.bank.v1';
 const BEST_KEY = 'tensu.best.v1';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) =>
   root.querySelector(sel) as T;
 
 function newSession(): Session {
-  return { answered: 0, correct: 0, streak: 0, maxStreak: 0, times: [], balls: 0, kakuhen: false, byCat: {}, misses: [] };
+  return { answered: 0, correct: 0, streak: 0, maxStreak: 0, times: [], kakuhen: false, kakuhenCount: 0, byCat: {}, misses: [] };
 }
 
 function questionMeta(q: Question): { dealer: boolean; tsumo: boolean } {
@@ -64,22 +63,21 @@ export class App {
   private startedAt = 0;
   private lamp = 0;
   private lamps: number[] = [];
-  private bank = load<number>(BANK_KEY, 0);
   private best = load<Record<string, Best>>(BEST_KEY, {});
   private fx: Fx;
   private timerRaf = 0;
   private autoNext = 0;
   private lastCorrect = false;
+  private lastPlanCutin = 'none';
   private choices: Choice[] = [];
   private picked = -1;
 
   constructor(private root: HTMLElement) {
     this.root.innerHTML = SHELL;
-    this.fx = new Fx($('#overlay'), $<HTMLCanvasElement>('#fx'), document.body, () => this.s.effects);
+    this.fx = new Fx($('#overlay'), $('#notice'), $('#combo'), $<HTMLCanvasElement>('#fx'), document.body, () => this.s.effects);
     this.applyTheme();
     configureAudio(this.s.sound, this.s.volume);
     this.renderConfig();
-    this.renderBank(false);
     this.bind();
     this.startSession();
   }
@@ -163,9 +161,8 @@ export class App {
   // ------------------------------------------------------------ 進行
 
   private startSession(): void {
-    this.fx.skip();
+    this.fx.reset();
     clearTimeout(this.autoNext);
-    document.body.classList.remove('kakuhen');
     this.session = newSession();
     this.lamps = Array.from({ length: 4 }, () => this.rollLamp());
     $('#summary').hidden = true;
@@ -209,6 +206,7 @@ export class App {
     $('#result').innerHTML = '';
     $('#stage').classList.remove('correct', 'wrong');
     this.startTimer();
+    this.fx.notice(drawNotice(this.lamp, this.session.streak, this.session.kakuhen, this.s.effects), this.lamp);
   }
 
   private startTimer(): void {
@@ -269,7 +267,7 @@ export class App {
       if (!this.input) return;
       if (this.needsPair() && !/\d-\d/.test(this.input)) {
         this.hint('子ツモは「子の支払い-親の支払い」の2つを入力（例 1000-2000）');
-        this.fx.lose($('#answer'));
+        this.fx.lose($('#answer'), false);
         return;
       }
     }
@@ -280,9 +278,18 @@ export class App {
     const score = scoreOf(this.q);
     const highValue = this.q.mode !== 'hayami' && (score.limit !== '' || this.q.ev.han >= 4);
 
+    const plan = drawSuspense({
+      correct,
+      lamp: this.lamp,
+      highValue,
+      streak: this.session.streak,
+      kakuhen: this.session.kakuhen,
+      level: this.s.effects,
+    });
+    this.lastPlanCutin = plan.cutin;
     const locked = this.answerAnchor();
     locked.classList.add('locked');
-    await this.fx.suspense(this.lamp, highValue);
+    await this.fx.suspense(plan);
     locked.classList.remove('locked');
     this.reveal(correct, elapsed, timeout);
   }
@@ -309,32 +316,32 @@ export class App {
       ss.maxStreak = Math.max(ss.maxStreak, ss.streak);
       ss.times.push(elapsed);
       ss.byCat[cat].c++;
-      const gain = this.gain(elapsed);
-      ss.balls += gain;
-      this.bank += gain;
-      save(BANK_KEY, this.bank);
       const { tier, label } = this.tier();
       $('#result').innerHTML = `<div class="verdict ok"><span class="mark">正解</span><span class="ans">${this.correctText()}</span><span class="muted">${elapsed.toFixed(1)}s</span></div>${explain}`;
       const enterKakuhen = !ss.kakuhen && ss.streak >= 5;
       if (enterKakuhen) {
         ss.kakuhen = true;
+        ss.kakuhenCount++;
         document.body.classList.add('kakuhen');
       }
-      void this.fx.win(tier, gain, answerEl, label).then(async () => {
+      const streak = ss.streak;
+      this.fx.hit(streak, answerEl);
+      this.fx.combo(streak);
+      void this.fx.win(tier, label, answerEl).then(async () => {
         if (enterKakuhen && this.phase === 'result') await this.fx.kakuhenStart();
+        if (ss.kakuhen && this.phase === 'result') await this.fx.milestone(streak);
         this.renderProgress();
         this.scheduleAutoNext();
       });
-      this.renderBank(true);
       this.maybeLampChange();
     } else {
-      if (ss.kakuhen) this.fx.kakuhenEnd();
+      const wasKakuhen = ss.kakuhen;
       ss.kakuhen = false;
-      document.body.classList.remove('kakuhen');
       ss.streak = 0;
+      this.fx.combo(0);
       ss.misses.push({ q: this.q, input: yours });
       $('#result').innerHTML = `<div class="verdict ng"><span class="mark">不正解</span><span class="yours">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span></div>${explain}`;
-      this.fx.lose(this.isChoice ? $('#choices') : answerEl);
+      this.fx.lose(this.isChoice ? $('#choices') : answerEl, wasKakuhen);
     }
     this.renderProgress();
     this.renderInput();
@@ -350,28 +357,21 @@ export class App {
     }, wait);
   }
 
-  private gain(elapsed: number): number {
-    const ss = this.session;
-    let g = BASE_GAIN[this.s.mode] * LAMP_MULT[this.lamp];
-    if (ss.kakuhen) g *= 2;
-    g *= 1 + Math.min(ss.streak, 20) * 0.05;
-    if (elapsed < 3) g *= 1.5;
-    else if (elapsed < 6) g *= 1.2;
-    if (this.q.mode !== 'hayami' && this.q.ev.yakuman) g *= 10;
-    return Math.round(g / 10) * 10;
-  }
-
   private tier(): { tier: WinTier; label: string } {
     const q = this.q;
     const streak = this.session.streak;
-    if ((q.mode !== 'hayami' && q.ev.yakuman) || this.lamp === 4) {
-      return { tier: 3, label: q.mode !== 'hayami' && q.ev.yakuman ? scoreOf(q).limit : 'PREMIUM' };
-    }
+    const cut = this.lastPlanCutin;
+    const hand = q.mode !== 'hayami';
     const limit = scoreOf(q).limit;
-    if (q.mode !== 'hayami' && limit) return { tier: 2, label: limit };
-    if (this.lamp === 3) return { tier: 2, label: '大当り' };
+    if (hand && q.ev.yakuman) return { tier: 3, label: limit };
+    if (cut === 'rainbow') return { tier: 3, label: '確定' };
+    if (hand && limit && limit !== '満貫') return { tier: 2, label: limit };
+    if (cut === 'gold' || cut === 'zebra' || this.lamp >= 3) return { tier: 2, label: '大当り' };
     if (streak > 0 && streak % 10 === 0) return { tier: 2, label: `${streak}連` };
-    if (this.lamp === 2 || (streak > 0 && streak % 5 === 0) || limit) return { tier: 1, label: limit };
+    if (hand && limit) return { tier: 1, label: limit };
+    if (cut !== 'none' || this.lamp === 2 || (streak > 0 && streak % 5 === 0) || limit) {
+      return { tier: 1, label: limit || '当り' };
+    }
     return { tier: 0, label: '' };
   }
 
@@ -480,8 +480,8 @@ export class App {
   }
 
   private renderLamps(): void {
-    const lamp = (lv: number, cls: string) => `<span class="lamp ${cls} ${LAMP_NAMES[lv]}" title="×${LAMP_MULT[lv]}"></span>`;
-    $('#lamps').innerHTML = `${lamp(this.lamp, 'current')}<span class="lamp-mult">×${LAMP_MULT[this.lamp]}</span><span class="lamp-sep"></span>${this.lamps
+    const lamp = (lv: number, cls: string) => `<span class="lamp ${cls} ${LAMP_NAMES[lv]}"></span>`;
+    $('#lamps').innerHTML = `${lamp(this.lamp, 'current')}<span class="lamp-sep"></span>${this.lamps
       .map((l) => lamp(l, 'next'))
       .join('')}`;
   }
@@ -494,32 +494,6 @@ export class App {
       <span class="muted">正答率 ${acc}%</span>
       <span class="streak${ss.streak >= 5 ? ' hot' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>
       ${ss.kakuhen ? '<span class="kakuhen-badge">確変中</span>' : ''}`;
-  }
-
-  private shownBank = 0;
-  private renderBank(animate: boolean): void {
-    const el = $('#bank-value');
-    const target = this.bank;
-    if (!animate || this.s.effects === 'off') {
-      this.shownBank = target;
-      el.textContent = target.toLocaleString();
-      return;
-    }
-    const from = this.shownBank;
-    const t0 = performance.now();
-    const dur = 700;
-    const step = (now: number) => {
-      const k = Math.min(1, (now - t0) / dur);
-      const v = Math.round(from + (target - from) * (1 - (1 - k) ** 3));
-      el.textContent = v.toLocaleString();
-      if (k < 1) requestAnimationFrame(step);
-      else this.shownBank = target;
-    };
-    requestAnimationFrame(step);
-    const bank = $('#bank');
-    bank.classList.remove('bump');
-    void bank.offsetWidth;
-    bank.classList.add('bump');
   }
 
   private showSummary(): void {
@@ -561,7 +535,7 @@ export class App {
         <div class="stat"><div class="label">正答率</div><div class="value">${Math.round(acc)}<small>%</small></div></div>
         <div class="stat"><div class="label">平均回答</div><div class="value">${avg.toFixed(1)}<small>s</small></div></div>
         <div class="stat"><div class="label">最大連チャン</div><div class="value">${ss.maxStreak}</div></div>
-        <div class="stat"><div class="label">獲得玉</div><div class="value">${ss.balls.toLocaleString()}</div></div>
+        <div class="stat"><div class="label">確変突入</div><div class="value">${ss.kakuhenCount}<small>回</small></div></div>
       </div>
       ${newBest && ss.answered ? '<div class="new-best">自己ベスト更新</div>' : prev ? `<div class="muted small">自己ベスト ${Math.round(prev.acc)}% / ${prev.avg.toFixed(1)}s</div>` : ''}
       <div class="sum-cols">
@@ -611,7 +585,7 @@ export class App {
       unlockAudio();
       this.pick(Number(b.dataset.choice));
     });
-    $('#overlay').addEventListener('click', () => this.fx.skip());
+    $('#overlay').addEventListener('click', () => this.fx.tap());
     $('#stage').addEventListener('click', () => {
       if (this.phase === 'result') this.next();
     });
@@ -645,7 +619,7 @@ export class App {
   private handleKey(key: string): void {
     switch (this.phase) {
       case 'suspense':
-        this.fx.skip();
+        this.fx.tap();
         return;
       case 'summary':
         if (key === 'Tab' || key === 'Enter' || key === ' ') this.startSession();
@@ -745,12 +719,9 @@ export class App {
         rules.doubleWindPairFu = Number(v) as 2 | 4;
         break;
       case 'reset':
-        if (confirm('自己ベストと持ち玉を消去しますか？')) {
-          this.bank = 0;
+        if (confirm('自己ベストを消去しますか？')) {
           this.best = {};
-          save(BANK_KEY, 0);
           save(BEST_KEY, {});
-          this.renderBank(false);
         }
         return;
       case 'kuitan':
@@ -803,7 +774,7 @@ export class App {
       ${row('ダブル役満', '役満の複合・ダブル役満を認める', 'doubleYakuman', yn, onOff(r.doubleYakuman))}
       ${row('連風牌の雀頭', '場風かつ自風の雀頭', 'doubleWindPairFu', [['2', '2符'], ['4', '4符']], String(r.doubleWindPairFu))}
       <div class="set-sec">記録</div>
-      <div class="set-row"><div><div class="set-label">持ち玉 ${this.bank.toLocaleString()}</div><div class="set-desc">自己ベストと持ち玉を消去</div></div><div class="cfg-group"><button class="cfg danger" data-set="reset" data-v="1">リセット</button></div></div>
+      <div class="set-row"><div><div class="set-label">自己ベスト</div><div class="set-desc">モード・問題数ごとの記録を消去</div></div><div class="cfg-group"><button class="cfg danger" data-set="reset" data-v="1">リセット</button></div></div>
     </div>`;
     const el = dlg.querySelector('.settings');
     if (el) el.scrollTop = scroll;
@@ -814,7 +785,6 @@ const SHELL = `
 <header id="top">
   <div class="logo">tensu<span class="dot">.</span><span class="sub">麻雀点数計算トレーナー</span></div>
   <div class="top-right">
-    <div id="bank" title="持ち玉"><span class="muted">玉</span> <span id="bank-value">0</span></div>
     <button id="open-settings" class="icon-btn" aria-label="設定">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
@@ -833,7 +803,8 @@ const SHELL = `
   </section>
   <section id="summary" hidden></section>
 </main>
-<div id="lamps" title="保留ランプ：色で玉の倍率が変わる（青×1 緑×1.5 赤×2 金×3 虹×5）"></div>
+<div id="lamps" title="保留ランプ：色が熱いほど演出の期待度アップ（青→緑→赤→金→虹）"></div>
+<div id="combo" aria-live="polite"></div>
 <div id="numpad">
   ${['1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '0', 'Backspace']
     .map((k) => `<button data-key="${k}">${k === 'Backspace' ? '⌫' : k}</button>`)
