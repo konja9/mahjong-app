@@ -1,12 +1,11 @@
-/* ============================================================ themes */
-:root,
-[data-theme='serika'] {
-  --bg: #323437;
-  --sub-bg: #2c2e31;
-  --main: #e2b714;
-  --sub: #646669;
-  --text: #d1d0c5;
-  --error: #ca4754;
+/* ============================================================ 色（ノーマル・プラクティス共通のモノクロ） */
+:root {
+  --bg: #0c0d11;
+  --sub-bg: #17181e;
+  --main: #eef0f6;
+  --sub: #6e7385;
+  --text: #e8e9ef;
+  --error: #ff5a6e;
   --tile-face: #f3efe2;
   --tile-edge: #b9b29c;
   --tile-ink: #1c1c1c;
@@ -14,26 +13,6 @@
   --tile-green: #1d8a50;
   --tile-blue: #2458a6;
   --tile-back: #d9a522;
-}
-[data-theme='paper'] {
-  --bg: #eeeeee;
-  --sub-bg: #e2e2e2;
-  --main: #b08400;
-  --sub: #9c9c9c;
-  --text: #3a3a3a;
-  --error: #d1374a;
-  --tile-face: #ffffff;
-  --tile-edge: #c4c4c4;
-  --tile-back: #d9a522;
-}
-[data-theme='neon'] {
-  --bg: #11111b;
-  --sub-bg: #1b1b2b;
-  --main: #f44c7f;
-  --sub: #5f5f85;
-  --text: #e6e6f0;
-  --error: #ff6b6b;
-  --tile-back: #f44c7f;
 }
 
 * {

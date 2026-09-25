@@ -3,7 +3,6 @@ import { DEFAULT_RULES, type Rules } from '../core/rules';
 import { load, save } from './storage';
 
 export type EffectLevel = 'off' | 'lite' | 'max';
-export type Theme = 'serika' | 'paper' | 'neon';
 export type AnswerStyle = 'choice' | 'input';
 export type PlayMode = 'normal' | 'practice';
 
@@ -21,7 +20,6 @@ export interface Settings {
   effects: EffectLevel;
   sound: boolean;
   volume: number; // 0..1
-  theme: Theme;
   rules: Rules;
 }
 
@@ -39,7 +37,6 @@ export const DEFAULT_SETTINGS: Settings = {
   effects: reducedMotion ? 'lite' : 'max',
   sound: true,
   volume: 0.5,
-  theme: 'serika',
   rules: DEFAULT_RULES,
 };
 
@@ -47,8 +44,10 @@ const KEY = 'tensu.settings.v1';
 
 export function loadSettings(): Settings {
   const s = load<Settings>(KEY, DEFAULT_SETTINGS);
+  // 旧バージョンのテーマ設定は使わない
+  const { theme: _theme, ...rest } = s as Settings & { theme?: unknown };
   return {
-    ...s,
+    ...rest,
     filters: { ...DEFAULT_SETTINGS.filters, ...s.filters },
     rules: { ...DEFAULT_RULES, ...s.rules },
   };

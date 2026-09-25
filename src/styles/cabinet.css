@@ -12,18 +12,6 @@
   --hr: #ff7aa3;
   --line: rgba(255, 255, 255, 0.09);
 }
-:root[data-play='normal'] {
-  --bg: #0c0d11;
-  --sub-bg: #17181e;
-  --main: #eef0f6;
-  --sub: #6e7385;
-  --text: #e8e9ef;
-  --error: #ff5a6e;
-  --line: rgba(255, 255, 255, 0.09);
-  --gold: #d4af37;
-  --gold-hot: #ffd84a;
-  --hr: #ff7aa3;
-}
 :root[data-play='normal'] body {
   background: var(--bg);
 }
@@ -37,11 +25,11 @@
 :root[data-play='normal'] body.bonus {
   background: radial-gradient(900px 520px at 50% -10%, rgba(255, 200, 61, 0.16), transparent 70%), var(--bg);
 }
-:root[data-play='normal'] .streak.hot {
+.streak.hot {
   color: var(--main);
   text-shadow: none;
 }
-:root[data-play='normal'] .up .line {
+.up .line {
   filter: none;
 }
 
@@ -589,30 +577,30 @@ body.busy .bet-box .bar {
 }
 
 /* ============================================================ 正誤：✓ と ✕ の形。赤は線と文字だけ */
-:root[data-play='normal'] .choice {
+.choice {
   border-color: var(--line);
 }
-:root[data-play='normal'] .choice:not([disabled]):hover {
+.choice:not([disabled]):hover {
   border-color: color-mix(in srgb, var(--main) 45%, transparent);
 }
-:root[data-play='normal'] .choice.is-correct {
+.choice.is-correct {
   background: color-mix(in srgb, var(--main) 9%, var(--sub-bg));
   color: var(--main);
   border-color: var(--main);
   box-shadow: none;
 }
-:root[data-play='normal'] .choice.is-wrong {
+.choice.is-wrong {
   background: var(--sub-bg);
   color: color-mix(in srgb, var(--text) 60%, transparent);
   border-color: var(--error);
 }
-:root[data-play='normal'] .choice.is-wrong .label {
+.choice.is-wrong .label {
   text-decoration: line-through;
   text-decoration-color: var(--error);
   text-decoration-thickness: 2px;
 }
-:root[data-play='normal'] .choice.is-correct::after,
-:root[data-play='normal'] .choice.is-wrong::after {
+.choice.is-correct::after,
+.choice.is-wrong::after {
   position: absolute;
   top: 6px;
   right: 10px;
@@ -620,26 +608,26 @@ body.busy .bet-box .bar {
   font-size: 15px;
   font-weight: 900;
 }
-:root[data-play='normal'] .choice.is-correct::after {
+.choice.is-correct::after {
   content: '✓';
   color: var(--main);
 }
-:root[data-play='normal'] .choice.is-wrong::after {
+.choice.is-wrong::after {
   content: '✕';
   color: var(--error);
 }
-:root[data-play='normal'] .verdict.ok .mark::before {
+.verdict.ok .mark::before {
   content: '✓ ';
 }
-:root[data-play='normal'] .verdict.ng .mark::before {
+.verdict.ng .mark::before {
   content: '✕ ';
 }
-:root[data-play='normal'] .verdict.ok .mark {
+.verdict.ok .mark {
   background: transparent;
   color: var(--main);
   box-shadow: inset 0 0 0 1.5px var(--main);
 }
-:root[data-play='normal'] .verdict.ng .mark {
+.verdict.ng .mark {
   background: transparent;
   color: var(--error);
   box-shadow: inset 0 0 0 1.5px var(--error);
