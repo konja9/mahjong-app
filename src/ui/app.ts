@@ -20,7 +20,10 @@ import { MachinePanel } from './machine/panel';
 import { practiceScore, speedMultiplier } from '../core/practiceScore';
 import { doraLabel, handExplain, hayamiExplain, situationChips, situationLabel } from './explain';
 import { type Settings, loadSettings, saveSettings } from './settings';
+import { type HelpTab, helpHtml } from './help';
+import { introHtml, introSeen, markIntroSeen } from './intro';
 import { load, save } from './storage';
+import { type TipId, Tips, tipText } from './tips';
 import { handHtml, tilesInline } from './tileView';
 
 type Phase = 'answering' | 'suspense' | 'result' | 'summary';
@@ -101,6 +104,18 @@ export class App {
   private awaitingBankrupt = false;
   private choices: Choice[] = [];
   private picked = -1;
+  /** 回答を止めている理由（台の発展リーチ・大当り、ダイアログ） */
+  private pauses = new Set<string>();
+  private tips = new Tips();
+  private tipQueue: string[] = [];
+  private tipTimer = 0;
+  private tipShownAt = 0;
+  /** まだ大当りしたことがない人向けのチュートリアル当り */
+  private tutorialCount = 0;
+  private tutorialForced = false;
+  private introStep = 0;
+  private helpTab: HelpTab = 'howto';
+  private tipsReset = false;
 
   constructor(private root: HTMLElement) {
     this.root.innerHTML = SHELL;
@@ -114,12 +129,14 @@ export class App {
       onJackpot: ({ premium }) => this.startRound(premium),
       onHighRoller: () => this.toggleHighRoller(),
       onCashout: () => this.showSummary('settle'),
+      onEvent: (e) => this.tip(e),
     });
     this.applyTheme();
     this.configureSound();
     this.renderConfig();
     this.bind();
     this.startSession();
+    if (!introSeen()) this.openIntro();
   }
 
   // ------------------------------------------------------------ 設定
@@ -259,6 +276,10 @@ export class App {
   private startSession(resetMachine = false): void {
     this.endRound();
     this.fx.reset();
+    if (this.practice || resetMachine || this.panel.stopped) {
+      this.tutorialCount = 0;
+      this.tutorialForced = false;
+    }
     if (this.practice) this.panel.stop();
     else if (resetMachine || this.panel.stopped) this.panel.reset();
     else {
@@ -326,6 +347,7 @@ export class App {
   private startRound(premium: boolean): Promise<number> {
     return new Promise((resolve) => {
       this.round = { n: 0, total: 0, combo: 0, premium, highRoller: this.s.highRoller, resolve };
+      this.tips.first('firstHit');
       this.renderProgress();
       // 回答待ちの問題はそのまま。次の問題からラウンド問題になる
       if (this.phase === 'answering' && !this.isRoundQ) this.hint(this.compact ? '' : '次の問題から BONUS ラウンド');
@@ -397,6 +419,7 @@ export class App {
     const val = w.querySelector<HTMLElement>('b')!;
     const target = this.wallet.balance;
     w.classList.toggle('low', target < ECONOMY.lowWarn);
+    if (target < ECONOMY.lowWarn && !this.practice && delta < 0) this.tip('low');
     if (!animate || this.fxLevel === 'off') {
       this.shownBalance = target;
       val.textContent = target.toLocaleString();
@@ -464,6 +487,14 @@ export class App {
 
   /** 発展リーチ・大当り中は回答と制限時間を止める */
   private setBusy(b: boolean): void {
+    this.pause('machine', b);
+  }
+
+  /** 理由ごとに回答と制限時間を止める。どれか1つでも残っていれば止めたまま */
+  private pause(reason: string, on: boolean): void {
+    if (on) this.pauses.add(reason);
+    else this.pauses.delete(reason);
+    const b = this.pauses.size > 0;
     if (b === this.busy) return;
     this.busy = b;
     document.body.classList.toggle('busy', b);
@@ -595,6 +626,7 @@ export class App {
         this.fx.roundWin(prize, answerEl, $('#wallet'), () => this.changeBalance(prize, 900));
       } else if (!this.practice) {
         const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
+        if (fast) this.tip('fast');
         extra = fast
           ? `<span class="fast-stamp">速答ボーナス<b>半額 −${costFor(true, true, this.s.highRoller)}</b></span>`
           : `<span class="yan-cost">−${costFor(true, false, this.s.highRoller)} yan</span>`;
@@ -607,7 +639,10 @@ export class App {
         // 正解＝始動口入賞。通常時の役満は直撃で確変大当り確定。ラウンド中は台に玉を入れない
         if (!this.isRoundQ) {
           if (this.q.mode !== 'hayami' && this.q.ev.yakuman > 0 && !this.panel.rush) this.panel.direct();
-          else void this.panel.enter(1, answerEl);
+          else {
+            this.tutorialHit();
+            void this.panel.enter(1, answerEl);
+          }
         }
         // ラウンド中はほぼ毎問が高い手なので、役満以外の大演出は省いてテンポを保つ
         const t = this.isRoundQ && tier < 3 ? 0 : tier;
@@ -627,6 +662,7 @@ export class App {
           : `<span class="yan-cost miss">−${costFor(false, false, this.s.highRoller)} yan</span>`;
       $('#result').innerHTML = `<div class="verdict ng"><span class="mark">不正解</span><span class="yours">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${explain}`;
       this.fx.lose(this.isChoice ? $('#choices') : answerEl, false);
+      if (!this.practice && !this.isRoundQ) this.tip('miss');
     }
     if (!this.practice && !this.isRoundQ) {
       this.changeBalance(-costFor(correct, correct && elapsed <= ECONOMY.fastSeconds[this.s.mode], this.s.highRoller));
@@ -920,6 +956,8 @@ export class App {
       }
     });
     $('#open-settings').addEventListener('click', () => this.openSettings());
+    $('#open-help').addEventListener('click', () => this.openHelp());
+    this.bindGuide();
     this.bindSettings();
     $('#numpad').addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-key]');
@@ -942,7 +980,7 @@ export class App {
   }
 
   private onKey(e: KeyboardEvent): void {
-    if ($<HTMLDialogElement>('#settings-dialog').open) return;
+    if (document.querySelector('dialog[open]')) return;
     if (e.metaKey || e.ctrlKey) {
       if (e.key === 'Backspace' && this.phase === 'answering') {
         this.input = '';
@@ -1026,6 +1064,105 @@ export class App {
     void this.submit();
   }
 
+  // ------------------------------------------------------------ 初回導入・遊び方・一言ガイド
+
+  private bindGuide(): void {
+    const intro = $<HTMLDialogElement>('#intro-dialog');
+    intro.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-intro]');
+      if (!b) return;
+      switch (b.dataset.intro) {
+        case 'next':
+          this.introStep++;
+          intro.innerHTML = introHtml(this.introStep);
+          intro.querySelector<HTMLElement>('[data-intro="next"],[data-intro="start"]')?.focus();
+          return;
+        case 'practice':
+          intro.close();
+          if (!this.practice) this.update({ playMode: 'practice' });
+          return;
+        default:
+          intro.close();
+      }
+    });
+    intro.addEventListener('close', () => {
+      markIntroSeen();
+      this.pause('intro', false);
+    });
+    const help = $<HTMLDialogElement>('#help-dialog');
+    help.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t === help || t.closest('[data-help-close]')) {
+        help.close();
+        return;
+      }
+      const b = t.closest<HTMLElement>('[data-help-tab]');
+      if (b) {
+        this.helpTab = b.dataset.helpTab as HelpTab;
+        help.innerHTML = helpHtml(this.helpTab, this.s.mode);
+      }
+    });
+    help.addEventListener('close', () => this.pause('help', false));
+    $('#tip').addEventListener('click', () => this.nextTip());
+  }
+
+  private openIntro(): void {
+    const dlg = $<HTMLDialogElement>('#intro-dialog');
+    this.introStep = 0;
+    dlg.innerHTML = introHtml(0);
+    this.pause('intro', true);
+    if (!dlg.open) dlg.showModal();
+    dlg.querySelector<HTMLElement>('[data-intro="next"]')?.focus();
+  }
+
+  private openHelp(): void {
+    const dlg = $<HTMLDialogElement>('#help-dialog');
+    dlg.innerHTML = helpHtml(this.helpTab, this.s.mode);
+    this.pause('help', true);
+    if (!dlg.open) dlg.showModal();
+  }
+
+  /** 初めての出来事なら一言ガイドを出す（ノーマルのみ・各1回） */
+  private tip(id: Exclude<TipId, 'firstHit'>): void {
+    if (this.practice || !this.tips.first(id)) return;
+    this.toast(tipText(id, ECONOMY.fastSeconds[this.s.mode]));
+  }
+
+  private toast(text: string): void {
+    this.tipQueue.push(text);
+    if ($('#tip').hidden) this.nextTip();
+    else {
+      // 続けて起きたときは、今のガイドを最低限読める時間だけ出して次へ
+      clearTimeout(this.tipTimer);
+      this.tipTimer = window.setTimeout(() => this.nextTip(), Math.max(0, this.tipShownAt + 3500 - performance.now()));
+    }
+  }
+
+  private nextTip(): void {
+    clearTimeout(this.tipTimer);
+    const el = $('#tip');
+    const text = this.tipQueue.shift();
+    if (!text) {
+      el.hidden = true;
+      return;
+    }
+    el.innerHTML = `<span class="tip-label">TIPS</span><span class="tip-text">${text}</span>`;
+    el.hidden = false;
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+    this.tipShownAt = performance.now();
+    this.tipTimer = window.setTimeout(() => this.nextTip(), this.tipQueue.length ? 3500 : 7000);
+  }
+
+  /** まだ大当りしたことがない人は、3回目の入賞を確変大当りにして BONUS を早めに体験させる */
+  private tutorialHit(): void {
+    if (this.tips.has('firstHit') || this.tutorialForced || this.panel.rush) return;
+    if (++this.tutorialCount < 3) return;
+    this.tutorialForced = true;
+    this.panel.machine.forceNextHit();
+  }
+
   // ------------------------------------------------------------ 設定ダイアログ
 
   private rulesDirty = false;
@@ -1077,6 +1214,10 @@ export class App {
           this.best = {};
           save(BEST_KEY, {});
         }
+        return;
+      case 'tips':
+        this.tips.reset();
+        this.tipsReset = true;
         return;
       case 'wallet':
         if (confirm(`所持金を ${ECONOMY.initial}yan に戻しますか？`)) {
@@ -1136,6 +1277,7 @@ export class App {
       ${row('連風牌の雀頭', '場風かつ自風の雀頭', 'doubleWindPairFu', [['2', '2符'], ['4', '4符']], String(r.doubleWindPairFu))}
       <div class="set-sec">記録</div>
       <div class="set-row"><div><div class="set-label">所持金 ${this.wallet.balance.toLocaleString()} yan</div><div class="set-desc">ノーマルの所持金を ${ECONOMY.initial}yan に戻す（破産 ${this.wallet.bankrupts}回）</div></div><div class="cfg-group"><button class="cfg danger" data-set="wallet" data-v="1">リセット</button></div></div>
+      <div class="set-row"><div><div class="set-label">一言ガイド</div><div class="set-desc">初めての人向けのヒントをもう一度表示する</div></div><div class="cfg-group"><button class="cfg${this.tipsReset ? ' on' : ''}" data-set="tips" data-v="1">${this.tipsReset ? '表示します' : 'もう一度'}</button></div></div>
       <div class="set-row"><div><div class="set-label">自己ベスト</div><div class="set-desc">モード・問題数ごとの記録を消去</div></div><div class="cfg-group"><button class="cfg danger" data-set="reset" data-v="1">リセット</button></div></div>
     </div>`;
     const el = dlg.querySelector('.settings');
@@ -1153,6 +1295,7 @@ const SHELL = `
   <div id="wallet" aria-live="polite"><span class="yen">¥</span><b>0</b><small>yan</small></div>
   <div class="top-right">
     <button id="cfg-toggle" class="cfg-pill" type="button" aria-expanded="false" aria-controls="config"></button>
+    <button id="open-help" class="icon-btn help-btn" aria-label="遊び方">?</button>
     <button id="open-settings" class="icon-btn" aria-label="設定">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
@@ -1188,7 +1331,10 @@ const SHELL = `
 <footer>
   <span><kbd>Esc</kbd> やり直し</span>
   <span><kbd>Tab</kbd> パス / 次へ</span>
-  <span class="muted">ルール・演出は右上の設定から</span>
+  <span class="muted">遊び方は右上の ? から</span>
 </footer>
 <dialog id="settings-dialog"></dialog>
+<dialog id="help-dialog"></dialog>
+<dialog id="intro-dialog" class="intro-dialog"></dialog>
+<div id="tip" role="status" aria-live="polite" hidden></div>
 `;

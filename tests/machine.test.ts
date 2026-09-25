@@ -89,4 +89,26 @@ describe('Machine', () => {
     expect(m.stLeft).toBe(ST_SPINS);
     expect(m.data.rushEntries).toBe(1);
   });
+
+  it('forceNextHit で次の入賞だけが確変大当りになる', () => {
+    const m = new Machine(() => 'max', () => 0.99);
+    m.forceNextHit();
+    expect(m.forcePending).toBe(true);
+    m.enter(2);
+    expect(m.forcePending).toBe(false);
+    expect(m.holds[0]).toMatchObject({ hit: true, kakuhen: true });
+    expect(m.holds[1].hit).toBe(false);
+    const r = m.spin()!;
+    expect(r.hit).toBe(true);
+    expect(r.symbols[0]).toBe(r.symbols[2]);
+    expect(isKakuhenSymbol(r.symbols[0])).toBe(true);
+  });
+
+  it('reset で forceNextHit は取り消される', () => {
+    const m = new Machine(() => 'max', () => 0.99);
+    m.forceNextHit();
+    m.reset();
+    m.enter();
+    expect(m.holds[0].hit).toBe(false);
+  });
 });

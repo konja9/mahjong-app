@@ -96,7 +96,22 @@ export class Machine {
     return added;
   }
 
+  /** 次の入賞を確変大当りにする（初めての人向けのチュートリアル当り） */
+  forceNextHit(): void {
+    this.forced = true;
+  }
+
+  get forcePending(): boolean {
+    return this.forced;
+  }
+
+  private forced = false;
+
   private draw(): Hold {
+    if (this.forced) {
+      this.forced = false;
+      return { hit: true, kakuhen: true, color: 3 };
+    }
     const odds = this.rush ? RUSH_ODDS : NORMAL_ODDS;
     const hit = this.rng() < 1 / odds;
     const kakuhen = hit && this.rng() < KAKUHEN_RATE;
@@ -187,6 +202,7 @@ export class Machine {
 
   reset(): void {
     this.holds = [];
+    this.forced = false;
     this.rush = false;
     this.stLeft = 0;
     this.data = freshData();

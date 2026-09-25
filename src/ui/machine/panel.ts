@@ -18,6 +18,8 @@ export interface PanelHooks {
   onHighRoller(): void;
   /** 精算ボタン */
   onCashout(): void;
+  /** 初めての人向けのガイドを出すきっかけ */
+  onEvent?(e: 'enter' | 'reach' | 'jackpot' | 'rush'): void;
 }
 
 /** 常時表示のパチンコ台パネル。保留がある限り自動で回り続ける */
@@ -124,6 +126,7 @@ export class MachinePanel {
     this.timers.push(window.setTimeout(() => this.chucker.classList.remove('open'), n > 1 ? 900 : 350));
     if (n > 1) this.msg('電チュー開放!', 'denchu');
     else if (!added) this.msg('保留MAX', '');
+    if (added) this.hooks.onEvent?.('enter');
     this.render(true);
     this.kick();
   }
@@ -142,6 +145,7 @@ export class MachinePanel {
       await this.run(r, g);
       if (g !== this.gen) return;
       const t = this.machine.settle(r);
+      if (t.rushStart) this.hooks.onEvent?.('rush');
       if (t.rushEnd) {
         this.fx.kakuhenEnd();
         this.msg('確変終了', 'end');
@@ -195,6 +199,7 @@ export class MachinePanel {
     const hot = r.plan.cutin === 'gold' || r.plan.cutin === 'zebra' || r.plan.cutin === 'rainbow';
     if (hot) this.root.classList.add('hot');
     this.msg(hot ? '激アツ!!' : 'リーチ!', hot ? 'hot' : 'reach');
+    this.hooks.onEvent?.('reach');
     this.reel.slow(1);
     const developed = full && (hot || r.plan.push !== 'none' || r.plan.pseudo > 0 || r.hit);
     if (developed) {
@@ -227,6 +232,7 @@ export class MachinePanel {
       // ラウンド問題の間は回答できるようにし、台は止めておく
       this.hooks.onBusy(false);
       this.msg(`BONUS ${ECONOMY.rounds}R`, 'win');
+      this.hooks.onEvent?.('jackpot');
       const total = await this.hooks.onJackpot({ premium });
       if (g !== this.gen) return;
       this.hooks.onBusy(true);
