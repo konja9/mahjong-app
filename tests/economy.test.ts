@@ -2,7 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { practiceScore, speedMultiplier } from '../src/core/practiceScore';
 import { generateQuestion, type Mode } from '../src/core/generator';
 import { DEFAULT_RULES } from '../src/core/rules';
-import { ECONOMY, applyDelta, costFor, freshWallet, isBankrupt, roundPrize } from '../src/ui/machine/economy';
+import {
+  ECONOMY,
+  applyDelta,
+  comboMult,
+  costFor,
+  freshWallet,
+  isBankrupt,
+  paytableKey,
+  paytableRows,
+  roundPrize,
+} from '../src/ui/machine/economy';
 import { Machine, PREMIUM_SYMBOL } from '../src/ui/machine/machine';
 
 function mulberry32(seed: number) {
@@ -108,5 +118,32 @@ describe('経済バランス（シミュレーション）', () => {
   }
   it('ハイローラーは中級で回収率が上がる（高リスク・高リターン）', () => {
     expect(simulate('jissen', 0.85, 0.5, true, 4)).toBeGreaterThan(simulate('jissen', 0.85, 0.5, false, 4));
+  });
+});
+
+describe('BONUS の賞金表', () => {
+  it('各マスは roundPrize と一致し、打点の順に高い', () => {
+    for (const mode of ['hayami', 'fu', 'jissen'] as Mode[]) {
+      for (const premium of [false, true]) {
+        for (const hr of [false, true]) {
+          const rows = paytableRows(mode, premium, hr);
+          expect(rows.map((r) => r.key)).toEqual(['under', '満貫', '跳満', '倍満', '三倍満', '役満']);
+          for (const r of rows) {
+            const limit = r.key === 'under' ? '' : r.key;
+            expect(paytableKey(limit)).toBe(r.key);
+            expect(r.prize).toBe(
+              roundPrize({ mode, limit, dealer: false, fast: false, combo: 1, premium, highRoller: hr }),
+            );
+          }
+          for (let i = 1; i < rows.length; i++) expect(rows[i].prize).toBeGreaterThan(rows[i - 1].prize);
+        }
+      }
+    }
+  });
+
+  it('連続正解の倍率は 1.0 から 0.1 ずつ上がり最大 1.5', () => {
+    expect(comboMult(0)).toBe(1);
+    expect(comboMult(2)).toBeCloseTo(1.2);
+    expect(comboMult(9)).toBe(ECONOMY.comboMax);
   });
 });

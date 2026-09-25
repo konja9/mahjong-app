@@ -287,11 +287,28 @@ export class Fx {
     if (this.full) this.pulse('punch', 180);
   }
 
-  async win(tier: WinTier, label: string, anchor: HTMLElement | null): Promise<void> {
+  /**
+   * 手の打点に応じた演出。money=false（通常時の正解）ではお金が入らないので、
+   * 満貫・跳満はコインと金の光線を出さず、役名と火花だけにする
+   */
+  async win(tier: WinTier, label: string, anchor: HTMLElement | null, money = true): Promise<void> {
     this.skipped = false;
     if (!this.enabled || tier === 0) return;
     const [x, y] = this.center(anchor);
     const t: WinTier = this.full ? tier : 1;
+
+    if (!money && t < 3) {
+      this.show(`<div class="bigtext plain${t === 1 ? ' small' : ''}"><span>${label}</span></div>`, t === 2 && this.full ? 'rays' : '');
+      this.particles.burst(x, y, this.full ? (t === 2 ? 60 : 30) : 12, 'spark', 1.2);
+      if (t === 2) {
+        this.pulse('shake', 400);
+        this.flash(1);
+      }
+      sfx.hit();
+      await this.sleep(t === 2 ? 1100 : 750);
+      this.clear();
+      return;
+    }
 
     if (t === 1) {
       this.show(`<div class="bigtext chroma small"><span>${label || '当り'}</span></div>`, this.full ? 'rays' : '');

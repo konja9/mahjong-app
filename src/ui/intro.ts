@@ -2,7 +2,7 @@
  * 初めて開いたときだけ出す3ステップの導入。
  * 「正解 → 玉が入って台が回る → 大当りで BONUS」の流れを先に見せる
  */
-import { ECONOMY, costFor } from './machine/economy';
+import { ECONOMY, costFor, paytableRows } from './machine/economy';
 import { FLOW } from './help';
 import { load, save } from './storage';
 
@@ -11,10 +11,10 @@ const KEY = 'tensu.intro.v1';
 export const introSeen = (): boolean => load<boolean>(KEY, false) === true;
 export const markIntroSeen = (): void => save(KEY, true);
 
-/** 各ステップの小さな図 */
+/** 各ステップの小さな図（実際の計器・液晶帯と同じ見た目） */
 const VISUALS = [
   `<div class="iv iv-q">
-    <span class="bet-a"><span class="lbl">BET</span><s>${costFor(true, false)}</s><b>${costFor(true, true)}</b><em>速答で半額</em></span>
+    <div class="mt-cell mt-bet"><div class="bet-box"><small>BET<em>速答で半額</em></small><span class="bet-v"><s>${costFor(true, false)}</s><b>${costFor(true, true)}</b></span><i class="bar"></i></div></div>
     <div class="iv-choices"><span><kbd>1</kbd>3900</span><span class="on"><kbd>2</kbd>5200</span><span><kbd>3</kbd>6400</span><span><kbd>4</kbd>7700</span></div>
   </div>`,
   `<div class="iv iv-flow">
@@ -23,9 +23,9 @@ const VISUALS = [
     <span class="iv-arrow">→</span><span class="iv-reel"><b>7</b><b>7</b><b>7</b></span>
   </div>`,
   `<div class="iv iv-bonus">
-    <span class="bet-chip round-chip">BONUS ROUND <b>1/${ECONOMY.rounds}</b></span>
-    <div class="iv-ladder">${['満貫', '跳満', '倍満', '三倍満', '役満']
-      .map((l, i) => `<span style="--h:${[18, 26, 38, 54, 100][i]}%"><i></i>${l}</span>`)
+    <div class="b-head"><span class="b-title">ROUND 1/${ECONOMY.rounds}</span><span class="b-pips">${Array.from({ length: ECONOMY.rounds }, (_, i) => `<i class="${i < 1 ? 'on' : ''}"></i>`).join('')}</span></div>
+    <div class="b-table">${paytableRows('jissen', false, false)
+      .map((r) => `<div class="b-cell${r.key === '倍満' ? ' lit' : ''}"><small>${r.label}</small><b>${r.prize}</b></div>`)
       .join('')}</div>
   </div>`,
 ];

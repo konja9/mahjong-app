@@ -1,4 +1,5 @@
 import './styles/main.css';
+import './styles/cabinet.css';
 import { App } from './ui/app';
 
 const app = new App(document.getElementById('app')!);

@@ -9,10 +9,13 @@ import {
   ECONOMY,
   type Wallet,
   applyDelta,
+  comboMult,
   costFor,
   freshWallet,
   isBankrupt,
   loadWallet,
+  paytableKey,
+  paytableRows,
   roundPrize,
   saveWallet,
 } from './machine/economy';
@@ -127,8 +130,6 @@ export class App {
         this.checkBankrupt();
       },
       onJackpot: ({ premium }) => this.startRound(premium),
-      onHighRoller: () => this.toggleHighRoller(),
-      onCashout: () => this.showSummary('settle'),
       onEvent: (e) => this.tip(e),
     });
     this.applyTheme();
@@ -230,7 +231,7 @@ export class App {
       )
       .join('');
     const count = !this.practice ? '∞' : s.count ? `${s.count}問` : '∞';
-    $('#cfg-toggle').innerHTML = `<span class="pill-mode">${MODE_NAMES[s.mode]}<span class="dot-sep">·</span></span>${s.answerStyle === 'choice' ? '4択' : '入力'}<span class="dot-sep">·</span>${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+    $('#cfg-toggle').innerHTML = `<span class="pill-mode">${MODE_NAMES[s.mode]}<span class="dot-sep">·</span></span><span class="pill-answer">${s.answerStyle === 'choice' ? '4択' : '入力'}<span class="dot-sep">·</span></span>${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
   }
 
   private setPhase(phase: Phase): void {
@@ -291,7 +292,7 @@ export class App {
     this.session.startBalance = this.wallet.balance;
     this.awaitingBankrupt = false;
     this.renderWallet(false);
-    this.panel.setHighRoller(this.s.highRoller);
+    this.renderHighRoller();
     $('#summary').hidden = true;
     $('#stage').hidden = false;
     this.next();
@@ -310,10 +311,9 @@ export class App {
     // ラウンドを消化しきったら大当り終了（台の V・確変分岐へ）
     if (this.round && this.round.n >= ECONOMY.rounds) this.endRound();
     this.isRoundQ = !!this.round;
-    if (this.round) {
-      this.round.n++;
-      this.panel.roundStatus(`ROUND ${this.round.n}/${ECONOMY.rounds}`);
-    }
+    if (this.round) this.round.n++;
+    document.body.classList.toggle('bonus', this.isRoundQ);
+    this.renderBonus();
     // 確変中は役満（高打点）が出やすい。ラウンド問題は高打点中心
     const boost = !this.practice && this.panel.rush && !this.isRoundQ;
     this.q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, boost, this.isRoundQ);
@@ -330,17 +330,42 @@ export class App {
     document.querySelector('main')?.scrollTo({ top: 0 });
     this.startTimer();
     this.startBetRing();
-    $('#stage').classList.toggle('boost', boost);
-    $('#stage').classList.toggle('round', this.isRoundQ);
-    $('#stage').classList.toggle('highroller', !this.practice && this.s.highRoller && !this.isRoundQ);
+    this.renderNet();
   }
 
   /** ハイローラーの切り替え（次の問題から反映。ラウンドの倍率は大当り時点で固定） */
   private toggleHighRoller(): void {
     this.update({ highRoller: !this.s.highRoller }, false);
-    this.panel.setHighRoller(this.s.highRoller);
+    this.renderHighRoller();
     if (this.fxLevel !== 'off') sfx.lampUp();
     if (this.phase === 'answering') this.startBetRing();
+  }
+
+  private renderHighRoller(): void {
+    const on = this.s.highRoller;
+    this.panel.setHighRoller(on);
+    const b = $('#hr-toggle');
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+    $('#meter').classList.toggle('hr', on);
+  }
+
+  /** BONUS の液晶表示（ラウンド・連続の倍率・賞金表）。result は直前の回答で光らせるマス */
+  private renderBonus(result: { lit?: string; miss?: string } = {}): void {
+    const r = this.round;
+    if (!r || this.practice) {
+      this.panel.bonus(null);
+      return;
+    }
+    this.panel.bonus({
+      n: r.n,
+      rounds: ECONOMY.rounds,
+      mult: comboMult(r.combo),
+      rows: paytableRows(this.s.mode, r.premium, r.highRoller),
+      lit: result.lit,
+      miss: result.miss,
+      premium: r.premium,
+    });
   }
 
   /** 大当り：ラウンド問題を出題し、終わったら出玉合計を返す */
@@ -348,6 +373,7 @@ export class App {
     return new Promise((resolve) => {
       this.round = { n: 0, total: 0, combo: 0, premium, highRoller: this.s.highRoller, resolve };
       this.tips.first('firstHit');
+      this.renderBonus();
       this.renderProgress();
       // 回答待ちの問題はそのまま。次の問題からラウンド問題になる
       if (this.phase === 'answering' && !this.isRoundQ) this.hint(this.compact ? '' : '次の問題から BONUS ラウンド');
@@ -359,6 +385,8 @@ export class App {
     if (!r) return;
     this.round = null;
     this.isRoundQ = false;
+    document.body.classList.remove('bonus');
+    this.panel.bonus(null);
     r.resolve(r.total);
   }
 
@@ -369,19 +397,19 @@ export class App {
   }
 
   /**
-   * BET 表示（ノーマルのみ）。時間は意識させないよう、数字は出さず
-   * チップの輝きがゆっくり薄れ、速答の締切を過ぎると静かに 40 に変わるだけにする。
+   * 計器の BET（ノーマルのみ）。時間は意識させないよう秒数は出さず、
+   * 締切までは定価に取り消し線＋半額と、下辺の細いバーが静かに減るだけ。締切後は定価に戻る
    */
   private startBetRing(): void {
     cancelAnimationFrame(this.betRaf);
     const el = $('#bet');
+    el.classList.remove('expired', 'settled');
     if (this.practice) {
       el.innerHTML = '';
       return;
     }
-    el.classList.remove('expired');
     if (this.isRoundQ && this.round) {
-      el.innerHTML = `<span class="bet-chip round-chip">BONUS ROUND <b>${this.round.n}/${ECONOMY.rounds}</b></span><span class="round-total">出玉 <b>+${this.round.total.toLocaleString()}</b></span>`;
+      el.innerHTML = '<small>BET<em class="gold">BONUS</em></small><span class="bet-v"><b>0</b></span>';
       return;
     }
     const hr = this.s.highRoller;
@@ -389,11 +417,10 @@ export class App {
     const full = costFor(true, false, hr);
     const half = costFor(true, true, hr);
     el.style.setProperty('--half', `${fastSec}s`);
-    // 締切前：定価に取り消し線＋半額、下辺のバーが静かに減る。締切後：定価だけ
     const html = (exp: boolean) =>
       exp
-        ? `<span class="bet-a expired${hr ? ' hr' : ''}"><span class="lbl">BET</span><b>${full}</b></span>`
-        : `<span class="bet-a${hr ? ' hr' : ''}"><span class="lbl">BET</span><s>${full}</s><b>${half}</b><em>速答で半額</em><i class="bar"></i></span>`;
+        ? `<small>BET</small><span class="bet-v"><b>${full}</b></span>`
+        : `<small>BET<em>速答で半額</em></small><span class="bet-v"><s>${full}</s><b>${half}</b></span><i class="bar"></i>`;
     el.innerHTML = html(false);
     const tick = () => {
       if (this.phase !== 'answering') return;
@@ -407,7 +434,29 @@ export class App {
     this.betRaf = requestAnimationFrame(tick);
   }
 
-  /** 所持金の増減（浮き上がる差額とスランプグラフ） */
+  /** 回答後、BET を実際にかかった額に切り替える（通常の問題のみ） */
+  private settleBet(correct: boolean, fast: boolean): void {
+    cancelAnimationFrame(this.betRaf);
+    if (this.practice || this.isRoundQ) return;
+    const cost = costFor(correct, correct && fast, this.s.highRoller);
+    const tag = !correct ? '<em class="ng">不正解</em>' : fast ? '<em>速答で半額</em>' : '';
+    const el = $('#bet');
+    el.classList.remove('expired');
+    el.classList.add('settled');
+    el.innerHTML = `<small>BET${tag}</small><span class="bet-v"><b${correct ? '' : ' class="ng"'}>−${cost}</b></span>`;
+  }
+
+  /** 計器の右枠：通常は今回の収支、BONUS 中はそのラウンドの出玉 */
+  private renderNet(): void {
+    const el = $('#net');
+    const r = this.isRoundQ ? this.round : null;
+    const v = r ? r.total : this.wallet.balance - this.session.startBalance;
+    el.classList.toggle('bonus', !!r);
+    el.classList.toggle('minus', !r && v < 0);
+    el.innerHTML = `<small>${r ? '出玉' : '収支'}</small><b>${v > 0 ? '+' : v < 0 ? '−' : '±'}${Math.abs(v).toLocaleString()}</b>`;
+  }
+
+  /** 所持金の増減（計器の数字が回り、差額が浮き上がる） */
   private changeBalance(delta: number, rollMs = 500): void {
     this.wallet = applyDelta(this.wallet, delta);
     saveWallet(this.wallet);
@@ -446,7 +495,7 @@ export class App {
         w.classList.add('bump');
       }
     }
-    this.renderSlump(this.panel.slumpEl, this.wallet.history, 260, 54);
+    this.renderNet();
   }
 
   /** 所持金の推移を折れ線で描く */
@@ -610,32 +659,40 @@ export class App {
         extra = `<span class="pts">+${pts}</span><span class="muted">速さ ×${speedMultiplier(this.s.mode, elapsed).toFixed(1)}</span>`;
       } else if (this.isRoundQ && this.round) {
         const r = this.round;
+        const mult = comboMult(r.combo);
         r.combo++;
         const s = scoreOf(this.q);
+        const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
         const prize = roundPrize({
           mode: this.s.mode,
           limit: s.limit,
           dealer: s.dealer,
-          fast: elapsed <= ECONOMY.fastSeconds[this.s.mode],
+          fast,
           combo: r.combo,
           premium: r.premium,
           highRoller: r.highRoller,
         });
         r.total += prize;
-        extra = `<span class="yan-cost prize">+${prize.toLocaleString()} yan</span>${r.combo > 1 ? `<span class="muted">${r.combo}連続</span>` : ''}`;
-        this.fx.roundWin(prize, answerEl, $('#wallet'), () => this.changeBalance(prize, 900));
-      } else if (!this.practice) {
-        const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
-        if (fast) this.tip('fast');
-        extra = fast
-          ? `<span class="fast-stamp">速答ボーナス<b>半額 −${costFor(true, true, this.s.highRoller)}</b></span>`
-          : `<span class="yan-cost">−${costFor(true, false, this.s.highRoller)} yan</span>`;
+        // 賞金の内訳：賞金表のマス × 親 × 速答 × 連続
+        const key = paytableKey(s.limit);
+        const row = paytableRows(this.s.mode, r.premium, r.highRoller).find((x) => x.key === key)!;
+        const factors = [
+          `${row.label} ${row.prize.toLocaleString()}`,
+          s.dealer ? `親×${ECONOMY.dealerMult}` : '',
+          fast ? `速答×${ECONOMY.fastMult}` : '',
+          mult > 1 ? `連続×${mult.toFixed(1)}` : '',
+        ].filter(Boolean);
+        extra = `<span class="prize">+${prize.toLocaleString()} yan</span><span class="muted breakdown">${factors.join(' ')}</span>`;
+        this.renderBonus({ lit: key });
+        this.fx.roundWin(prize, answerEl, $('#net'), () => this.changeBalance(prize, 900));
+      } else if (!this.practice && elapsed <= ECONOMY.fastSeconds[this.s.mode]) {
+        this.tip('fast');
+        extra = '<span class="fast-tag">速答</span>';
       }
       $('#result').innerHTML = `<div class="verdict ok"><span class="mark">正解</span><span class="ans">${this.correctText()}</span><span class="muted">${elapsed.toFixed(1)}s</span>${extra}</div>${explain}`;
       const streak = ss.streak;
       if (!this.practice) {
         this.fx.hit(streak, answerEl);
-        this.fx.combo(streak);
         // 正解＝始動口入賞。通常時の役満は直撃で確変大当り確定。ラウンド中は台に玉を入れない
         if (!this.isRoundQ) {
           if (this.q.mode !== 'hayami' && this.q.ev.yakuman > 0 && !this.panel.rush) this.panel.direct();
@@ -646,28 +703,29 @@ export class App {
         }
         // ラウンド中はほぼ毎問が高い手なので、役満以外の大演出は省いてテンポを保つ
         const t = this.isRoundQ && tier < 3 ? 0 : tier;
-        void this.fx.win(t, label, answerEl).then(async () => {
+        // コインは実際にお金が入るとき（BONUS）だけ。通常時の満貫・跳満は役名と火花だけ
+        void this.fx.win(t, label, answerEl, this.isRoundQ).then(async () => {
           if (this.phase === 'result') await this.fx.milestone(streak);
         });
       }
     } else {
       ss.streak = 0;
-      this.fx.combo(0);
-      if (this.isRoundQ && this.round) this.round.combo = 0;
+      if (this.isRoundQ && this.round) {
+        this.round.combo = 0;
+        this.renderBonus({ miss: paytableKey(scoreOf(this.q).limit) });
+      }
       ss.misses.push({ q: this.q, input: yours });
-      const penalty = this.practice
-        ? ''
-        : this.isRoundQ
-          ? '<span class="yan-cost miss">パンク（賞金なし）</span>'
-          : `<span class="yan-cost miss">−${costFor(false, false, this.s.highRoller)} yan</span>`;
+      // 通常時のお金は計器だけで見せる。BONUS の外れはパンク
+      const penalty = this.isRoundQ ? '<span class="punk">パンク（賞金なし）</span>' : '';
       $('#result').innerHTML = `<div class="verdict ng"><span class="mark">不正解</span><span class="yours">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${explain}`;
       this.fx.lose(this.isChoice ? $('#choices') : answerEl, false);
       if (!this.practice && !this.isRoundQ) this.tip('miss');
     }
     if (!this.practice && !this.isRoundQ) {
-      this.changeBalance(-costFor(correct, correct && elapsed <= ECONOMY.fastSeconds[this.s.mode], this.s.highRoller));
+      const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
+      this.settleBet(correct, fast);
+      this.changeBalance(-costFor(correct, correct && fast, this.s.highRoller));
     }
-    if (this.isRoundQ) this.startBetRing();
     this.renderProgress();
     this.renderInput();
     this.hint(this.compact ? '' : correct ? 'クリック / 任意のキーで次へ' : 'クリック / Enter / Space で次へ');
@@ -795,8 +853,6 @@ export class App {
     $('#progress').innerHTML = `<span>${ss.answered + (this.phase === 'answering' || this.phase === 'suspense' ? 1 : 0)}${total}</span>
       <span class="muted">正答率 ${acc}%</span>
       <span class="streak${ss.streak >= 5 ? ' hot' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>
-      ${!this.practice && this.panel.rush ? '<span class="kakuhen-badge">確変中</span>' : ''}
-      ${this.round ? `<span class="round-badge">BONUS ${this.round.n}/${ECONOMY.rounds}R</span>` : ''}
       ${this.practice && this.s.count ? `<span class="score">SCORE <b>${ss.score.toLocaleString()}</b></span>` : ''}`;
   }
 
@@ -874,6 +930,17 @@ export class App {
       }
     }
 
+    // 大当り履歴（新しい順。数字は何回転目で当ったか）
+    const log = this.practice ? [] : this.panel.machine.data.log;
+    const logHtml = log.length
+      ? `<div class="sum-log"><span class="ex-h">大当り履歴</span>${log
+          .map(
+            (h) =>
+              `<span class="hit${h.kakuhen ? ' k' : ''}${h.premium ? ' p' : ''}" title="${h.at}回転で${h.kakuhen ? '確変' : '通常'}大当り">${h.at}</span>`,
+          )
+          .join('')}</div>`
+      : '';
+
     $('#stage').hidden = true;
     const sum = $('#summary');
     sum.hidden = false;
@@ -881,6 +948,7 @@ export class App {
       ${head}
       <div class="stats">${stats}</div>
       ${!this.practice ? '<div class="sum-slump"></div>' : ''}
+      ${logHtml}
       <div class="sum-cols">
         <div><div class="ex-h">状況別 <span class="muted">${weakText}</span></div>${cats}</div>
         ${misses ? `<div><div class="ex-h">間違えた問題</div><ul class="misses">${misses}</ul></div>` : ''}
@@ -957,6 +1025,11 @@ export class App {
     });
     $('#open-settings').addEventListener('click', () => this.openSettings());
     $('#open-help').addEventListener('click', () => this.openHelp());
+    $('#hr-toggle').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleHighRoller();
+      (e.currentTarget as HTMLElement).blur();
+    });
     this.bindGuide();
     this.bindSettings();
     $('#numpad').addEventListener('click', (e) => {
@@ -1103,7 +1176,10 @@ export class App {
       }
     });
     help.addEventListener('close', () => this.pause('help', false));
-    $('#tip').addEventListener('click', () => this.nextTip());
+    $('#tip').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.nextTip();
+    });
   }
 
   private openIntro(): void {
@@ -1292,7 +1368,6 @@ const SHELL = `
     <button class="play-tab" role="tab" data-play="normal">ノーマル</button>
     <button class="play-tab" role="tab" data-play="practice">プラクティス</button>
   </div>
-  <div id="wallet" aria-live="polite"><span class="yen">¥</span><b>0</b><small>yan</small></div>
   <div class="top-right">
     <button id="cfg-toggle" class="cfg-pill" type="button" aria-expanded="false" aria-controls="config"></button>
     <button id="open-help" class="icon-btn help-btn" aria-label="遊び方">?</button>
@@ -1305,11 +1380,17 @@ const SHELL = `
 <nav id="config" aria-label="出題設定"></nav>
 <div id="cfg-backdrop"></div>
 <main>
+  <aside id="machine" data-skin="gold" aria-label="パチンコ台"></aside>
   <section id="stage">
     <div id="progress"></div>
-    <div id="bet" aria-hidden="true"></div>
     <div id="question"></div>
     <div id="dock">
+      <div id="tip" role="status" aria-live="polite" hidden></div>
+      <div id="meter">
+        <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><small>所持</small><b>0</b></div>
+        <div class="mt-cell mt-bet"><div id="bet" class="bet-box"></div><button id="hr-toggle" class="mt-hr" type="button" aria-pressed="false" aria-label="ハイローラー（BET×2・賞金×2.5）">×2</button></div>
+        <div class="mt-cell mt-net" id="net"><small>収支</small><b>±0</b></div>
+      </div>
       <div id="answer" aria-live="polite"></div>
       <div id="choices" role="group" aria-label="選択肢"></div>
       <div class="timer-track"><div id="timer"></div></div>
@@ -1319,7 +1400,6 @@ const SHELL = `
     <div id="result"></div>
   </section>
   <section id="summary" hidden></section>
-  <aside id="machine" data-skin="gold" aria-label="パチンコ台"></aside>
 </main>
 <div id="combo" aria-live="polite"></div>
 <div id="numpad">
@@ -1336,5 +1416,4 @@ const SHELL = `
 <dialog id="settings-dialog"></dialog>
 <dialog id="help-dialog"></dialog>
 <dialog id="intro-dialog" class="intro-dialog"></dialog>
-<div id="tip" role="status" aria-live="polite" hidden></div>
 `;

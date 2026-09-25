@@ -226,16 +226,6 @@ main {
   color: var(--error);
   text-shadow: 0 0 12px color-mix(in srgb, var(--error) 60%, transparent);
 }
-.kakuhen-badge {
-  font-size: 13px;
-  padding: 2px 10px;
-  border-radius: 99px;
-  color: #111;
-  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff);
-  background-size: 300% 100%;
-  animation: slide-bg 3s linear infinite;
-}
-
 /* ------------------------------------------------------------ question: hayami */
 .q-hayami {
   display: flex;
@@ -1036,8 +1026,7 @@ body.kakuhen #progress {
   color: #ffc371;
 }
 
-[data-effects='off'] .lamp.rainbow,
-[data-effects='off'] .kakuhen-badge {
+[data-effects='off'] .lamp.rainbow {
   animation: none;
 }
 
@@ -2220,27 +2209,6 @@ body.god::before {
   background: var(--main);
   opacity: 0.4;
 }
-.m-data {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  padding-top: 8px;
-  border-top: 1px dashed color-mix(in srgb, var(--sub) 45%, transparent);
-  text-align: center;
-}
-.m-data small {
-  display: block;
-  font-family: 'Noto Sans JP', sans-serif;
-  font-size: 10px;
-  color: var(--sub);
-}
-.m-data b {
-  font-size: 18px;
-  color: #ff5f6d;
-  font-variant-numeric: tabular-nums;
-  text-shadow: 0 0 8px rgba(255, 95, 109, 0.5);
-}
-
 /* 始動口に飛ぶ玉 */
 .pball {
   position: fixed;
@@ -2363,152 +2331,11 @@ body.god::before {
   text-shadow: 0 0 24px #ffb300;
 }
 
-/* 確変中の出題（役満ブースト）表示 */
-#stage.boost #progress::after {
-  content: '役満UP';
-  font-size: 11px;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 6px;
-  color: #111;
-  background: linear-gradient(90deg, #ffc371, #ffd84a);
-}
-
 /* 発展リーチ・大当り中は回答を受け付けない */
 body.busy #choices,
 body.busy #answer {
   pointer-events: none;
   opacity: 0.6;
-}
-
-/* ---- 配置：PC は右列、タブレット幅は上部バー */
-@media (min-width: 1024px) {
-  [data-play='normal'] main {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 250px;
-    column-gap: 40px;
-    align-items: center;
-  }
-  [data-play='normal'] #stage,
-  [data-play='normal'] #summary {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  [data-play='normal'] #machine {
-    grid-column: 2;
-    grid-row: 1;
-    align-self: center;
-  }
-  [data-play='normal'] #app {
-    max-width: 1320px;
-  }
-  [data-play='normal'] #combo {
-    top: 84px;
-  }
-}
-@media (min-width: 641px) and (max-width: 1023px) {
-  #machine {
-    order: -1;
-    --panel-reel: 52px;
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-areas:
-      'screen head'
-      'screen msg'
-      'screen bottom'
-      'screen data';
-    column-gap: 16px;
-    row-gap: 4px;
-    margin-bottom: 12px;
-  }
-  .m-screen { grid-area: screen; align-self: center; }
-  .m-head { grid-area: head; }
-  .m-msg { grid-area: msg; text-align: left; }
-  .m-bottom { grid-area: bottom; justify-content: flex-start; }
-  .m-data { grid-area: data; }
-}
-
-/* ---- スマホ：画面上部に固定の細い帯 */
-@media (max-width: 640px) {
-  .play-tabs {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: calc(52px + env(safe-area-inset-top));
-    margin: 0 16px;
-    justify-content: stretch;
-  }
-  .play-tab {
-    flex: 1;
-    padding: 7px 0;
-  }
-  #top {
-    position: relative;
-    padding-bottom: 54px;
-  }
-  #machine {
-    order: -1;
-    position: sticky;
-    top: 0;
-    z-index: 6;
-    --panel-reel: 40px;
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-areas:
-      'screen head'
-      'screen msg'
-      'screen bottom';
-    column-gap: 12px;
-    row-gap: 2px;
-    margin: 0 16px 8px;
-    padding: 8px 10px;
-    border-radius: 12px;
-  }
-  .m-screen {
-    grid-area: screen;
-    align-self: center;
-    padding: 6px 4px;
-  }
-  .m-head {
-    grid-area: head;
-    font-size: 11px;
-  }
-  .m-msg {
-    grid-area: msg;
-    min-height: 16px;
-    font-size: 13px;
-    text-align: left;
-  }
-  .m-bottom {
-    grid-area: bottom;
-  }
-  .m-data {
-    display: none;
-  }
-  .hold {
-    width: 11px;
-    height: 11px;
-  }
-  .m-chucker {
-    width: 30px;
-    height: 16px;
-  }
-  main {
-    display: flex;
-    flex-direction: column;
-  }
-  #combo {
-    top: calc(170px + env(safe-area-inset-top));
-  }
-  [data-play='practice'] #top {
-    padding-bottom: 54px;
-  }
-}
-@media (max-width: 640px) {
-  #stage {
-    min-height: 0;
-    flex: 1 0 auto;
-  }
 }
 
 /* ---- PREMIUM 図柄：キラキラ輝く赤5筒 */
@@ -2548,144 +2375,7 @@ body.busy #answer {
   }
 }
 
-/* ============================================================ ノーマル：射幸心寄りの配色（ミニマルは維持） */
-:root[data-play='normal'] {
-  --bg: #0d0f1c;
-  --sub-bg: #171a2d;
-  --main: #ffc83d;
-  --sub: #5f6488;
-  --text: #ebe8f7;
-  --error: #ff4d6d;
-  --neon: #ff3d7f;
-}
-:root[data-play='normal'] body {
-  background:
-    radial-gradient(900px 500px at 85% -10%, rgba(255, 200, 61, 0.12), transparent 70%),
-    radial-gradient(800px 500px at -10% 110%, rgba(255, 61, 127, 0.12), transparent 70%),
-    var(--bg);
-  background-attachment: fixed;
-}
-:root[data-play='normal'] body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background: conic-gradient(from 0deg at 70% 30%, transparent, rgba(255, 200, 61, 0.05), transparent 30%);
-  animation: spin 40s linear infinite;
-}
-:root[data-play='normal'] body.kakuhen {
-  background:
-    radial-gradient(900px 500px at 85% -10%, rgba(214, 107, 255, 0.2), transparent 70%),
-    radial-gradient(800px 500px at -10% 110%, rgba(71, 229, 188, 0.16), transparent 70%),
-    var(--bg);
-}
 
-/* ---- 所持金カウンター */
-#wallet {
-  display: none;
-}
-:root[data-play='normal'] #wallet {
-  position: relative;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin: 0 auto;
-  padding: 6px 18px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(255, 200, 61, 0.12), rgba(255, 200, 61, 0.03));
-  box-shadow: inset 0 0 0 1px rgba(255, 200, 61, 0.35), 0 0 24px rgba(255, 200, 61, 0.12);
-  font-variant-numeric: tabular-nums;
-}
-#wallet .yen {
-  color: var(--main);
-  font-weight: 800;
-  font-size: 18px;
-}
-#wallet b {
-  font-size: 28px;
-  font-weight: 800;
-  color: #fff;
-  text-shadow: 0 0 14px rgba(255, 200, 61, 0.45);
-  letter-spacing: 0.02em;
-}
-#wallet small {
-  color: var(--sub);
-  font-weight: 700;
-}
-#wallet.low b {
-  color: var(--error);
-  text-shadow: 0 0 14px rgba(255, 77, 109, 0.6);
-  animation: low-blink 1s steps(2) infinite;
-}
-#wallet.bump {
-  animation: bump 0.4s ease-out;
-}
-body.kakuhen #wallet b {
-  color: var(--main);
-}
-.yan-delta {
-  position: absolute;
-  right: 10px;
-  top: 100%;
-  font-weight: 800;
-  font-size: 18px;
-  pointer-events: none;
-  animation: yan-float 1.2s ease-out forwards;
-}
-.yan-delta.down {
-  color: var(--error);
-}
-.yan-delta.up {
-  color: var(--main);
-  font-size: 24px;
-  text-shadow: 0 0 12px rgba(255, 200, 61, 0.8);
-}
-@keyframes yan-float {
-  0% { transform: translateY(-4px); opacity: 0; }
-  15% { opacity: 1; }
-  100% { transform: translateY(18px); opacity: 0; }
-}
-@keyframes low-blink {
-  50% { opacity: 0.55; }
-}
-
-/* ---- BET と速答リング */
-#bet:empty {
-  display: none;
-}
-#bet {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  font-weight: 700;
-  margin-top: -6px;
-}
-.bet-chip {
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: radial-gradient(circle at 30% 30%, #ffe28a, #ffc83d 60%, #b88300);
-  color: #2a1a00;
-  box-shadow: 0 0 12px rgba(255, 200, 61, 0.45);
-}
-#bet.expired .bet-chip {
-  background: var(--sub-bg);
-  color: var(--sub);
-  box-shadow: none;
-}
-#bet.expired body[data-phase='result'] #bet,
-body[data-phase='suspense'] #bet {
-  opacity: 0.4;
-}
-.yan-cost {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--error);
-}
-.yan-cost.fast {
-  color: var(--main);
-}
 .pts {
   font-size: 18px;
   font-weight: 800;
@@ -2702,76 +2392,19 @@ body[data-phase='suspense'] #bet {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- 選択肢（ノーマルは光る縁取り） */
-:root[data-play='normal'] .choice {
-  border: 1px solid rgba(255, 200, 61, 0.18);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent), var(--sub-bg);
-}
-:root[data-play='normal'] .choice:not([disabled]):hover {
-  border-color: var(--main);
-  box-shadow: 0 0 18px rgba(255, 200, 61, 0.35);
-}
-:root[data-play='normal'] .choice.is-wrong {
-  box-shadow: 0 0 24px rgba(255, 77, 109, 0.55);
-}
 
-/* ---- 台パネル（主役・金枠） */
-:root[data-play='normal'] #machine {
-  background: linear-gradient(170deg, #1d2036, #10121f);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 200, 61, 0.45),
-    0 0 0 3px rgba(255, 200, 61, 0.08),
-    0 18px 50px rgba(0, 0, 0, 0.5),
-    0 0 40px rgba(255, 200, 61, 0.1);
-}
-:root[data-play='normal'] .m-screen {
-  box-shadow: inset 0 0 20px rgba(106, 141, 255, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.05);
-}
-.m-log {
-  display: flex;
-  gap: 4px;
-  min-height: 20px;
-}
-.m-log:empty::before {
-  content: '大当り履歴なし';
-  font-size: 11px;
-  color: var(--sub);
-}
-.m-log .hit {
-  min-width: 30px;
-  padding: 2px 5px;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--sub) 30%, transparent);
-  font-size: 11px;
-  font-weight: 700;
-  text-align: center;
-  color: var(--text);
-}
-.m-log .hit.k {
-  background: rgba(255, 61, 127, 0.25);
-  color: #ff8fb4;
-}
-.m-log .hit.p {
-  background: linear-gradient(90deg, #ff5f6d, #ffc371);
-  color: #2a1a00;
-}
-.m-slump svg,
+/* ---- まとめ：スランプグラフ */
 .sum-slump svg {
   display: block;
   width: 100%;
-  height: 54px;
-}
-.sum-slump svg {
   height: 120px;
 }
-.m-slump .base,
 .sum-slump .base {
   stroke: color-mix(in srgb, var(--sub) 60%, transparent);
   stroke-dasharray: 3 3;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
-.m-slump .line,
 .sum-slump .line {
   fill: none;
   stroke-width: 2;
@@ -2783,20 +2416,6 @@ body[data-phase='suspense'] #bet {
 }
 .down .line {
   stroke: var(--error);
-}
-.m-cashout {
-  padding: 8px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 0 0 1px rgba(255, 200, 61, 0.3);
-  color: var(--main);
-  font-family: 'Noto Sans JP', sans-serif;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.3em;
-}
-.m-cashout:hover {
-  background: rgba(255, 200, 61, 0.12);
 }
 
 /* ---- まとめ（精算・破産） */
@@ -2832,75 +2451,6 @@ body[data-phase='suspense'] #bet {
   background: var(--sub-bg);
 }
 
-/* ---- 配置 */
-@media (min-width: 1024px) {
-  [data-play='normal'] main {
-    grid-template-columns: minmax(0, 1fr) 300px;
-  }
-}
-@media (min-width: 641px) and (max-width: 1023px) {
-  #machine {
-    grid-template-areas:
-      'screen head'
-      'screen msg'
-      'screen bottom'
-      'screen data'
-      'log log'
-      'slump cash';
-    grid-template-columns: auto 1fr;
-  }
-  .m-log { grid-area: log; }
-  .m-slump { grid-area: slump; }
-  .m-cashout { grid-area: cash; align-self: center; }
-}
-@media (max-width: 640px) {
-  :root[data-play='normal'] #wallet {
-    margin: 0 auto 0 0;
-    padding: 4px 12px;
-  }
-  :root[data-play='normal'] .logo {
-    display: none;
-  }
-  #wallet b {
-    font-size: 22px;
-  }
-  #wallet .yen {
-    font-size: 15px;
-  }
-
-  #machine {
-    grid-template-areas:
-      'screen head'
-      'screen msg'
-      'screen bottom'
-      'slump slump';
-  }
-  .m-slump {
-    grid-area: slump;
-    margin-top: 4px;
-  }
-  .m-slump svg {
-    height: 22px;
-  }
-  .m-log,
-  .m-cashout {
-    display: none;
-  }
-  .cfg-done.cashout {
-    background: var(--main);
-    color: var(--bg);
-  }
-  #bet {
-    margin-top: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  :root[data-play='normal'] body::after,
-  #wallet.low b {
-    animation: none;
-  }
-}
-
 /* ---- ロゴ：パチふと */
 .logo {
   font-family: 'Noto Sans JP', sans-serif;
@@ -2915,17 +2465,6 @@ body[data-phase='suspense'] #bet {
 .logo-futo {
   color: var(--text);
 }
-:root[data-play='normal'] .logo-pachi {
-  background: linear-gradient(180deg, #fff3b0, #ffc83d 55%, #e08a00);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 0 10px rgba(255, 200, 61, 0.45));
-}
-:root[data-play='normal'] .logo-futo {
-  color: #fff;
-  text-shadow: 0 0 12px rgba(255, 61, 127, 0.55);
-}
 .logo .sub {
   font-family: 'Noto Sans JP', sans-serif;
   font-weight: 700;
@@ -2935,18 +2474,6 @@ body[data-phase='suspense'] #bet {
     font-size: 22px;
   }
 }
-:root[data-play='normal'] .choice.is-correct {
-  background: var(--main);
-  color: var(--bg);
-  border-color: var(--main);
-  box-shadow: 0 0 28px rgba(255, 200, 61, 0.55);
-}
-:root[data-play='normal'] .choice.is-wrong {
-  background: var(--error);
-  color: var(--bg);
-  border-color: var(--error);
-}
-
 /* ---- 出題モードのタブ（スマホのみ。PC は設定バーに含まれる） */
 .mode-tabs {
   display: none;
@@ -2980,57 +2507,6 @@ body[data-phase='suspense'] #bet {
   #config .cfg-group[data-group='mode'] {
     display: none;
   }
-}
-
-/* ============================================================ 大盤振る舞いボタン */
-.m-generous {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #2a0a18, #14050c);
-  box-shadow: inset 0 0 0 1px rgba(255, 159, 182, 0.35), 0 3px 0 #000;
-  font-family: 'Noto Sans JP', sans-serif;
-  font-weight: 900;
-  color: #ff9fb6;
-  letter-spacing: 0.08em;
-  transition: transform 0.08s, box-shadow 0.2s;
-}
-.m-generous:active {
-  transform: translateY(2px);
-  box-shadow: inset 0 0 0 1px rgba(255, 159, 182, 0.35), 0 1px 0 #000;
-}
-.m-generous .g-state {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 5px;
-  background: #0a0204;
-  color: #6b3040;
-}
-#machine.generous .m-generous {
-  color: #2a1a00;
-  background: linear-gradient(90deg, #ff5f6d, #ffc371, #ffd84a, #ffc371, #ff5f6d);
-  background-size: 200% 100%;
-  box-shadow: 0 0 22px rgba(255, 200, 61, 0.7), 0 3px 0 #7a5200;
-  animation: slide-bg 2.5s linear infinite;
-}
-#machine.generous .m-generous .g-state {
-  background: #2a1a00;
-  color: #ffd84a;
-  text-shadow: 0 0 6px #ffd84a;
-}
-#stage.generous #progress::before {
-  content: '大盤振る舞い';
-  order: 9;
-  font-size: 11px;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 6px;
-  color: #2a1a00;
-  background: linear-gradient(90deg, #ff5f6d, #ffc371);
 }
 
 /* ============================================================ 払い出し演出 */
@@ -3085,9 +2561,6 @@ body[data-phase='suspense'] #bet {
   background: radial-gradient(circle at 35% 30%, #fffbe0, #ffd84a 45%, #b07800);
   box-shadow: 0 0 10px rgba(255, 216, 74, 0.8);
 }
-#wallet.payout-glow {
-  animation: payout-glow 0.9s ease-out;
-}
 @keyframes payout-glow {
   0% {
     box-shadow: inset 0 0 0 1px rgba(255, 200, 61, 0.35), 0 0 0 rgba(255, 200, 61, 0);
@@ -3101,37 +2574,6 @@ body[data-phase='suspense'] #bet {
     transform: scale(1);
   }
 }
-@media (max-width: 640px) {
-  .m-generous {
-    grid-area: generous;
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-  #machine {
-    grid-template-areas:
-      'screen head'
-      'screen msg'
-      'screen bottom'
-      'generous generous'
-      'slump slump';
-  }
-}
-@media (min-width: 641px) and (max-width: 1023px) {
-  .m-generous {
-    grid-area: generous;
-  }
-  #machine {
-    grid-template-areas:
-      'screen head'
-      'screen msg'
-      'screen bottom'
-      'screen data'
-      'generous generous'
-      'log log'
-      'slump cash';
-  }
-}
-
 /* ============================================================ 台のデザイン：ブラック & ゴールド */
 
 #machine[data-skin='gold'] {
@@ -3173,49 +2615,6 @@ body[data-phase='suspense'] #bet {
 #machine[data-skin='gold'] .m-chucker {
   border-color: var(--gold);
 }
-#machine[data-skin='gold'] .m-data {
-  border-top: 1px solid color-mix(in srgb, var(--gold) 35%, transparent);
-}
-#machine[data-skin='gold'] .m-data small {
-  color: color-mix(in srgb, var(--gold) 60%, #444);
-  letter-spacing: 0.2em;
-}
-#machine[data-skin='gold'] .m-data b {
-  color: #f3e3a6;
-  text-shadow: none;
-  font-weight: 400;
-  font-size: 22px;
-}
-#machine[data-skin='gold'] .m-log .hit {
-  background: transparent;
-  color: var(--gold);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent);
-}
-#machine[data-skin='gold'] .m-log .hit.p {
-  background: var(--gold);
-  color: #000;
-}
-#machine[data-skin='gold'] .m-generous,
-#machine[data-skin='gold'] .m-cashout {
-  background: transparent;
-  color: var(--gold);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 60%, transparent);
-  letter-spacing: 0.25em;
-}
-#machine[data-skin='gold'] .m-generous .g-state {
-  background: transparent;
-  color: color-mix(in srgb, var(--gold) 50%, #444);
-}
-#machine[data-skin='gold'].generous .m-generous {
-  background: linear-gradient(180deg, #f3e3a6, var(--gold));
-  color: #000;
-  box-shadow: 0 0 20px color-mix(in srgb, var(--gold) 50%, transparent);
-  animation: none;
-}
-#machine[data-skin='gold'].generous .m-generous .g-state {
-  color: #000;
-  text-shadow: none;
-}
 #machine[data-skin='gold'].reach,
 #machine[data-skin='gold'].hot {
   box-shadow:
@@ -3250,93 +2649,7 @@ body[data-phase='suspense'] #bet {
   font-weight: 800;
   letter-spacing: 0.12em;
 }
-#machine[data-skin='gold'] .m-data small {
-  font-family: var(--m-cap);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-}
-#machine[data-skin='gold'] .m-data b {
-  font-family: var(--m-num);
-  font-weight: 600;
-  font-size: 26px;
-  letter-spacing: 0.02em;
-  font-variant-numeric: lining-nums tabular-nums;
-}
-#machine[data-skin='gold'] .m-log .hit {
-  font-family: var(--m-num);
-  font-weight: 600;
-  font-size: 12px;
-}
-#machine[data-skin='gold'] .m-generous,
-#machine[data-skin='gold'] .m-cashout {
-  font-family: var(--m-jp);
-  font-weight: 600;
-  letter-spacing: 0.16em;
-}
-#machine[data-skin='gold'] .m-generous .g-state {
-  font-family: var(--m-cap);
-  letter-spacing: 0.1em;
-}
-
 /* ============================================================ BONUS ラウンド・ハイローラー */
-.round-badge {
-  font-size: 12px;
-  font-weight: 800;
-  padding: 2px 10px;
-  border-radius: 6px;
-  color: #2a1a00;
-  background: linear-gradient(90deg, #ffe28a, #ffc83d);
-  box-shadow: 0 0 14px rgba(255, 200, 61, 0.6);
-}
-#bet .round-chip {
-  animation: none;
-  background: linear-gradient(90deg, #ff5f6d, #ffc371, #ffd84a);
-  color: #2a1a00;
-  box-shadow: 0 0 18px rgba(255, 200, 61, 0.7);
-}
-#bet .round-total {
-  color: var(--main);
-  font-weight: 700;
-}
-#bet .round-total b {
-  font-size: 18px;
-  text-shadow: 0 0 10px rgba(255, 200, 61, 0.6);
-}
-#bet .bet-chip.hr {
-  background: radial-gradient(circle at 30% 30%, #ffb3c6, #ff3d7f 60%, #8a0030);
-  color: #fff;
-}
-#stage.round {
-  position: relative;
-}
-#stage.round::before {
-  content: '';
-  position: absolute;
-  inset: -24px -32px;
-  z-index: -1;
-  pointer-events: none;
-  border-radius: 24px;
-  background: radial-gradient(ellipse at 30% 30%, rgba(255, 200, 61, 0.14), transparent 65%);
-  box-shadow: inset 0 0 0 1px rgba(255, 200, 61, 0.25);
-}
-.yan-cost.prize {
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--main);
-  text-shadow: 0 0 10px rgba(255, 200, 61, 0.6);
-}
-.m-generous .g-label {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.2;
-}
-.m-generous .g-label small {
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  opacity: 0.75;
-}
 .round-note {
   font-family: 'Noto Sans JP', sans-serif;
   font-weight: 900;
@@ -3344,118 +2657,6 @@ body[data-phase='suspense'] #bet {
   color: #fff;
   text-shadow: 0 0 14px #ffb300;
 }
-@media (max-width: 640px) {
-  #stage.round::before {
-    inset: -8px -8px;
-  }
-  .m-generous .g-label small {
-    display: none;
-  }
-}
-
-/* ============================================================ 速答ボーナス（半額）：取り消し線＋残りバー */
-#bet {
-  min-height: 30px;
-}
-.bet-a {
-  position: relative;
-  overflow: hidden;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: rgba(255, 200, 61, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(255, 200, 61, 0.5);
-  font-weight: 700;
-}
-.bet-a .lbl {
-  font-size: 11px;
-  color: var(--sub);
-  letter-spacing: 0.1em;
-}
-.bet-a s {
-  color: var(--sub);
-  font-size: 13px;
-  text-decoration-thickness: 2px;
-  text-decoration-color: var(--error);
-}
-.bet-a b {
-  font-size: 20px;
-  color: var(--main);
-  text-shadow: 0 0 10px rgba(255, 200, 61, 0.55);
-}
-.bet-a em {
-  font-style: normal;
-  font-family: 'Noto Sans JP', sans-serif;
-  font-size: 11px;
-  padding: 1px 7px;
-  border-radius: 4px;
-  background: var(--main);
-  color: var(--bg);
-}
-#bet.expired .bet-a,
-.bet-a.expired {
-  background: transparent;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sub) 50%, transparent);
-}
-#bet.expired .bet-a b,
-.bet-a.expired b {
-  color: var(--text);
-  text-shadow: none;
-  font-size: 16px;
-}
-
-/* 残りバー：チップの下辺が --half 秒かけて縮む（発展リーチ・大当り中は停止） */
-.bet-a .bar {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  width: 100%;
-  background: linear-gradient(90deg, #ffe28a, var(--main));
-  transform-origin: left;
-  animation: bet-bar var(--half, 10s) linear forwards;
-}
-body.busy .bet-a .bar {
-  animation-play-state: paused;
-}
-@keyframes bet-bar {
-  to {
-    transform: scaleX(0);
-  }
-}
-.bet-a.hr b {
-  color: #ff7aa3;
-}
-
-/* 正解時のスタンプ */
-.fast-stamp {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 2px 10px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, #ffe28a, #ffc83d);
-  color: #2a1a00;
-  font-family: 'Noto Sans JP', sans-serif;
-  font-size: 12px;
-  font-weight: 800;
-  transform: rotate(-3deg);
-  box-shadow: 0 0 16px rgba(255, 200, 61, 0.55);
-  animation: stamp-in 0.4s cubic-bezier(0.2, 1.8, 0.4, 1) both;
-}
-.fast-stamp b {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 15px;
-}
-@keyframes stamp-in {
-  from {
-    transform: rotate(-3deg) scale(2.2);
-    opacity: 0;
-  }
-}
-
 /* ============================================================ 遊び方（？）・初回導入・一言ガイド */
 .help-btn {
   font-family: 'JetBrains Mono', monospace;
@@ -3704,35 +2905,30 @@ body.busy .bet-a .bar {
   font-size: 22px;
   box-shadow: 0 0 10px rgba(255, 200, 61, 0.6);
 }
-.iv-ladder {
-  display: flex;
-  align-items: flex-end;
+.iv .mt-cell {
+  width: min(240px, 100%);
+  background: var(--bg);
+}
+.iv .bet-box .bar {
+  animation: none;
+  transform: scaleX(0.6);
+}
+.iv-bonus {
+  align-items: stretch;
   gap: 8px;
-  height: 84px;
+  background: #07070a;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 60%, transparent);
 }
-.iv-ladder span {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  height: 100%;
-  font-size: 11px;
-  color: var(--sub);
-}
-.iv-ladder i {
-  width: 30px;
-  height: var(--h);
-  border-radius: 4px 4px 0 0;
-  background: linear-gradient(#ffe28a, var(--main));
+.iv-bonus .b-cell b {
+  font-family: 'JetBrains Mono', monospace;
 }
 
-/* ---- 一言ガイド */
+/* ---- 一言ガイド（ドックのすぐ上に出す） */
 #tip {
-  position: fixed;
+  position: absolute;
   z-index: 80;
   left: 50%;
-  bottom: 28px;
+  bottom: calc(100% + 6px);
   transform: translateX(-50%);
   width: max-content;
   max-width: min(520px, calc(100vw - 32px));
@@ -3769,10 +2965,6 @@ body.busy .bet-a .bar {
   }
 }
 @media (max-width: 640px) {
-  #tip {
-    bottom: auto;
-    top: calc(env(safe-area-inset-top) + 58px);
-  }
   .help-btn {
     width: 30px;
     height: 30px;

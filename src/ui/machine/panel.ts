@@ -14,15 +14,27 @@ export interface PanelHooks {
   onState(): void;
   /** 大当り：ラウンド問題（賞金タイム）が終わるまで待つ。戻り値は出玉合計 */
   onJackpot(o: { premium: boolean }): Promise<number>;
-  /** ハイローラーボタン */
-  onHighRoller(): void;
-  /** 精算ボタン */
-  onCashout(): void;
   /** 初めての人向けのガイドを出すきっかけ */
   onEvent?(e: 'enter' | 'reach' | 'jackpot' | 'rush'): void;
 }
 
-/** 常時表示のパチンコ台パネル。保留がある限り自動で回り続ける */
+/** BONUS 中に液晶帯の下段に出す表示 */
+export interface BonusView {
+  /** 今のラウンド（1〜rounds）。0 は大当り直後で、まだラウンド問題の前 */
+  n: number;
+  rounds: number;
+  /** 次に正解したときの連続正解の倍率 */
+  mult: number;
+  /** 賞金表（PREMIUM・ハイローラー込み。親・速答・連続は含まない） */
+  rows: { key: string; label: string; prize: number }[];
+  /** 直前の回答で光らせるマス（正解） */
+  lit?: string;
+  /** 直前の回答で外したマス */
+  miss?: string;
+  premium: boolean;
+}
+
+/** 画面上部の液晶帯（パチンコ台）。保留がある限り自動で回り続ける */
 export class MachinePanel {
   readonly machine: Machine;
   private reel: Reel;
@@ -39,30 +51,18 @@ export class MachinePanel {
   ) {
     this.machine = new Machine(level);
     root.innerHTML = `
-      <div class="m-head"><span class="m-state">通常</span><span class="m-st"></span></div>
-      <div class="m-screen"></div>
-      <button class="m-generous" type="button" aria-pressed="false"><span class="g-label">ハイローラー<small>BET×2・出玉×2.5</small></span><span class="g-state">OFF</span></button>
-      <div class="m-msg" aria-live="polite"></div>
-      <div class="m-bottom">
-        <div class="m-holds">${Array.from({ length: MAX_HOLDS }, () => '<span class="hold"></span>').join('')}</div>
-        <div class="m-chucker" title="始動口"><span></span></div>
+      <div class="lcd">
+        <div class="m-screen"></div>
+        <div class="lcd-info">
+          <div class="m-head"><span class="m-state">通常</span><span class="m-st"></span><span class="m-hr">×2</span><span class="m-spins">回転 <b data-k="sinceHit">0</b></span></div>
+          <div class="m-msg" aria-live="polite"></div>
+          <div class="m-bottom">
+            <div class="m-holds" aria-label="保留">${Array.from({ length: MAX_HOLDS }, () => '<span class="hold"></span>').join('')}</div>
+            <div class="m-chucker" title="始動口"><span></span></div>
+          </div>
+        </div>
       </div>
-      <div class="m-data">
-        <div><small>回転</small><b data-k="sinceHit">0</b></div>
-        <div><small>大当り</small><b data-k="hits">0</b></div>
-        <div><small>最大RUSH</small><b data-k="maxChain">0</b></div>
-      </div>
-      <div class="m-log" aria-label="大当り履歴"></div>
-      <div class="m-slump" aria-label="スランプグラフ"></div>
-      <button class="m-cashout" type="button">精算</button>`;
-    root.querySelector('.m-generous')!.addEventListener('click', (e) => {
-      e.stopPropagation();
-      hooks.onHighRoller();
-    });
-    root.querySelector('.m-cashout')!.addEventListener('click', (e) => {
-      e.stopPropagation();
-      hooks.onCashout();
-    });
+      <div class="m-bonus" hidden></div>`;
     this.reel = new Reel(root.querySelector<HTMLElement>('.m-screen')!, 'mini');
     this.idleSymbols();
     this.render();
@@ -76,12 +76,40 @@ export class MachinePanel {
     return this.isStopped;
   }
 
+  /** ハイローラー中は液晶帯に ×2 を出す */
   setHighRoller(on: boolean): void {
     this.root.classList.toggle('generous', on);
-    const b = this.root.querySelector<HTMLElement>('.m-generous')!;
-    b.setAttribute('aria-pressed', String(on));
-    b.querySelector('.g-state')!.textContent = on ? 'ON' : 'OFF';
   }
+
+  /** BONUS の表示（ラウンド・連続の倍率・賞金表）。null で消す */
+  bonus(v: BonusView | null): void {
+    const el = this.root.querySelector<HTMLElement>('.m-bonus')!;
+    this.root.classList.toggle('bonus', !!v);
+    if (!v) {
+      el.hidden = true;
+      el.innerHTML = '';
+      this.render();
+      return;
+    }
+    const pips = Array.from({ length: v.rounds }, (_, i) => `<i class="${i < v.n ? 'on' : ''}"></i>`).join('');
+    const cells = v.rows
+      .map((r) => {
+        const cls = r.key === v.lit ? ' lit' : r.key === v.miss ? ' miss' : '';
+        const value = r.key === v.miss ? 'パンク' : r.prize.toLocaleString();
+        return `<div class="b-cell${cls}"><small>${r.label}</small><b>${value}</b></div>`;
+      })
+      .join('');
+    el.innerHTML = `<div class="b-head"><span class="b-title">ROUND ${Math.max(v.n, 1)}/${v.rounds}</span><span class="b-pips">${pips}</span><span class="b-mult">連続 ×${v.mult.toFixed(1)}</span></div>
+      <div class="b-table">${cells}</div>
+      <div class="b-note">親 ×${ECONOMY.dealerMult}・速答 ×${ECONOMY.fastMult}</div>`;
+    el.hidden = false;
+    this.premium = v.premium;
+    // 台の表示は「BONUS」にまとめ、告知（BONUS 6R）は消す
+    this.msg('', '');
+    this.render();
+  }
+
+  private premium = false;
 
   /** 役満直撃：次の回転を確変大当り確定にする */
   direct(): void {
@@ -92,19 +120,9 @@ export class MachinePanel {
     this.kick();
   }
 
-  /** ラウンド中の表示 */
-  roundStatus(text: string): void {
-    this.msg(text, 'win');
-  }
-
   /** 保留も回転もない */
   get idle(): boolean {
     return !this.running && this.machine.holds.length === 0;
-  }
-
-  /** スランプグラフの描画先 */
-  get slumpEl(): HTMLElement {
-    return this.root.querySelector<HTMLElement>('.m-slump')!;
   }
 
   get rush(): boolean {
@@ -261,25 +279,21 @@ export class MachinePanel {
 
   render(pop = false): void {
     const m = this.machine;
-    this.root.classList.toggle('rush', m.rush);
-    this.root.querySelector('.m-state')!.textContent = m.rush ? `RUSH${m.data.rushChain > 1 ? ` ${m.data.rushChain}連` : ''}` : '通常';
-    this.root.querySelector('.m-st')!.textContent = m.rush ? `残り ${m.stLeft}/${ST_SPINS}` : '';
+    const bonus = this.root.classList.contains('bonus');
+    this.root.classList.toggle('rush', m.rush && !bonus);
+    this.root.querySelector('.m-state')!.textContent = bonus
+      ? `${this.premium ? 'PREMIUM ' : ''}BONUS`
+      : m.rush
+        ? `RUSH${m.data.rushChain > 1 ? ` ${m.data.rushChain}連` : ''}`
+        : '通常';
+    this.root.querySelector('.m-st')!.textContent = !bonus && m.rush ? `残り ${m.stLeft}/${ST_SPINS}・役満UP` : '';
     const holds = this.root.querySelectorAll<HTMLElement>('.hold');
     holds.forEach((h, i) => {
       const hold = m.holds[i];
       h.className = `hold${hold ? ` on ${LAMP_NAMES[hold.color]}` : ''}`;
     });
     if (pop && m.holds.length) holds[m.holds.length - 1]?.classList.add('lamp-pop');
-    for (const k of ['sinceHit', 'hits', 'maxChain'] as const) {
-      const el = this.root.querySelector(`[data-k="${k}"]`);
-      if (el) el.textContent = String(m.data[k]);
-    }
-    this.root.querySelector('.m-log')!.innerHTML = m.data.log
-      .map(
-        (h) =>
-          `<span class="hit${h.kakuhen ? ' k' : ''}${h.premium ? ' p' : ''}" title="${h.at}回転で${h.kakuhen ? '確変' : '通常'}大当り">${h.at}</span>`,
-      )
-      .join('');
+    this.root.querySelector('[data-k="sinceHit"]')!.textContent = String(m.data.sinceHit);
   }
 
   /** セッション開始時にリセット */
@@ -294,6 +308,7 @@ export class MachinePanel {
     this.isStopped = false;
     this.machine.reset();
     this.root.classList.remove('reach', 'hot', 'win', 'rush');
+    this.bonus(null);
     this.msg('', '');
     this.idleSymbols();
     this.render();

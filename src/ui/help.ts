@@ -79,6 +79,7 @@ function rules(mode: Mode): string {
       <tr><th>1問の BET</th><td>${costFor(true, false)} yan</td></tr>
       <tr><th>速答で正解</th><td>半額の ${costFor(true, true)} yan（締切 ${fastWindows()}）</td></tr>
       <tr><th>不正解・パス・時間切れ</th><td>${costFor(false, false)} yan</td></tr>
+      <tr><th>計器（画面下）</th><td>所持金・BET・収支を常に表示。BET は回答すると実際にかかった額に変わります。BONUS 中は収支の枠が出玉になります</td></tr>
     </table>
     <div class="set-sec">台</div>
     <table class="help-table">
@@ -90,11 +91,11 @@ function rules(mode: Mode): string {
     <table class="help-table prize">
       ${LIMITS.map(([l, label]) => `<tr><th>${label}</th><td>+${prize(l)} yan</td></tr>`).join('')}
     </table>
-    <p class="help-note">親の手は×${ECONOMY.dealerMult}、速答は×${ECONOMY.fastMult}、ラウンド内の連続正解で最大×${ECONOMY.comboMax}。赤五筒でそろう PREMIUM 大当りは×${ECONOMY.premiumMult}。不正解はパンク（賞金なし）ですが、BET はかかりません。</p>
+    <p class="help-note">BONUS 中は画面上の液晶帯に、この賞金表とラウンド・連続正解の倍率が出ます。親の手は×${ECONOMY.dealerMult}、速答は×${ECONOMY.fastMult}、ラウンド内の連続正解で最大×${ECONOMY.comboMax}。赤五筒でそろう PREMIUM 大当りは×${ECONOMY.premiumMult}。不正解はパンク（賞金なし）ですが、BET はかかりません。</p>
     <div class="set-sec">その他</div>
     <table class="help-table">
-      <tr><th>ハイローラー</th><td>BET ×${ECONOMY.highRoller.costMult}、BONUS の賞金 ×${ECONOMY.highRoller.prizeMult}。台の横のボタンでいつでも切り替え</td></tr>
-      <tr><th>精算</th><td>ここまでの成績と収支を表示します。所持金と台はそのまま続きから遊べます</td></tr>
+      <tr><th>ハイローラー</th><td>BET ×${ECONOMY.highRoller.costMult}、BONUS の賞金 ×${ECONOMY.highRoller.prizeMult}。画面下の計器の「×2」でいつでも切り替え</td></tr>
+      <tr><th>精算</th><td>出題設定の「精算」で、ここまでの成績・収支・大当り履歴を表示します。所持金と台はそのまま続きから遊べます</td></tr>
       <tr><th>破産</th><td>所持金が尽きると終了。${ECONOMY.initial.toLocaleString()} yan から再スタートします</td></tr>
     </table>`;
 }
@@ -113,14 +114,14 @@ function terms(): string {
     ])}
     <div class="set-sec">パチンコ</div>
     ${dl([
-      ['保留', '台の下のランプ。正解で1つ増え、最大4つまで溜まる。回転するたびに1つ減る'],
+      ['保留', '液晶帯のひし形のランプ。正解で1つ増え、最大4つまで溜まる。回転するたびに1つ減る'],
       ['先読み', '保留ランプの色。青 < 緑 < 赤 < 金 < 虹 の順に当たりやすい'],
       ['リーチ', '左右の図柄がそろった状態。真ん中もそろえば大当り'],
       ['発展', 'リーチから大きな演出に移ること。回答はいったん止まる'],
       ['確変', '確率変動。大当り確率が上がった状態'],
       ['ST・RUSH', `確変が続く回転数（${ST_SPINS}回転）と、その間の状態。RUSH 中は役満の問題も出やすい`],
-      ['回転', '前回の大当りから回った数'],
-      ['スランプグラフ', '所持金の推移。点線が初期所持金'],
+      ['回転', '前回の大当りから回った数（液晶帯の右上）'],
+      ['スランプグラフ', '精算画面に出る所持金の推移。点線が初期所持金'],
     ])}`;
 }
 

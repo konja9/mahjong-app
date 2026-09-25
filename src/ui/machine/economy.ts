@@ -113,3 +113,33 @@ export function applyDelta(w: Wallet, delta: number): Wallet {
 }
 
 export const isBankrupt = (w: Wallet): boolean => w.balance <= 0;
+
+/** BONUS 中に出す賞金表の1マス */
+export interface PaytableRow {
+  key: keyof typeof ECONOMY.paytable;
+  label: string;
+  prize: number;
+}
+
+const PAYTABLE_LABELS: [keyof typeof ECONOMY.paytable, LimitName, string][] = [
+  ['under', '', '未満'],
+  ['満貫', '満貫', '満貫'],
+  ['跳満', '跳満', '跳満'],
+  ['倍満', '倍満', '倍満'],
+  ['三倍満', '三倍満', '三倍'],
+  ['役満', '役満', '役満'],
+];
+
+/** 賞金表：子・速答なし・連続1問目の賞金（PREMIUM とハイローラーは込み） */
+export function paytableRows(mode: Mode, premium: boolean, highRoller: boolean): PaytableRow[] {
+  return PAYTABLE_LABELS.map(([key, limit, label]) => ({
+    key,
+    label,
+    prize: roundPrize({ mode, limit, dealer: false, fast: false, combo: 1, premium, highRoller }),
+  }));
+}
+
+/** 次に正解したときの連続正解の倍率（combo はここまでの連続正解数） */
+export function comboMult(combo: number): number {
+  return Math.min(ECONOMY.comboMax, 1 + ECONOMY.comboStep * Math.max(0, combo));
+}
