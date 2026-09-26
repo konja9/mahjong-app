@@ -126,7 +126,6 @@ export class App {
     /** ここまで全問正解か（上乗せ抽選の条件） */
     perfect: boolean;
     premium: boolean;
-    highRoller: boolean;
     resolve: (r: JackpotResult) => void;
   } | null = null;
   /** 今出ている問題がラウンド問題か */
@@ -345,7 +344,6 @@ export class App {
     this.session.startBalance = this.wallet.balance;
     this.awaitingBankrupt = false;
     this.renderWallet(false);
-    this.renderHighRoller();
     $('#summary').hidden = true;
     $('#stage').hidden = false;
     this.next();
@@ -396,27 +394,14 @@ export class App {
       this.panel.fuNotice(fuNotice(h.fu, h.yakuman));
     }
     // 大当りの時点で音が使えなかった（未操作・音オフから復帰）場合も、問題ごとに曲を合わせ直す
-    if (!this.practice) {
-      if (this.isRoundQ) this.fx.bonusBgm(true);
-      else if (this.panel.rush && !this.busy) this.fx.syncRush(true);
-    }
+    this.syncBgm();
   }
 
-  /** ハイローラーの切り替え（次の問題から反映。ラウンドの倍率は大当り時点で固定） */
-  private toggleHighRoller(): void {
-    this.update({ highRoller: !this.s.highRoller }, false);
-    this.renderHighRoller();
-    if (this.fxLevel !== 'off') sfx.lampUp();
-    if (this.phase === 'answering') this.startBetRing();
-  }
-
-  private renderHighRoller(): void {
-    const on = this.s.highRoller;
-    this.panel.setHighRoller(on);
-    const b = $('#hr-toggle');
-    b.classList.toggle('on', on);
-    b.setAttribute('aria-pressed', String(on));
-    $('#meter').classList.toggle('hr', on);
+  /** 今の状態に合った曲を流す（BONUS 中は BONUS の曲、RUSH 中は RUSH の曲） */
+  private syncBgm(): void {
+    if (this.practice) return;
+    if (this.round) this.fx.bonusBgm(true);
+    else if (this.panel.rush && !this.busy) this.fx.syncRush(true);
   }
 
   /** BONUS の液晶表示（ラウンド・連続の倍率・符の目盛り）。result は直前の回答で光らせるマス */
@@ -431,8 +416,8 @@ export class App {
       rounds: this.roundCount,
       combo: r.combo,
       ladder: ECONOMY.comboLadder,
-      cells: fuScale(this.s.mode, r.premium, r.highRoller, this.spec),
-      rate: fuRate(this.s.mode, r.premium, r.highRoller, this.spec),
+      cells: fuScale(this.s.mode, r.premium, this.spec),
+      rate: fuRate(this.s.mode, r.premium, this.spec),
       lit: result.lit,
       miss: result.miss,
       up: result.up,
@@ -448,7 +433,7 @@ export class App {
   /** 大当り：ラウンド問題を出題し、終わったら出玉合計（と上乗せ）を返す */
   private startRound(premium: boolean): Promise<JackpotResult> {
     return new Promise((resolve) => {
-      this.round = { n: 0, total: 0, combo: 0, extra: 0, perfect: true, premium, highRoller: this.s.highRoller, resolve };
+      this.round = { n: 0, total: 0, combo: 0, extra: 0, perfect: true, premium, resolve };
       this.tips.first('firstHit');
       // 回答待ちの問題があれば、その問題を ROUND 1 にする（BET なし・賞金あり）。
       // 回答済みなら次の問題から ROUND 1
@@ -506,10 +491,9 @@ export class App {
       el.innerHTML = '<small>BET<em class="gold">BONUS</em></small><span class="bet-v"><b>0</b></span>';
       return;
     }
-    const hr = this.s.highRoller;
     const fastSec = ECONOMY.fastSeconds[this.s.mode];
-    const full = costFor(true, false, hr, this.spec);
-    const half = costFor(true, true, hr, this.spec);
+    const full = costFor(true, false, this.spec);
+    const half = costFor(true, true, this.spec);
     el.style.setProperty('--half', `${fastSec}s`);
     const html = (exp: boolean) =>
       exp
@@ -532,7 +516,7 @@ export class App {
   private settleBet(correct: boolean, fast: boolean): void {
     cancelAnimationFrame(this.betRaf);
     if (this.practice || this.isRoundQ) return;
-    const cost = costFor(correct, correct && fast, this.s.highRoller, this.spec);
+    const cost = costFor(correct, correct && fast, this.spec);
     const tag = !correct ? '<em class="ng">不正解</em>' : fast ? '<em>速答で割引</em>' : '';
     const el = $('#bet');
     el.classList.remove('expired');
@@ -766,13 +750,12 @@ export class App {
           fast,
           combo: r.combo,
           premium: r.premium,
-          highRoller: r.highRoller,
           spec: this.spec,
         });
         r.total += prize;
         // 賞金の内訳：符 × レート × 速答 × 連続
         const pf = prizeFu(h.fu, h.yakuman);
-        const rate = fuRate(this.s.mode, r.premium, r.highRoller, this.spec);
+        const rate = fuRate(this.s.mode, r.premium, this.spec);
         const factors = [
           h.yakuman ? `役満(${pf}符)` : h.fu ? `${h.fu}符` : `満貫以上(${pf}符)`,
           `×${rate.toFixed(2).replace(/\.?0+$/, '')}`,
@@ -829,7 +812,7 @@ export class App {
     if (!this.practice && !this.isRoundQ) {
       const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
       this.settleBet(correct, fast);
-      this.changeBalance(-costFor(correct, correct && fast, this.s.highRoller, this.spec));
+      this.changeBalance(-costFor(correct, correct && fast, this.spec));
     }
     if (!this.practice) this.recordMission(correct, elapsed <= ECONOMY.fastSeconds[this.s.mode], dealer, tsumo);
     this.renderProgress();
@@ -968,7 +951,7 @@ export class App {
     const acc = ss.answered ? Math.round((ss.correct / ss.answered) * 100) : 100;
     $('#progress').innerHTML = `<span>${ss.answered + (this.phase === 'answering' || this.phase === 'suspense' ? 1 : 0)}${total}</span>
       <span class="muted">正答率 ${acc}%</span>
-      <span class="streak${ss.streak >= 5 ? ' hot' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>
+      <span class="streak${ss.streak >= 20 ? ' holo' : ss.streak >= 10 ? ' ten' : ss.streak >= 5 ? ' mid' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>
       ${this.practice && this.s.count ? `<span class="score">SCORE <b>${ss.score.toLocaleString()}</b></span>` : ''}`;
   }
 
@@ -1145,13 +1128,14 @@ export class App {
     $('#mission-strip').addEventListener('click', () => this.openShop('missions'));
     this.renderMissionStrip();
     this.bindShop();
-    $('#hr-toggle').addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.toggleHighRoller();
-      (e.currentTarget as HTMLElement).blur();
-    });
     this.bindGuide();
     this.bindSettings();
+    // 画面ロックや別アプリから戻ったら音を起こし直す（iOS は止まったままになる）
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      unlockAudio();
+      this.syncBgm();
+    });
     $('#numpad').addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-key]');
       if (!b) return;
@@ -1603,7 +1587,7 @@ const SHELL = `
       <button id="mission-strip" type="button" aria-label="今日のミッション"></button>
       <div id="meter">
         <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><small>所持</small><b>0</b></div>
-        <div class="mt-cell mt-bet"><div id="bet" class="bet-box"></div><button id="hr-toggle" class="mt-hr" type="button" aria-pressed="false" aria-label="ハイローラー（BET×2・賞金×2.5）">×2</button></div>
+        <div class="mt-cell mt-bet"><div id="bet" class="bet-box"></div></div>
         <div class="mt-cell mt-net" id="net"><small>収支</small><b>±0</b></div>
       </div>
       <div id="answer" aria-live="polite"></div>

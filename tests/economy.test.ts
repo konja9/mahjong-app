@@ -36,12 +36,8 @@ describe('yan', () => {
     expect(costFor(false, false)).toBe(60);
     expect(costFor(false, true)).toBe(60);
   });
-  it('ハイローラーはコスト2倍', () => {
-    expect(costFor(true, true, true)).toBe(60);
-    expect(costFor(false, false, true)).toBe(120);
-  });
-  it('ラウンド賞金：符・速答・連続・PREMIUM・ハイローラー（翻と親子では変わらない）', () => {
-    const base = { mode: 'jissen' as Mode, fu: 40, yakuman: false, fast: false, combo: 1, premium: false, highRoller: false };
+  it('ラウンド賞金：符・速答・連続・PREMIUM（翻と親子では変わらない）', () => {
+    const base = { mode: 'jissen' as Mode, fu: 40, yakuman: false, fast: false, combo: 1, premium: false };
     const v = roundPrize(base);
     expect(roundPrize({ ...base, fu: 70 })).toBeGreaterThan(v);
     expect(roundPrize({ ...base, fu: 30 })).toBeLessThan(v);
@@ -49,7 +45,7 @@ describe('yan', () => {
     expect(roundPrize({ ...base, fast: true })).toBeGreaterThan(v);
     expect(roundPrize({ ...base, combo: 20 })).toBe(roundPrize({ ...base, combo: 5 }));
     expect(roundPrize({ ...base, combo: 5 })).toBeGreaterThanOrEqual(v * 2.7);
-    expect(roundPrize({ ...base, premium: true, highRoller: true })).toBeGreaterThanOrEqual(v * 4.5);
+    expect(roundPrize({ ...base, premium: true })).toBeGreaterThanOrEqual(v * 1.9);
     // 早見の満貫以上（符なし）は30符ぶん
     expect(roundPrize({ ...base, mode: 'hayami', fu: 0 })).toBe(roundPrize({ ...base, mode: 'hayami', fu: 30 }));
   });
@@ -78,7 +74,6 @@ export function simulate(
   mode: Mode,
   accuracy: number,
   fastRate: number,
-  highRoller = false,
   seed = 1,
   questions = 20000,
   spec: MachineSpec = SPECS.ama,
@@ -107,7 +102,7 @@ export function simulate(
       if (rng() < accuracy) {
         combo++;
         extra += Math.min(q.ext, ECONOMY.extraRounds.max - extra);
-        total += roundPrize({ mode, fu: q.fu, yakuman: q.yakuman, fast: rng() < fastRate, combo, premium, highRoller, spec });
+        total += roundPrize({ mode, fu: q.fu, yakuman: q.yakuman, fast: rng() < fastRate, combo, premium, spec });
       } else {
         combo = 0;
         perfect = false;
@@ -119,7 +114,7 @@ export function simulate(
   for (let i = 0; i < questions; i++) {
     const correct = rng() < accuracy;
     const fast = correct && rng() < fastRate;
-    spent += costFor(correct, fast, highRoller, spec);
+    spent += costFor(correct, fast, spec);
     if (!correct) {
       m.missSpin();
       continue;
@@ -139,21 +134,21 @@ describe('経済バランス（シミュレーション）', () => {
       const mid = simulate(mode, 0.85, 0.5);
       expect(mid).toBeGreaterThan(0.85);
       expect(mid).toBeLessThan(1.15);
-      expect(simulate(mode, 0.95, 0.8, false, 2)).toBeGreaterThan(1.6);
-      expect(simulate(mode, 0.6, 0.2, false, 3)).toBeLessThan(0.5);
+      expect(simulate(mode, 0.95, 0.8, 2)).toBeGreaterThan(1.6);
+      expect(simulate(mode, 0.6, 0.2, 3)).toBeLessThan(0.5);
     });
   }
   it('ミドル・MAX（実戦のみ）：中級はほぼ100%、上級は大きくプラス', () => {
     for (const id of ['middle', 'max'] as const) {
-      const mid = simulate('jissen', 0.85, 0.5, false, 11, 40000, SPECS[id]);
+      const mid = simulate('jissen', 0.85, 0.5, 11, 40000, SPECS[id]);
       expect(mid).toBeGreaterThan(0.85);
       expect(mid).toBeLessThan(1.15);
-      expect(simulate('jissen', 0.95, 0.8, false, 12, 40000, SPECS[id])).toBeGreaterThan(1.6);
+      expect(simulate('jissen', 0.95, 0.8, 12, 40000, SPECS[id])).toBeGreaterThan(1.6);
     }
   });
   it('上の台ほど1セッション（300問）の振れ幅が大きい', () => {
     const spread = (spec: MachineSpec) => {
-      const xs = Array.from({ length: 120 }, (_, i) => simulate('jissen', 0.85, 0.5, false, 500 + i, 300, spec));
+      const xs = Array.from({ length: 120 }, (_, i) => simulate('jissen', 0.85, 0.5, 500 + i, 300, spec));
       const m = xs.reduce((a, b) => a + b) / xs.length;
       return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length);
     };
@@ -161,20 +156,15 @@ describe('経済バランス（シミュレーション）', () => {
     expect(b).toBeGreaterThan(a);
     expect(c).toBeGreaterThan(b);
   }, 60000);
-  it('ハイローラーは中級で回収率が上がる（高リスク・高リターン）', () => {
-    expect(simulate('jissen', 0.85, 0.5, true, 4)).toBeGreaterThan(simulate('jissen', 0.85, 0.5, false, 4));
-  });
 });
 
 describe('BONUS の符の目盛り', () => {
   it('各マスは roundPrize と一致し、符の順に高い。役満は超大当りだけ', () => {
     for (const mode of ['hayami', 'fu', 'jissen'] as Mode[]) {
       for (const premium of [false, true]) {
-        for (const hr of [false, true]) {
-          const cells = fuScale(mode, premium, hr);
-          expect(cells.some((c) => c.key === 'yakuman')).toBe(premium);
-          for (let i = 1; i < cells.length; i++) expect(cells[i].prize).toBeGreaterThan(cells[i - 1].prize);
-        }
+        const cells = fuScale(mode, premium);
+        expect(cells.some((c) => c.key === 'yakuman')).toBe(premium);
+        for (let i = 1; i < cells.length; i++) expect(cells[i].prize).toBeGreaterThan(cells[i - 1].prize);
       }
     }
   });

@@ -36,7 +36,7 @@ export interface BonusView {
   combo: number;
   /** 連続正解の倍率の階段 */
   ladder: number[];
-  /** 符の目盛り（PREMIUM・ハイローラー込み。速答・連続は含まない） */
+  /** 符の目盛り（PREMIUM 込み。速答・連続は含まない） */
   cells: { key: number | string; label: string; prize: number }[];
   /** 1符あたりの yan */
   rate: number;
@@ -69,7 +69,7 @@ export class MachinePanel {
       <div class="lcd">
         <div class="m-screen"></div>
         <div class="lcd-info">
-          <div class="m-head"><button class="m-spec" type="button" aria-label="台選び"></button><span class="m-state">通常</span><span class="m-st"></span><span class="m-hr">×2</span><span class="m-spins">回転 <b data-k="sinceHit">0</b></span></div>
+          <div class="m-head"><button class="m-spec" type="button" aria-label="台選び"></button><span class="m-state">通常</span><span class="m-st"></span><span class="m-spins">回転 <b data-k="sinceHit">0</b></span></div>
           <div class="m-msg" aria-live="polite"></div>
           <div class="m-bottom">
             <div class="m-holds" aria-label="保留">${Array.from({ length: MAX_HOLDS }, () => '<span class="hold"></span>').join('')}</div>
@@ -96,11 +96,6 @@ export class MachinePanel {
   /** 称号（交換所の景品） */
   setTitle(t: string): void {
     this.root.querySelector('.m-title')!.textContent = t;
-  }
-
-  /** ハイローラー中は液晶帯に ×2 を出す */
-  setHighRoller(on: boolean): void {
-    this.root.classList.toggle('generous', on);
   }
 
   /** BONUS の表示（ラウンド・連続の倍率・賞金表）。null で消す */

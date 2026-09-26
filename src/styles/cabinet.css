@@ -9,7 +9,6 @@
 :root {
   --gold: #d4af37;
   --gold-hot: #ffd84a;
-  --hr: #ff7aa3;
   --line: rgba(255, 255, 255, 0.09);
 }
 :root[data-play='normal'] body {
@@ -24,10 +23,6 @@
 }
 :root[data-play='normal'] body.bonus {
   background: radial-gradient(900px 520px at 50% -10%, rgba(255, 200, 61, 0.16), transparent 70%), var(--bg);
-}
-.streak.hot {
-  color: var(--main);
-  text-shadow: none;
 }
 .up .line {
   filter: none;
@@ -219,19 +214,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 11px;
-}
-#machine .m-hr {
-  display: none;
-  padding: 0 5px;
-  border-radius: 4px;
-  background: var(--hr);
-  color: #1a0710;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-}
-#machine.generous .m-hr {
-  display: inline;
 }
 #machine .m-spins {
   margin-left: auto;
@@ -517,9 +499,6 @@
 .bet-box.settled b {
   animation: pop 0.3s cubic-bezier(0.2, 1.6, 0.4, 1);
 }
-#meter.hr .bet-box:not(.settled) b {
-  color: var(--hr);
-}
 .bet-box .bar {
   position: absolute;
   left: 0;
@@ -532,25 +511,6 @@
 }
 body.busy .bet-box .bar {
   animation-play-state: paused;
-}
-.mt-hr {
-  flex: none;
-  padding: 5px 7px;
-  border-radius: 6px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--sub);
-  box-shadow: inset 0 0 0 1px var(--line);
-  transition: background 0.15s, color 0.15s;
-}
-.mt-hr:hover {
-  color: var(--text);
-}
-.mt-hr.on {
-  background: var(--hr);
-  color: #1a0710;
-  box-shadow: 0 0 12px rgba(255, 122, 163, 0.45);
 }
 
 /* 収支（BONUS 中は出玉） */
@@ -1411,6 +1371,137 @@ body.busy .bet-box .bar {
 @media (prefers-reduced-motion: reduce) {
   #machine.round-up .b-pips,
   #machine.round-up .b-pips i:last-child {
+    animation: none;
+  }
+}
+
+/* ============================================================ コンボ：白とグレーのタイポグラフィ */
+/* 問題数の横の「N連」。5連で太く、10連で下に細い光の線、20連で数字にホログラムの光沢 */
+#progress .streak {
+  position: relative;
+  font-family: 'JetBrains Mono', monospace;
+}
+#progress .streak.mid {
+  font-weight: 800;
+}
+#progress .streak.ten,
+#progress .streak.holo {
+  font-weight: 800;
+  padding-bottom: 4px;
+}
+#progress .streak.ten::after,
+#progress .streak.holo::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #fff 30%, #fff 70%, transparent);
+  background-size: 200% 100%;
+  animation: streak-sheen 2.2s linear infinite;
+}
+#progress .streak.holo {
+  background: linear-gradient(100deg, #fff 15%, #b9c8ff 35%, #efc4ff 50%, #b8fff0 65%, #fff 85%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: holo-sheen 2.6s linear infinite;
+}
+#progress .streak.holo::after {
+  background: linear-gradient(90deg, transparent, #dfe6ff 30%, #f7e3ff 70%, transparent);
+}
+@keyframes streak-sheen {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+@keyframes holo-sheen {
+  to {
+    background-position: -250% 0;
+  }
+}
+
+/* 10連・20連…の節目：大きな数字と、左右から伸びる細い線だけ */
+#overlay.veil {
+  background: rgba(8, 9, 12, 0.82);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.streak-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  animation: streak-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.streak-mark .sm-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.streak-mark .sm-row i {
+  width: min(22vw, 160px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #fff);
+  transform-origin: right;
+  animation: streak-line 0.55s 0.1s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.streak-mark .sm-row i:last-child {
+  background: linear-gradient(90deg, #fff, transparent);
+  transform-origin: left;
+}
+.streak-mark b {
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: clamp(88px, 22vw, 168px);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.35);
+}
+.streak-mark small {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(12px, 2.4vw, 16px);
+  font-weight: 700;
+  letter-spacing: 0.8em;
+  margin-right: -0.8em;
+  color: #d8dbe3;
+}
+.streak-mark.holo b {
+  background: linear-gradient(100deg, #fff 15%, #dfe6ff 35%, #f7e3ff 50%, #dffff6 65%, #fff 85%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 24px rgba(230, 220, 255, 0.45));
+  animation: holo-sheen 1.6s linear infinite;
+}
+@keyframes streak-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+    letter-spacing: 0.1em;
+  }
+}
+@keyframes streak-line {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #progress .streak.ten::after,
+  #progress .streak.holo,
+  #progress .streak.holo::after,
+  .streak-mark,
+  .streak-mark .sm-row i,
+  .streak-mark.holo b {
     animation: none;
   }
 }

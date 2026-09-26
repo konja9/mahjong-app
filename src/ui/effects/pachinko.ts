@@ -376,8 +376,8 @@ export class Fx {
       el.innerHTML = '';
       return;
     }
-    const tier = streak >= 20 ? ' god' : streak >= 10 ? ' fire' : streak >= 5 ? ' hot' : '';
     el.innerHTML = `<span class="n">${streak}</span><span class="t">COMBO</span>`;
+    const tier = streak >= 5 ? ' mid' : '';
     el.className = `show${tier}`;
     if (this.enabled) this.pulse('bump', 300, el);
   }
@@ -429,19 +429,15 @@ export class Fx {
   async milestone(streak: number): Promise<void> {
     if (!this.enabled || streak < 10 || streak % 10 !== 0) return;
     this.skipped = false;
-    if (streak === 10) {
-      sfx.gekiatsu();
-      this.show('<div class="banner chou"><span>10 COMBO</span><small>止まらない</small></div>', this.full ? 'rays' : '');
-      this.particles.tileRain(this.full ? 40 : 10);
-      await this.sleep(1100);
-    } else {
-      this.root.classList.add('god');
-      sfx.god();
-      this.show(`<div class="bigtext rainbow spin-in"><span>神</span><small>${streak} COMBO</small></div>`, 'rays rainbow-rays');
-      this.particles.tileRain(this.full ? 120 : 20);
-      this.flash(2);
-      await this.sleep(1600);
-    }
+    // 数字と細い線だけのタイポグラフィ。20連以上は数字にホログラムの光沢
+    const holo = streak >= 20;
+    (holo ? sfx.god : sfx.gekiatsu)();
+    this.show(
+      `<div class="streak-mark${holo ? ' holo' : ''}"><div class="sm-row"><i></i><b>${streak}</b><i></i></div><small>COMBO</small></div>`,
+      'veil',
+    );
+    this.particles.burst(innerWidth / 2, innerHeight * 0.45, this.full ? 46 : 14, 'spark', 0.9);
+    await this.sleep(holo ? 1300 : 1050);
     this.clear();
   }
 

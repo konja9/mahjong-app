@@ -23,10 +23,25 @@ export function unlockAudio(): void {
       const comp = ctx.createDynamicsCompressor();
       master.connect(comp).connect(ctx.destination);
     }
-    if (ctx.state === 'suspended') void ctx.resume();
+    // iOS は画面ロックや別アプリから戻ると 'interrupted' になる
+    if (ctx.state !== 'running') void ctx.resume();
   } catch {
     ctx = null;
   }
+}
+
+let analyser: AnalyserNode | null = null;
+
+/** 動作確認用：いま出ている音の大きさ（RMS） */
+export function audioLevel(): number {
+  if (!ctx || !master) return 0;
+  if (!analyser) {
+    analyser = ctx.createAnalyser();
+    master.connect(analyser);
+  }
+  const buf = new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(buf);
+  return Math.sqrt(buf.reduce((s, v) => s + v * v, 0) / buf.length);
 }
 
 function ready(): AudioContext | null {
@@ -43,9 +58,24 @@ interface ToneOpts {
   gain?: number;
   attack?: number;
   filter?: number;
+  /** BGM 用の出力（BGM の音量をまとめて上げる） */
+  bgm?: boolean;
 }
 
-function tone({ type = 'square', freq, to, start = 0, dur, gain = 0.2, attack = 0.005, filter }: ToneOpts): void {
+/** BGM の出力。スマホのスピーカーでも効果音に負けないよう、BGM 全体をここで持ち上げる */
+const BGM_GAIN = 2;
+let bgmBus: GainNode | null = null;
+function out(c: AudioContext, useBgm = false): AudioNode {
+  if (!useBgm) return master!;
+  if (!bgmBus || bgmBus.context !== c) {
+    bgmBus = c.createGain();
+    bgmBus.gain.value = BGM_GAIN;
+    bgmBus.connect(master!);
+  }
+  return bgmBus;
+}
+
+function tone({ type = 'square', freq, to, start = 0, dur, gain = 0.2, attack = 0.005, filter, bgm: toBgm = false }: ToneOpts): void {
   const c = ready();
   if (!c || !master) return;
   const t0 = c.currentTime + start;
@@ -65,12 +95,12 @@ function tone({ type = 'square', freq, to, start = 0, dur, gain = 0.2, attack = 
     osc.connect(f);
     node = f;
   }
-  node.connect(g).connect(master);
+  node.connect(g).connect(out(c, toBgm));
   osc.start(t0);
   osc.stop(t0 + dur + 0.05);
 }
 
-function noise(start: number, dur: number, gain: number, freq = 3000): void {
+function noise(start: number, dur: number, gain: number, freq = 3000, toBgm = false): void {
   const c = ready();
   if (!c || !master) return;
   const t0 = c.currentTime + start;
@@ -85,7 +115,7 @@ function noise(start: number, dur: number, gain: number, freq = 3000): void {
   const g = c.createGain();
   g.gain.setValueAtTime(gain, t0);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  src.connect(f).connect(g).connect(master);
+  src.connect(f).connect(g).connect(out(c, toBgm));
   src.start(t0);
 }
 
@@ -275,6 +305,25 @@ const BGM_CHORDS: Record<BgmTheme, number[][]> = {
   ],
 };
 
+/**
+ * テーマごとのメロディ（8分音符 × 4小節、null は休み）。
+ * スマホのスピーカーは低音がほとんど出ないので、曲の輪郭は中高音のメロディで作る
+ */
+const BGM_MELODY: Record<BgmTheme, (number | null)[]> = {
+  rush: [
+    81, null, 76, 81, 84, 83, 81, 76,
+    77, null, 81, 77, 84, 81, 77, 81,
+    79, null, 83, 79, 86, 83, 79, 83,
+    80, 83, 88, 83, 80, 76, 80, 83,
+  ],
+  bonus: [
+    72, 76, 79, 76, 84, 79, 76, 79,
+    81, 79, 76, 72, 76, null, 81, null,
+    77, 81, 84, 81, 77, 72, 77, 81,
+    79, 83, 86, 83, 79, null, 86, 84,
+  ],
+};
+
 /** BONUS・RUSH 中に流れる合成 BGM（スケジューラ方式） */
 export const bgm = (() => {
   let timer = 0;
@@ -283,6 +332,7 @@ export const bgm = (() => {
   let bpm = 150;
   let theme: BgmTheme = 'rush';
   let chords = BGM_CHORDS.rush;
+  let melody = BGM_MELODY.rush;
   const schedule = () => {
     const c = ready();
     if (!c || !master) return;
@@ -290,13 +340,25 @@ export const bgm = (() => {
     while (nextTime < c.currentTime + 0.12) {
       const chord = chords[Math.floor(step / 16) % chords.length];
       const start = nextTime - c.currentTime;
-      if (step % 4 === 0) {
-        tone({ type: 'sawtooth', freq: note(chord[0] - 12), start, dur: sixteenth * 3, gain: 0.07, filter: 700 });
-        tone({ type: 'sine', freq: 60, to: 40, start, dur: 0.12, gain: 0.25 });
+      // ベース（8分）：低音に加えて1オクターブ上の三角波で、スマホでも輪郭が出るようにする
+      if (step % 2 === 0) {
+        tone({ type: 'sawtooth', freq: note(chord[0] - 12), start, dur: sixteenth * 1.6, gain: 0.06, filter: 900, bgm: true });
+        tone({ type: 'triangle', freq: note(chord[0]), start, dur: sixteenth * 1.4, gain: 0.05, bgm: true });
       }
-      if (step % 8 === 4) noise(start, 0.08, 0.06, 6000);
+      // キック・スネア・ハイハット
+      if (step % 4 === 0) tone({ type: 'sine', freq: 90, to: 45, start, dur: 0.12, gain: 0.22, bgm: true });
+      if (step % 8 === 4) noise(start, 0.09, 0.09, 2500, true);
+      if (step % 2 === 1) noise(start, 0.03, 0.025, 9000, true);
+      // メロディ（8分）
+      if (step % 2 === 0) {
+        const m = melody[(step / 2) % melody.length];
+        if (m !== null) {
+          tone({ type: 'square', freq: note(m), start, dur: sixteenth * 1.7, gain: 0.05, filter: 3000, bgm: true });
+          tone({ type: 'triangle', freq: note(m - 12), start, dur: sixteenth * 1.7, gain: 0.03, bgm: true });
+        }
+      }
       const arp = chord[(step * 3) % chord.length] + 12 + (step % 16 >= 8 ? 12 : 0);
-      tone({ type: 'square', freq: note(arp), start, dur: sixteenth * 0.9, gain: 0.025, filter: 3500 });
+      tone({ type: 'square', freq: note(arp), start, dur: sixteenth * 0.9, gain: 0.03, filter: 3500, bgm: true });
       step++;
       nextTime += sixteenth;
     }
@@ -307,9 +369,11 @@ export const bgm = (() => {
       bpm = tempo;
       const c = ready();
       if (!c) return;
+      if (c.state !== 'running') void c.resume().catch(() => undefined);
       if (timer && theme === t) return;
       theme = t;
       chords = BGM_CHORDS[t];
+      melody = BGM_MELODY[t];
       step = 0;
       nextTime = c.currentTime + 0.05;
       if (!timer) timer = window.setInterval(schedule, 25);

@@ -49,15 +49,13 @@ export const ECONOMY = {
    * tests/economy.test.ts のシミュレーションで決めた値
    */
   modeScale: { hayami: 0.52, fu: 0.88, jissen: 0.48 } as Record<Mode, number>,
-  /** ハイローラー：コスト 2 倍・ラウンド賞金 2.5 倍 */
-  highRoller: { costMult: 2, prizeMult: 2.5 },
   /** 残りがこれ未満で警告表示 */
   lowWarn: 200,
 };
 
-export function costFor(correct: boolean, fast: boolean, highRoller = false, spec: MachineSpec = SPECS.ama): number {
+export function costFor(correct: boolean, fast: boolean, spec: MachineSpec = SPECS.ama): number {
   const base = (!correct ? ECONOMY.cost + ECONOMY.missPenalty : fast ? ECONOMY.fastCost : ECONOMY.cost) * spec.betMult;
-  return Math.round(highRoller ? base * ECONOMY.highRoller.costMult : base);
+  return Math.round(base);
 }
 
 export interface RoundPrizeInput {
@@ -69,7 +67,6 @@ export interface RoundPrizeInput {
   /** このラウンド内での連続正解数（今回を含む） */
   combo: number;
   premium: boolean;
-  highRoller: boolean;
   /** 台（省略時は甘デジ） */
   spec?: MachineSpec;
 }
@@ -80,11 +77,10 @@ export function prizeFu(fu: number, yakuman: boolean): number {
   return fu > 0 ? fu : ECONOMY.limitFu;
 }
 
-/** 1符あたりの yan（PREMIUM・ハイローラー・台を込み、速答と連続は別） */
-export function fuRate(mode: Mode, premium: boolean, highRoller: boolean, spec: MachineSpec = SPECS.ama): number {
+/** 1符あたりの yan（PREMIUM・台を込み、速答と連続は別） */
+export function fuRate(mode: Mode, premium: boolean, spec: MachineSpec = SPECS.ama): number {
   let v = ECONOMY.modeScale[mode] * spec.prizeMult;
   if (premium) v *= ECONOMY.premiumMult;
-  if (highRoller) v *= ECONOMY.highRoller.prizeMult;
   return v;
 }
 
@@ -96,7 +92,7 @@ export function comboMult(combo: number): number {
 
 /** ラウンド問題の賞金 */
 export function roundPrize(p: RoundPrizeInput): number {
-  let v = prizeFu(p.fu, p.yakuman) * fuRate(p.mode, p.premium, p.highRoller, p.spec);
+  let v = prizeFu(p.fu, p.yakuman) * fuRate(p.mode, p.premium, p.spec);
   if (p.fast) v *= ECONOMY.fastMult;
   v *= comboMult(p.combo - 1);
   return Math.max(1, Math.round(v));
@@ -176,9 +172,9 @@ export interface FuScaleCell {
 }
 
 /** 目盛りの各マスの賞金（速答なし・連続1問目） */
-export function fuScale(mode: Mode, premium: boolean, highRoller: boolean, spec: MachineSpec = SPECS.ama): FuScaleCell[] {
+export function fuScale(mode: Mode, premium: boolean, spec: MachineSpec = SPECS.ama): FuScaleCell[] {
   const cell = (fu: number, yakuman: boolean) =>
-    roundPrize({ mode, fu, yakuman, fast: false, combo: 1, premium, highRoller, spec });
+    roundPrize({ mode, fu, yakuman, fast: false, combo: 1, premium, spec });
   const cells: FuScaleCell[] = FU_SCALE.map((fu) => ({ key: fu, label: fu === 80 ? '80〜' : fu === 30 ? '〜30' : `${fu}`, prize: cell(fu, false) }));
   if (premium) cells.push({ key: 'yakuman', label: '役満', prize: cell(0, true) });
   return cells;

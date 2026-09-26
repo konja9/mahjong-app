@@ -60,8 +60,8 @@ function howto(): string {
 }
 
 function rules(mode: Mode): string {
-  const cells = fuScale(mode, true, false);
-  const plain = fuScale(mode, false, false);
+  const cells = fuScale(mode, true);
+  const plain = fuScale(mode, false);
   return `
     <div class="set-sec">お金（yan）</div>
     <table class="help-table">
@@ -85,7 +85,6 @@ function rules(mode: Mode): string {
     <p class="help-note">賞金は<b>正解した手の符</b>で決まります（翻・ドラ・親子では増えません。早見の満貫以上は30符ぶん）。速答は×${ECONOMY.fastMult}。ラウンド内の連続正解で ${ECONOMY.comboLadder.map((m) => `×${m}`).join('→')} と上がり、1問外すと×1に戻ります。<b>満貫以上</b>を正解するとラウンド上乗せ（満貫・跳満 +${ECONOMY.extraRounds.mangan}R、倍満・三倍満 +${ECONOMY.extraRounds.baiman}R、役満 +${ECONOMY.extraRounds.yakuman}R。1回の BONUS で最大 +${ECONOMY.extraRounds.max}R）。<b>全問正解</b>ならラウンドの賞金に上乗せ抽選（平均×${uwanoseMean(false).toFixed(1)}）。赤五筒でそろう PREMIUM 大当りは賞金×${ECONOMY.premiumMult}、役満が出やすく（役満 +${cells.at(-1)!.prize.toLocaleString()} yan）、上乗せは最低×${ECONOMY.uwanosePremium[0][0]}。不正解はパンク（賞金なし）ですが、BET はかかりません。</p>
     <div class="set-sec">その他</div>
     <table class="help-table">
-      <tr><th>ハイローラー</th><td>BET ×${ECONOMY.highRoller.costMult}、BONUS の賞金 ×${ECONOMY.highRoller.prizeMult}。画面下の計器の「×2」でいつでも切り替え</td></tr>
       <tr><th>交換所</th><td>稼いだ yan で景品（牌の背・液晶のスキン・称号）を買えます（右上の景品のアイコン）</td></tr>
       <tr><th>ミッション</th><td>計器の上の帯に今日のミッション。達成すると yan がもらえます。タップで一覧</td></tr>
       <tr><th>精算</th><td>出題設定の「精算」で、ここまでの成績・収支・大当り履歴を表示します。所持金と台はそのまま続きから遊べます</td></tr>

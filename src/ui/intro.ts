@@ -25,7 +25,7 @@ const VISUALS = [
   `<div class="iv iv-bonus">
     <div class="b-head"><span class="b-title">ROUND 2/${ECONOMY.rounds}</span><span class="b-pips">${Array.from({ length: ECONOMY.rounds }, (_, i) => `<i class="${i < 2 ? 'on' : ''}"></i>`).join('')}</span></div>
     <div class="b-ladder"><small>連続</small>${ECONOMY.comboLadder.map((m, i) => `<i class="${i < 1 ? 'past' : i === 1 ? 'now' : ''}">×${m}</i>`).join('<span>›</span>')}</div>
-    <div class="b-table">${fuScale('jissen', false, false)
+    <div class="b-table">${fuScale('jissen', false)
       .map((c) => `<div class="b-cell${c.key === 50 ? ' lit' : ''}"><small>${c.label}<u>符</u></small><b>${c.prize}</b></div>`)
       .join('')}</div>
   </div>`,

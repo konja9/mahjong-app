@@ -202,10 +202,6 @@ main {
   font-size: 14px;
   font-weight: 400;
 }
-.streak.hot {
-  color: var(--error);
-  text-shadow: 0 0 12px color-mix(in srgb, var(--error) 60%, transparent);
-}
 /* ------------------------------------------------------------ question: hayami */
 .q-hayami {
   display: flex;
@@ -1423,14 +1419,6 @@ body.kakuhen #progress {
 .bigtext.spin-in {
   animation: spin-in 1s cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
-.banner.chou {
-  background: linear-gradient(90deg, #ff0080, #ff8c00, #ffe600, #00e676, #00b0ff, #d500f9, #ff0080);
-  background-size: 300% 100%;
-  animation: pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both, slide-bg 1s linear infinite;
-  color: #fff;
-  -webkit-text-stroke: 2px #000;
-  box-shadow: 0 0 80px rgba(255, 255, 255, 0.6);
-}
 .banner.end {
   animation: pop 0.3s ease-out both, fall 1s 0.4s ease-in forwards;
 }
@@ -1478,26 +1466,6 @@ body.glitch #stage {
   letter-spacing: 0.35em;
   color: var(--sub);
 }
-#combo.hot .n {
-  color: #ff5f6d;
-  text-shadow: 0 0 20px #ff5f6d;
-}
-#combo.fire .n {
-  background: linear-gradient(0deg, #ff3d00, #ffc400 60%, #fff59d);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 0 14px #ff6d00);
-  animation: flicker 0.5s ease-in-out infinite alternate;
-}
-#combo.god .n {
-  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: slide-bg 1s linear infinite, flicker 0.5s ease-in-out infinite alternate;
-}
 #combo.bump {
   animation: combo-bump 0.3s cubic-bezier(0.2, 1.8, 0.4, 1);
 }
@@ -1526,12 +1494,7 @@ body.chou #combo .n {
 body.chou::before {
   box-shadow: inset 0 0 0 4px #d66bff, inset 0 0 90px rgba(214, 107, 255, 0.55);
 }
-body.god::before {
-  box-shadow: inset 0 0 0 5px #fff, inset 0 0 120px rgba(255, 255, 255, 0.5);
-}
 
-[data-effects='off'] #combo.fire .n,
-[data-effects='off'] #combo.god .n,
 [data-effects='off'] body.chou #progress {
   animation: none;
 }
@@ -1595,9 +1558,6 @@ body.god::before {
   0% { transform: scale(1); }
   40% { transform: scale(1.35); }
   100% { transform: scale(1); }
-}
-@keyframes flicker {
-  to { filter: drop-shadow(0 0 22px #ff9100) brightness(1.2); }
 }
 
 /* ============================================================ スマホレイアウト */
@@ -2669,7 +2629,7 @@ body.busy #answer {
   font-weight: 800;
   letter-spacing: 0.12em;
 }
-/* ============================================================ BONUS ラウンド・ハイローラー */
+/* ============================================================ BONUS ラウンド */
 .round-note {
   font-family: 'Noto Sans JP', sans-serif;
   font-weight: 900;
