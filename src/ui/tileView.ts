@@ -193,25 +193,24 @@ function stick(x: number, y: number, w: number, h: number, col: string): string 
   return `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="${w / 2}" fill="${col}"/>${band(y0 + 3.2)}${band(y)}${band(y0 + h - 3.2)}<rect x="${x0 + 1.4}" y="${y0 + 2.5}" width="1.3" height="${h - 5}" rx="0.6" fill="#fff" opacity="0.35"/>`;
 }
 
-/** 竹1本を任意の向きで：こぶのある両端と、白い節の帯 */
+/** 竹1本を任意の向きで（ほかの索子と同じ素材：節の帯とハイライト） */
 function bamboo(x1: number, y1: number, x2: number, y2: number, col: string): string {
   const L = Math.hypot(x2 - x1, y2 - y1);
   const a = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI - 90;
-  const h = L / 2;
-  return `<g transform="translate(${(x1 + x2) / 2} ${(y1 + y2) / 2}) rotate(${a.toFixed(1)})"><rect x="-2.8" y="${-h}" width="5.6" height="${L}" rx="2.8" fill="${col}"/><circle cx="0" cy="${-h}" r="3.5" fill="${col}"/><circle cx="0" cy="${h}" r="3.5" fill="${col}"/><rect x="-6" y="-2.3" width="12" height="4.6" rx="2.3" fill="${F}" stroke="${col}" stroke-width="1.5"/></g>`;
+  return `<g transform="translate(${(x1 + x2) / 2} ${(y1 + y2) / 2}) rotate(${a.toFixed(1)})">${stick(0, 0, 7, L, col)}</g>`;
 }
 
 /** 八索：左右の縦2本と、上は「∧」・下は「∨」に組んだ斜め2本ずつ */
 function eightSou(col: string): string {
   return [
-    bamboo(16.5, 31, 30, 13.5, col),
-    bamboo(30, 13.5, 43.5, 31, col),
-    bamboo(16.5, 49, 30, 66.5, col),
-    bamboo(30, 66.5, 43.5, 49, col),
-    bamboo(10.5, 8, 10.5, 36, col),
-    bamboo(49.5, 8, 49.5, 36, col),
-    bamboo(10.5, 44, 10.5, 72, col),
-    bamboo(49.5, 44, 49.5, 72, col),
+    bamboo(18, 31, 29, 15, col),
+    bamboo(31, 15, 42, 31, col),
+    bamboo(18, 49, 29, 65, col),
+    bamboo(31, 65, 42, 49, col),
+    bamboo(10, 9, 10, 36, col),
+    bamboo(50, 9, 50, 36, col),
+    bamboo(10, 44, 10, 71, col),
+    bamboo(50, 44, 50, 71, col),
   ].join('');
 }
 
