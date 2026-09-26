@@ -1858,7 +1858,7 @@ body.god::before {
 
   /* ---- 数値入力 */
   #answer {
-    font-size: clamp(34px, 11vw, 48px);
+    font-size: clamp(28px, 9vw, 40px);
     min-height: 1.2em;
   }
 
@@ -1925,8 +1925,37 @@ body.god::before {
     padding: 0 16px calc(env(safe-area-inset-bottom) + clamp(16px, 5vh, 48px));
     gap: 6px;
   }
+  /* 電卓型の4段（回答は右端の縦長）にして、問題が隠れないよう低く抑える */
+  #numpad {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-areas:
+      'k1 k2 k3 bs'
+      'k4 k5 k6 en'
+      'k7 k8 k9 en'
+      'k0 k0 mi en';
+    gap: 5px;
+    padding-bottom: calc(env(safe-area-inset-bottom) + clamp(12px, 3.5vh, 36px));
+  }
   #numpad button {
-    padding: 12px 0;
+    padding: 9px 0;
+    font-size: 19px;
+  }
+  #numpad [data-key='1'] { grid-area: k1; }
+  #numpad [data-key='2'] { grid-area: k2; }
+  #numpad [data-key='3'] { grid-area: k3; }
+  #numpad [data-key='4'] { grid-area: k4; }
+  #numpad [data-key='5'] { grid-area: k5; }
+  #numpad [data-key='6'] { grid-area: k6; }
+  #numpad [data-key='7'] { grid-area: k7; }
+  #numpad [data-key='8'] { grid-area: k8; }
+  #numpad [data-key='9'] { grid-area: k9; }
+  #numpad [data-key='0'] { grid-area: k0; }
+  #numpad [data-key='-'] { grid-area: mi; }
+  #numpad [data-key='Backspace'] { grid-area: bs; }
+  #numpad .enter {
+    grid-area: en;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 17px;
   }
   footer {
     display: none !important;

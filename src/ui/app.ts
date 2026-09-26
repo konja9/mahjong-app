@@ -842,7 +842,7 @@ export class App {
   }
 
   private defaultHint(): string {
-    if (this.compact) return this.isChoice ? '' : 'テンキーで入力して「回答」';
+    if (this.compact) return '';
     if (this.isChoice) return '<kbd>1</kbd>-<kbd>4</kbd> 選択 · <kbd>Tab</kbd> パス · <kbd>Esc</kbd> やり直し';
     const pair = this.needsPair() ? '<kbd>-</kbd> 区切り · ' : '';
     return `${pair}<kbd>Enter</kbd> 回答 · <kbd>Tab</kbd> パス · <kbd>Esc</kbd> やり直し`;
