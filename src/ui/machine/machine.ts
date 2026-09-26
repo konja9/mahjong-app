@@ -4,11 +4,13 @@
  * 抽選結果は入賞時に確定し（先読み）、保留の色と演出はその結果から決める。
  */
 import { type EffectLevel, type Rng, type Suspense, drawSuspense } from '../effects/performance';
+import { type MachineSpec, SPECS } from './specs';
 
-export const NORMAL_ODDS = 20; // 通常時 1/20
-export const RUSH_ODDS = 3; // 確変（ST）中 1/3
-export const ST_SPINS = 8; // 確変の回転数
-export const KAKUHEN_RATE = 0.6; // 大当りのうち確変になる割合
+// 甘デジ（最初の台）の値。ほかの台は specs.ts を参照
+export const NORMAL_ODDS = SPECS.ama.odds; // 通常時 1/20
+export const RUSH_ODDS = SPECS.ama.rushOdds; // 確変（ST）中 1/3
+export const ST_SPINS = SPECS.ama.st; // 確変の回転数
+export const KAKUHEN_RATE = SPECS.ama.kakuhenRate; // 大当りのうち確変になる割合
 export const MAX_HOLDS = 4;
 
 /**
@@ -84,6 +86,8 @@ export class Machine {
   constructor(
     private level: () => EffectLevel = () => 'max',
     private rng: Rng = Math.random,
+    /** 台の定義。切り替えるときは reset() と一緒に差し替える */
+    public spec: MachineSpec = SPECS.ama,
   ) {}
 
   /** 入賞。追加できた保留の数を返す */
@@ -112,9 +116,9 @@ export class Machine {
       this.forced = false;
       return { hit: true, kakuhen: true, color: 3 };
     }
-    const odds = this.rush ? RUSH_ODDS : NORMAL_ODDS;
+    const odds = this.rush ? this.spec.rushOdds : this.spec.odds;
     const hit = this.rng() < 1 / odds;
-    const kakuhen = hit && this.rng() < KAKUHEN_RATE;
+    const kakuhen = hit && this.rng() < this.spec.kakuhenRate;
     // 先読み：当りほど熱い色。虹は当りのみ
     const color = hit
       ? weighted(this.rng, [[0, 18], [1, 22], [2, 26], [3, 22], [4, 12]] as const)
@@ -169,7 +173,7 @@ export class Machine {
       const wasRush = this.rush;
       if (r.kakuhen) {
         this.rush = true;
-        this.stLeft = ST_SPINS;
+        this.stLeft = this.spec.st;
         this.data.rushChain = wasRush ? this.data.rushChain + 1 : 1;
         this.data.maxChain = Math.max(this.data.maxChain, this.data.rushChain);
         if (!wasRush) this.data.rushEntries++;

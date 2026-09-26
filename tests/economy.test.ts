@@ -14,6 +14,7 @@ import {
   roundPrize,
 } from '../src/ui/machine/economy';
 import { Machine, PREMIUM_SYMBOL } from '../src/ui/machine/machine';
+import { type MachineSpec, SPECS } from '../src/ui/machine/specs';
 
 function mulberry32(seed: number) {
   return () => {
@@ -67,7 +68,15 @@ describe('プラクティスのスコア', () => {
 });
 
 /** プレイヤーを模擬して回収率（払い出し ÷ 総コスト）を求める */
-function simulate(mode: Mode, accuracy: number, fastRate: number, highRoller = false, seed = 1, questions = 20000) {
+export function simulate(
+  mode: Mode,
+  accuracy: number,
+  fastRate: number,
+  highRoller = false,
+  seed = 1,
+  questions = 20000,
+  spec: MachineSpec = SPECS.ama,
+) {
   const rng = mulberry32(seed);
   const pick = (round: boolean) => {
     const q = generateQuestion(mode, DEFAULT_RULES, { seat: 'any', win: 'any' }, rng, false, round);
@@ -76,23 +85,23 @@ function simulate(mode: Mode, accuracy: number, fastRate: number, highRoller = f
   };
   const roundPool = Array.from({ length: 800 }, () => pick(true));
   const normalPool = Array.from({ length: 800 }, () => pick(false));
-  const m = new Machine(() => 'off', rng);
+  const m = new Machine(() => 'off', rng, spec);
   let spent = 0;
   let won = 0;
   const jackpot = (premium: boolean) => {
     let combo = 0;
-    for (let k = 0; k < ECONOMY.rounds; k++) {
+    for (let k = 0; k < spec.rounds; k++) {
       const q = roundPool[Math.floor(rng() * roundPool.length)];
       if (rng() < accuracy * 0.95) {
         combo++;
-        won += roundPrize({ mode, limit: q.limit, dealer: q.dealer, fast: rng() < fastRate, combo, premium, highRoller });
+        won += roundPrize({ mode, limit: q.limit, dealer: q.dealer, fast: rng() < fastRate, combo, premium, highRoller, spec });
       } else combo = 0;
     }
   };
   for (let i = 0; i < questions; i++) {
     const correct = rng() < accuracy;
     const fast = correct && rng() < fastRate;
-    spent += costFor(correct, fast, highRoller);
+    spent += costFor(correct, fast, highRoller, spec);
     if (!correct) continue;
     const q = normalPool[Math.floor(rng() * normalPool.length)];
     // 役満直撃（通常時のみ）
@@ -116,6 +125,24 @@ describe('経済バランス（シミュレーション）', () => {
       expect(simulate(mode, 0.6, 0.2, false, 3)).toBeLessThan(0.5);
     });
   }
+  it('ミドル・MAX（実戦のみ）：中級はほぼ100%、上級は大きくプラス', () => {
+    for (const id of ['middle', 'max'] as const) {
+      const mid = simulate('jissen', 0.85, 0.5, false, 11, 40000, SPECS[id]);
+      expect(mid).toBeGreaterThan(0.85);
+      expect(mid).toBeLessThan(1.15);
+      expect(simulate('jissen', 0.95, 0.8, false, 12, 40000, SPECS[id])).toBeGreaterThan(1.6);
+    }
+  });
+  it('上の台ほど1セッション（300問）の振れ幅が大きい', () => {
+    const spread = (spec: MachineSpec) => {
+      const xs = Array.from({ length: 120 }, (_, i) => simulate('jissen', 0.85, 0.5, false, 500 + i, 300, spec));
+      const m = xs.reduce((a, b) => a + b) / xs.length;
+      return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length);
+    };
+    const [a, b, c] = [spread(SPECS.ama), spread(SPECS.middle), spread(SPECS.max)];
+    expect(b).toBeGreaterThan(a);
+    expect(c).toBeGreaterThan(b);
+  }, 60000);
   it('ハイローラーは中級で回収率が上がる（高リスク・高リターン）', () => {
     expect(simulate('jissen', 0.85, 0.5, true, 4)).toBeGreaterThan(simulate('jissen', 0.85, 0.5, false, 4));
   });

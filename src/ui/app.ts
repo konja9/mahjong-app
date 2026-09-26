@@ -25,7 +25,10 @@ import { doraLabel, handExplain, hayamiExplain, situationChips, situationLabel }
 import { type Settings, loadSettings, saveSettings } from './settings';
 import { type HelpTab, helpHtml } from './help';
 import { introHtml, introSeen, markIntroSeen } from './intro';
+import { SPECS } from './machine/specs';
+import { dateKey, ensureToday, recordAnswer } from './missions';
 import { renderOdometer } from './odometer';
+import { type ShopTab, buyItem, equipItem, equipped, loadShop, saveShop, shopHtml, unlockMachine } from './shop';
 import { load, save } from './storage';
 import { type TipId, Tips, tipText } from './tips';
 import { TILE_DEFS, handHtml, tilesInline } from './tileView';
@@ -119,6 +122,9 @@ export class App {
   private introStep = 0;
   private helpTab: HelpTab = 'howto';
   private tipsReset = false;
+  /** 交換所（台・景品・ミッション） */
+  private shop = loadShop();
+  private shopTab: ShopTab = 'machine';
 
   constructor(private root: HTMLElement) {
     this.root.innerHTML = SHELL;
@@ -132,6 +138,9 @@ export class App {
       onJackpot: ({ premium }) => this.startRound(premium),
       onEvent: (e) => this.tip(e),
     });
+    this.panel.machine.spec = this.spec;
+    if (this.spec.jissenOnly && this.s.mode !== 'jissen') this.s = { ...this.s, mode: 'jissen' };
+    this.applyLooks();
     this.applyTheme();
     this.configureSound();
     this.renderConfig();
@@ -144,6 +153,11 @@ export class App {
 
   private get practice(): boolean {
     return this.s.playMode === 'practice';
+  }
+
+  /** 今の台 */
+  private get spec() {
+    return SPECS[this.shop.machine];
   }
 
   /** プラクティスでは演出を一切出さない */
@@ -218,6 +232,9 @@ export class App {
       .join('<span class="cfg-sep"></span>') +
       (this.practice ? '' : '<button class="cfg-done cashout" type="button" data-cashout>精算</button>') +
       '<button class="cfg-done" type="button" data-close-cfg>閉じる</button>';
+    // ミドル以上の台は実戦のみ
+    const locked = !this.practice && this.spec.jissenOnly;
+    document.querySelectorAll<HTMLElement>('#config [data-cfg="mode"]').forEach((b) => b.classList.toggle('locked', locked && b.dataset.v !== 'jissen'));
     document.querySelectorAll<HTMLElement>('[data-play]').forEach((b) => {
       const on = b.dataset.play === s.playMode;
       b.classList.toggle('on', on);
@@ -226,7 +243,7 @@ export class App {
     $('#mode-tabs').innerHTML = (['hayami', 'fu', 'jissen'] as Mode[])
       .map(
         (m) =>
-          `<button class="mode-tab${s.mode === m ? ' on' : ''}" role="tab" aria-selected="${s.mode === m}" data-mode="${m}">${MODE_NAMES[m]}</button>`,
+          `<button class="mode-tab${s.mode === m ? ' on' : ''}${!this.practice && this.spec.jissenOnly && m !== 'jissen' ? ' locked' : ''}" role="tab" aria-selected="${s.mode === m}" data-mode="${m}">${MODE_NAMES[m]}</button>`,
       )
       .join('');
     const count = !this.practice ? '∞' : s.count ? `${s.count}問` : '∞';
@@ -247,10 +264,19 @@ export class App {
     $('#cfg-toggle').setAttribute('aria-expanded', String(open));
   }
 
+  /** 出題モードの切り替え。ミドル以上の台は実戦のみ */
+  private setMode(m: Mode): void {
+    if (!this.practice && this.spec.jissenOnly && m !== 'jissen') {
+      this.toast(`${this.spec.name}の台は実戦のみです。交換所で甘デジに戻すと切り替えられます`);
+      return;
+    }
+    this.update({ mode: m });
+  }
+
   private onConfig(name: string, v: string): void {
     switch (name) {
       case 'mode':
-        this.update({ mode: v as Mode });
+        this.setMode(v as Mode);
         break;
       case 'answer':
         this.update({ answerStyle: v as Settings['answerStyle'] });
@@ -308,7 +334,7 @@ export class App {
       return;
     }
     // ラウンドを消化しきったら大当り終了（台の V・確変分岐へ）
-    if (this.round && this.round.n >= ECONOMY.rounds) this.endRound();
+    if (this.round && this.round.n >= this.spec.rounds) this.endRound();
     this.isRoundQ = !!this.round;
     if (this.round) this.round.n++;
     document.body.classList.toggle('bonus', this.isRoundQ);
@@ -363,9 +389,9 @@ export class App {
     }
     this.panel.bonus({
       n: r.n,
-      rounds: ECONOMY.rounds,
+      rounds: this.spec.rounds,
       mult: comboMult(r.combo),
-      rows: paytableRows(this.s.mode, r.premium, r.highRoller),
+      rows: paytableRows(this.s.mode, r.premium, r.highRoller, this.spec),
       lit: result.lit,
       miss: result.miss,
       premium: r.premium,
@@ -418,8 +444,8 @@ export class App {
     }
     const hr = this.s.highRoller;
     const fastSec = ECONOMY.fastSeconds[this.s.mode];
-    const full = costFor(true, false, hr);
-    const half = costFor(true, true, hr);
+    const full = costFor(true, false, hr, this.spec);
+    const half = costFor(true, true, hr, this.spec);
     el.style.setProperty('--half', `${fastSec}s`);
     const html = (exp: boolean) =>
       exp
@@ -442,7 +468,7 @@ export class App {
   private settleBet(correct: boolean, fast: boolean): void {
     cancelAnimationFrame(this.betRaf);
     if (this.practice || this.isRoundQ) return;
-    const cost = costFor(correct, correct && fast, this.s.highRoller);
+    const cost = costFor(correct, correct && fast, this.s.highRoller, this.spec);
     const tag = !correct ? '<em class="ng">不正解</em>' : fast ? '<em>速答で半額</em>' : '';
     const el = $('#bet');
     el.classList.remove('expired');
@@ -677,11 +703,12 @@ export class App {
           combo: r.combo,
           premium: r.premium,
           highRoller: r.highRoller,
+          spec: this.spec,
         });
         r.total += prize;
         // 賞金の内訳：賞金表のマス × 親 × 速答 × 連続
         const key = paytableKey(s.limit);
-        const row = paytableRows(this.s.mode, r.premium, r.highRoller).find((x) => x.key === key)!;
+        const row = paytableRows(this.s.mode, r.premium, r.highRoller, this.spec).find((x) => x.key === key)!;
         const factors = [
           `${row.label} ${row.prize.toLocaleString()}`,
           s.dealer ? `親×${ECONOMY.dealerMult}` : '',
@@ -730,8 +757,9 @@ export class App {
     if (!this.practice && !this.isRoundQ) {
       const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
       this.settleBet(correct, fast);
-      this.changeBalance(-costFor(correct, correct && fast, this.s.highRoller));
+      this.changeBalance(-costFor(correct, correct && fast, this.s.highRoller, this.spec));
     }
+    if (!this.practice) this.recordMission(correct, elapsed <= ECONOMY.fastSeconds[this.s.mode], dealer, tsumo);
     this.renderProgress();
     this.renderInput();
     this.hint(this.compact ? '' : correct ? 'クリック / 任意のキーで次へ' : 'クリック / Enter / Space で次へ');
@@ -1003,7 +1031,7 @@ export class App {
     );
     $('#mode-tabs').addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-mode]');
-      if (b && b.dataset.mode !== this.s.mode) this.update({ mode: b.dataset.mode as Mode });
+      if (b && b.dataset.mode !== this.s.mode) this.setMode(b.dataset.mode as Mode);
     });
     $('#cfg-toggle').addEventListener('click', () => this.toggleConfigSheet());
     $('#cfg-backdrop').addEventListener('click', () => this.toggleConfigSheet(false));
@@ -1031,6 +1059,8 @@ export class App {
     });
     $('#open-settings').addEventListener('click', () => this.openSettings());
     $('#open-help').addEventListener('click', () => this.openHelp());
+    $('#open-shop').addEventListener('click', () => this.openShop());
+    this.bindShop();
     $('#hr-toggle').addEventListener('click', (e) => {
       e.stopPropagation();
       this.toggleHighRoller();
@@ -1207,7 +1237,7 @@ export class App {
   /** 初めての出来事なら一言ガイドを出す（ノーマルのみ・各1回） */
   private tip(id: Exclude<TipId, 'firstHit'>): void {
     if (this.practice || !this.tips.first(id)) return;
-    this.toast(tipText(id, ECONOMY.fastSeconds[this.s.mode]));
+    this.toast(tipText(id, ECONOMY.fastSeconds[this.s.mode], this.spec));
   }
 
   private toast(text: string): void {
@@ -1243,6 +1273,88 @@ export class App {
     if (++this.tutorialCount < 3) return;
     this.tutorialForced = true;
     this.panel.machine.forceNextHit();
+  }
+
+  // ------------------------------------------------------------ 交換所（台・景品・ミッション）
+
+  private bindShop(): void {
+    const dlg = $<HTMLDialogElement>('#shop-dialog');
+    dlg.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t === dlg || t.closest('[data-shop-close]')) {
+        dlg.close();
+        return;
+      }
+      const b = t.closest<HTMLElement>('button');
+      if (!b || b.hasAttribute('disabled')) return;
+      const d = b.dataset;
+      if (d.shopTab) this.shopTab = d.shopTab as ShopTab;
+      else if (d.buy) this.pay(buyItem(this.shop, d.buy, this.wallet.balance));
+      else if (d.equip) equipItem(this.shop, d.equip);
+      else if (d.unlock) this.pay(unlockMachine(this.shop, d.unlock as keyof typeof SPECS, this.wallet.balance));
+      else if (d.machine) this.switchMachine(d.machine as keyof typeof SPECS);
+      saveShop(this.shop);
+      this.applyLooks();
+      this.renderShop();
+    });
+    dlg.addEventListener('close', () => this.pause('shop', false));
+  }
+
+  private openShop(): void {
+    const dlg = $<HTMLDialogElement>('#shop-dialog');
+    this.renderShop();
+    this.pause('shop', true);
+    if (!dlg.open) dlg.showModal();
+  }
+
+  private renderShop(): void {
+    this.shop.missions = ensureToday(this.shop.missions);
+    const canSwitch = !this.round && this.panel.idle;
+    $('#shop-dialog').innerHTML = shopHtml(this.shop, this.shopTab, this.wallet.balance, canSwitch);
+  }
+
+  /** 交換所での支払い（0 なら何もしない） */
+  private pay(price: number): void {
+    if (price > 0) this.changeBalance(-price);
+  }
+
+  /** 台の切り替え：台（保留・RUSH）はリセット。ミドル以上は実戦に固定 */
+  private switchMachine(id: keyof typeof SPECS): void {
+    if (!this.shop.machines.includes(id) || this.round || !this.panel.idle) return;
+    this.shop.machine = id;
+    saveShop(this.shop);
+    this.panel.machine.spec = SPECS[id];
+    if (SPECS[id].jissenOnly && this.s.mode !== 'jissen') {
+      this.s = { ...this.s, mode: 'jissen' };
+      saveSettings(this.s);
+    }
+    this.renderConfig();
+    this.startSession(true);
+  }
+
+  /** 牌の背・液晶のスキン・称号を画面に反映 */
+  private applyLooks(): void {
+    document.documentElement.style.setProperty('--tile-back', equipped(this.shop, 'back').value);
+    const m = $('#machine');
+    m.dataset.look = equipped(this.shop, 'skin').value;
+    this.panel.setTitle(equipped(this.shop, 'title').value);
+  }
+
+  /** ミッションの進み具合を更新し、達成したら報酬を渡す */
+  private recordMission(correct: boolean, fast: boolean, dealer: boolean, tsumo: boolean): void {
+    const m = (this.shop.missions = ensureToday(this.shop.missions, dateKey()));
+    const done = recordAnswer(m, {
+      mode: this.s.mode,
+      correct,
+      fast: correct && fast,
+      streak: this.session.streak,
+      splitTsumo: this.q.mode !== 'fu' && tsumo && !dealer,
+    });
+    saveShop(this.shop);
+    for (const d of done) {
+      this.toast(`ミッション達成：${d.label}　+${d.reward.toLocaleString()} yan`);
+      this.changeBalance(d.reward, 900);
+    }
   }
 
   // ------------------------------------------------------------ 設定ダイアログ
@@ -1372,6 +1484,7 @@ const SHELL = `
   </div>
   <div class="top-right">
     <button id="cfg-toggle" class="cfg-pill" type="button" aria-expanded="false" aria-controls="config"></button>
+    <button id="open-shop" class="icon-btn" aria-label="交換所"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg></button>
     <button id="open-help" class="icon-btn" aria-label="遊び方"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
     <button id="open-settings" class="icon-btn" aria-label="設定">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -1417,6 +1530,7 @@ const SHELL = `
 </footer>
 <dialog id="settings-dialog"></dialog>
 <dialog id="help-dialog"></dialog>
+<dialog id="shop-dialog"></dialog>
 <dialog id="intro-dialog" class="intro-dialog"></dialog>
 ${TILE_DEFS}
 `;

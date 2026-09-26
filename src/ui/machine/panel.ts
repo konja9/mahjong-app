@@ -5,7 +5,7 @@ import { drawNotice } from '../effects/performance';
 import type { EffectLevel } from '../effects/performance';
 import { Reel } from '../effects/reel';
 import { ECONOMY } from './economy';
-import { MAX_HOLDS, Machine, PREMIUM_SYMBOL, ST_SPINS, type SpinResult } from './machine';
+import { MAX_HOLDS, Machine, PREMIUM_SYMBOL, type SpinResult } from './machine';
 
 export interface PanelHooks {
   /** 発展リーチ・大当り中は回答を止める */
@@ -54,10 +54,11 @@ export class MachinePanel {
       <div class="lcd">
         <div class="m-screen"></div>
         <div class="lcd-info">
-          <div class="m-head"><span class="m-state">通常</span><span class="m-st"></span><span class="m-hr">×2</span><span class="m-spins">回転 <b data-k="sinceHit">0</b></span></div>
+          <div class="m-head"><span class="m-spec"></span><span class="m-state">通常</span><span class="m-st"></span><span class="m-hr">×2</span><span class="m-spins">回転 <b data-k="sinceHit">0</b></span></div>
           <div class="m-msg" aria-live="polite"></div>
           <div class="m-bottom">
             <div class="m-holds" aria-label="保留">${Array.from({ length: MAX_HOLDS }, () => '<span class="hold"></span>').join('')}</div>
+            <span class="m-title"></span>
             <div class="m-chucker" title="始動口"><span></span></div>
           </div>
         </div>
@@ -74,6 +75,11 @@ export class MachinePanel {
 
   get stopped(): boolean {
     return this.isStopped;
+  }
+
+  /** 称号（交換所の景品） */
+  setTitle(t: string): void {
+    this.root.querySelector('.m-title')!.textContent = t;
   }
 
   /** ハイローラー中は液晶帯に ×2 を出す */
@@ -245,11 +251,11 @@ export class MachinePanel {
       const premium = r.symbols[0] === PREMIUM_SYMBOL;
       const rush = this.machine.rush;
       const chain = this.machine.data.rushChain;
-      await this.fx.jackpotIntro({ premium, rush, chain, rounds: ECONOMY.rounds });
+      await this.fx.jackpotIntro({ premium, rush, chain, rounds: this.machine.spec.rounds });
       if (g !== this.gen) return;
       // ラウンド問題の間は回答できるようにし、台は止めておく
       this.hooks.onBusy(false);
-      this.msg(`BONUS ${ECONOMY.rounds}R`, 'win');
+      this.msg(`BONUS ${this.machine.spec.rounds}R`, 'win');
       this.hooks.onEvent?.('jackpot');
       const total = await this.hooks.onJackpot({ premium });
       if (g !== this.gen) return;
@@ -286,7 +292,7 @@ export class MachinePanel {
       : m.rush
         ? `RUSH${m.data.rushChain > 1 ? ` ${m.data.rushChain}連` : ''}`
         : '通常';
-    this.root.querySelector('.m-st')!.textContent = !bonus && m.rush ? `残り${m.stLeft}/${ST_SPINS} 役満UP` : '';
+    this.root.querySelector('.m-st')!.textContent = !bonus && m.rush ? `残り${m.stLeft}/${m.spec.st} 役満UP` : '';
     const holds = this.root.querySelectorAll<HTMLElement>('.hold');
     holds.forEach((h, i) => {
       const hold = m.holds[i];
@@ -294,6 +300,7 @@ export class MachinePanel {
     });
     if (pop && m.holds.length) holds[m.holds.length - 1]?.classList.add('lamp-pop');
     this.root.querySelector('[data-k="sinceHit"]')!.textContent = String(m.data.sinceHit);
+    this.root.querySelector('.m-spec')!.textContent = m.spec.id === 'ama' ? '' : m.spec.name;
   }
 
   /** セッション開始時にリセット */

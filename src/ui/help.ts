@@ -85,6 +85,7 @@ function rules(mode: Mode): string {
     <table class="help-table">
       <tr><th>大当り確率</th><td>通常 1/${NORMAL_ODDS}・RUSH 中 1/${RUSH_ODDS}（正解1回で1回転）</td></tr>
       <tr><th>確変</th><td>大当りの ${Math.round(KAKUHEN_RATE * 100)}%。奇数と白發中でそろうと確変で、${ST_SPINS}回転の RUSH に入ります</td></tr>
+      <tr><th>台の選択</th><td>交換所（右上の景品のアイコン）で、大当りは重いが賞金の大きいミドル・MAX を yan で解放できます。ミドル以上は実戦のみ。上の表は甘デジの値です</td></tr>
       <tr><th>役満直撃</th><td>通常時に役満の問題を正解すると、確変大当りが確定</td></tr>
     </table>
     <div class="set-sec">BONUS ラウンドの賞金 <span class="muted small">${MODE_LABELS[mode]}・子・1問目</span></div>
@@ -95,6 +96,7 @@ function rules(mode: Mode): string {
     <div class="set-sec">その他</div>
     <table class="help-table">
       <tr><th>ハイローラー</th><td>BET ×${ECONOMY.highRoller.costMult}、BONUS の賞金 ×${ECONOMY.highRoller.prizeMult}。画面下の計器の「×2」でいつでも切り替え</td></tr>
+      <tr><th>交換所</th><td>稼いだ yan で台の解放と景品（牌の背・液晶のスキン・称号）を買えます。日替わりのミッションを達成すると yan がもらえます</td></tr>
       <tr><th>精算</th><td>出題設定の「精算」で、ここまでの成績・収支・大当り履歴を表示します。所持金と台はそのまま続きから遊べます</td></tr>
       <tr><th>破産</th><td>所持金が尽きると終了。${ECONOMY.initial.toLocaleString()} yan から再スタートします</td></tr>
     </table>`;

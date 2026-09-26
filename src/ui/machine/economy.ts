@@ -2,6 +2,7 @@
 import type { Mode } from '../../core/generator';
 import type { LimitName } from '../../core/score';
 import { load, save } from '../storage';
+import { type MachineSpec, SPECS } from './specs';
 
 export const ECONOMY = {
   /** 初期所持 */
@@ -46,9 +47,9 @@ export const ECONOMY = {
   lowWarn: 200,
 };
 
-export function costFor(correct: boolean, fast: boolean, highRoller = false): number {
-  const base = !correct ? ECONOMY.cost + ECONOMY.missPenalty : fast ? ECONOMY.fastCost : ECONOMY.cost;
-  return highRoller ? base * ECONOMY.highRoller.costMult : base;
+export function costFor(correct: boolean, fast: boolean, highRoller = false, spec: MachineSpec = SPECS.ama): number {
+  const base = (!correct ? ECONOMY.cost + ECONOMY.missPenalty : fast ? ECONOMY.fastCost : ECONOMY.cost) * spec.betMult;
+  return Math.round(highRoller ? base * ECONOMY.highRoller.costMult : base);
 }
 
 export interface RoundPrizeInput {
@@ -60,6 +61,8 @@ export interface RoundPrizeInput {
   combo: number;
   premium: boolean;
   highRoller: boolean;
+  /** 台（省略時は甘デジ） */
+  spec?: MachineSpec;
 }
 
 export function paytableKey(limit: LimitName): keyof typeof ECONOMY.paytable {
@@ -76,6 +79,7 @@ export function roundPrize(p: RoundPrizeInput): number {
   v *= Math.min(ECONOMY.comboMax, 1 + ECONOMY.comboStep * Math.max(0, p.combo - 1));
   if (p.premium) v *= ECONOMY.premiumMult;
   if (p.highRoller) v *= ECONOMY.highRoller.prizeMult;
+  v *= (p.spec ?? SPECS.ama).prizeMult;
   return Math.round(v / 5) * 5;
 }
 
@@ -131,11 +135,11 @@ const PAYTABLE_LABELS: [keyof typeof ECONOMY.paytable, LimitName, string][] = [
 ];
 
 /** 賞金表：子・速答なし・連続1問目の賞金（PREMIUM とハイローラーは込み） */
-export function paytableRows(mode: Mode, premium: boolean, highRoller: boolean): PaytableRow[] {
+export function paytableRows(mode: Mode, premium: boolean, highRoller: boolean, spec: MachineSpec = SPECS.ama): PaytableRow[] {
   return PAYTABLE_LABELS.map(([key, limit, label]) => ({
     key,
     label,
-    prize: roundPrize({ mode, limit, dealer: false, fast: false, combo: 1, premium, highRoller }),
+    prize: roundPrize({ mode, limit, dealer: false, fast: false, combo: 1, premium, highRoller, spec }),
   }));
 }
 
