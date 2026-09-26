@@ -125,6 +125,12 @@ npm test         # 点数表・符・役判定・問題生成のテスト
 npm run build    # 型チェックと本番ビルド（dist/）
 ```
 
+### アイコン
+
+- ホーム画面・タブのアイコンは `public/` にあります（絵柄：黒金の液晶の枠で赤五筒が3枚そろった大当り）。
+- スマホのホーム画面に追加すると「パチふと」の名前とアイコンで、全画面のアプリとして開きます（`public/manifest.webmanifest`）。
+- 絵柄を変えたら `npx -p playwright node scripts/icons.mjs` で SVG と PNG を作り直します。
+
 ### 公開（GitHub Pages）
 
 `.github/workflows/deploy.yml` が、push のたびにテスト・ビルドを実行して `dist/` を GitHub Pages に公開します（テストが落ちたときは公開しません）。
