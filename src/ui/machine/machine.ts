@@ -187,16 +187,23 @@ export class Machine {
       this.rerollHolds();
       return { rushStart: false, rushEnd: wasRush };
     }
-    if (this.rush) {
-      this.stLeft--;
-      if (this.stLeft <= 0) {
-        this.rush = false;
-        this.data.rushChain = 0;
-        this.rerollHolds();
-        return { rushStart: false, rushEnd: true };
-      }
-    }
-    return { rushStart: false, rushEnd: false };
+    return { rushStart: false, rushEnd: this.consumeSt() };
+  }
+
+  /** RUSH 中の不正解：抽選なしで ST を1回転消費する。RUSH が終わったら true */
+  missSpin(): boolean {
+    return this.consumeSt();
+  }
+
+  /** ST を1回転減らし、0 になったら RUSH を終える。終わったら true */
+  private consumeSt(): boolean {
+    if (!this.rush) return false;
+    this.stLeft--;
+    if (this.stLeft > 0) return false;
+    this.rush = false;
+    this.data.rushChain = 0;
+    this.rerollHolds();
+    return true;
   }
 
   /** 状態が変わったら残りの保留を新しい確率で引き直す */

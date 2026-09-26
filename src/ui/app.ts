@@ -789,7 +789,11 @@ export class App {
       const penalty = this.isRoundQ ? '<span class="punk">パンク（賞金なし）</span>' : '';
       $('#result').innerHTML = `<div class="verdict ng"><span class="mark">不正解</span><span class="yours">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${explain}`;
       this.fx.lose(this.isChoice ? $('#choices') : answerEl, false);
-      if (!this.practice && !this.isRoundQ) this.tip('miss');
+      if (!this.practice && !this.isRoundQ) {
+        this.tip('miss');
+        // RUSH 中の不正解は ST を1回転消費する（継続が実力で決まる）
+        this.panel.missSpin();
+      }
     }
     if (!this.practice && !this.isRoundQ) {
       const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];

@@ -79,6 +79,19 @@ describe('Machine', () => {
     expect(m.rush).toBe(false);
   });
 
+  it('RUSH 中の不正解は ST を1回転消費し、0 で終わる。RUSH 外では何もしない', () => {
+    const m = new Machine(() => 'max', () => 0.99);
+    expect(m.missSpin()).toBe(false);
+    expect(m.stLeft).toBe(0);
+    m.rush = true;
+    m.stLeft = 2;
+    expect(m.missSpin()).toBe(false);
+    expect(m.stLeft).toBe(1);
+    expect(m.missSpin()).toBe(true);
+    expect(m.rush).toBe(false);
+    expect(m.data.rushChain).toBe(0);
+  });
+
   it('確変図柄の当りで確変に入る', () => {
     const m = new Machine(() => 'max', mulberry32(9));
     for (let i = 0; i < 2000 && !m.rush; i++) {

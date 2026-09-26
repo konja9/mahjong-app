@@ -45,7 +45,7 @@ export const ECONOMY = {
    * 正解率85%・速答5割のプレイヤーの回収率がどのモードでもほぼ100%になるよう
    * tests/economy.test.ts のシミュレーションで決めた値
    */
-  modeScale: { hayami: 0.56, fu: 0.84, jissen: 0.53 } as Record<Mode, number>,
+  modeScale: { hayami: 0.66, fu: 1.03, jissen: 0.63 } as Record<Mode, number>,
   /** ハイローラー：コスト 2 倍・ラウンド賞金 2.5 倍 */
   highRoller: { costMult: 2, prizeMult: 2.5 },
   /** 残りがこれ未満で警告表示 */

@@ -197,10 +197,7 @@ export class MachinePanel {
       if (g !== this.gen) return;
       const t = this.machine.settle(r);
       if (t.rushStart) this.hooks.onEvent?.('rush');
-      if (t.rushEnd) {
-        this.fx.kakuhenEnd();
-        this.msg('確変終了', 'end');
-      }
+      if (t.rushEnd) this.rushEnded();
       this.fx.syncRush(this.machine.rush);
       this.fx.rushChain(this.machine.data.rushChain);
       this.hooks.onState();
@@ -211,6 +208,23 @@ export class MachinePanel {
       this.running = false;
       this.hooks.onState();
     }
+  }
+
+  private rushEnded(): void {
+    this.fx.kakuhenEnd();
+    this.msg('確変終了', 'end');
+  }
+
+  /** RUSH 中の不正解：ST を1回転消費する（抽選なし） */
+  missSpin(): void {
+    if (!this.machine.rush || this.root.classList.contains('bonus')) return;
+    if (this.machine.missSpin()) {
+      this.rushEnded();
+      this.fx.syncRush(false);
+      this.fx.rushChain(0);
+      this.hooks.onState();
+    } else this.msg('不正解 ST−1', 'end');
+    this.render();
   }
 
   private wait(ms: number): Promise<void> {

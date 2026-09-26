@@ -29,9 +29,9 @@ export interface MachineSpec {
 }
 
 export const SPECS: Record<MachineId, MachineSpec> = {
-  ama: { id: 'ama', name: '甘デジ', odds: 20, rushOdds: 3, st: 8, kakuhenRate: 0.6, rounds: 6, prizeMult: 1, betMult: 1, price: 0, jissenOnly: false },
-  middle: { id: 'middle', name: 'ミドル', odds: 60, rushOdds: 4, st: 10, kakuhenRate: 0.6, rounds: 10, prizeMult: 2.56, betMult: 1.5, price: 8000, jissenOnly: true },
-  max: { id: 'max', name: 'MAX', odds: 150, rushOdds: 5, st: 12, kakuhenRate: 0.6, rounds: 15, prizeMult: 6.65, betMult: 2, price: 30000, jissenOnly: true },
+  ama: { id: 'ama', name: '甘デジ', odds: 20, rushOdds: 4, st: 6, kakuhenRate: 0.6, rounds: 6, prizeMult: 1, betMult: 1, price: 0, jissenOnly: false },
+  middle: { id: 'middle', name: 'ミドル', odds: 60, rushOdds: 6, st: 9, kakuhenRate: 0.6, rounds: 10, prizeMult: 2.75, betMult: 1.5, price: 8000, jissenOnly: true },
+  max: { id: 'max', name: 'MAX', odds: 150, rushOdds: 8, st: 12, kakuhenRate: 0.6, rounds: 15, prizeMult: 6.6, betMult: 2, price: 30000, jissenOnly: true },
 };
 
 export const MACHINE_IDS: MachineId[] = ['ama', 'middle', 'max'];

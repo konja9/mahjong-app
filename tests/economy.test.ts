@@ -116,7 +116,10 @@ export function simulate(
     const correct = rng() < accuracy;
     const fast = correct && rng() < fastRate;
     spent += costFor(correct, fast, highRoller, spec);
-    if (!correct) continue;
+    if (!correct) {
+      m.missSpin();
+      continue;
+    }
     m.enter(1);
     for (let r = m.spin(); r; r = m.spin()) {
       if (r.hit) jackpot(r.symbols[0] === PREMIUM_SYMBOL);
