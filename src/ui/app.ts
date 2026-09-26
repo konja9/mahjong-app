@@ -454,7 +454,7 @@ export class App {
     // 全問正解なら上乗せ抽選。上乗せ分は演出のあとで所持金に入る
     if (r.perfect && r.total > 0) {
       const mult = drawUwanose(Math.random, r.premium);
-      const add = r.total * (mult - 1);
+      const add = Math.round(r.total * (mult - 1));
       r.resolve({ total: r.total + add, uwanose: { mult, base: r.total, pay: () => this.changeBalance(add, 1200) } });
     } else r.resolve({ total: r.total });
   }
@@ -467,7 +467,7 @@ export class App {
 
   /**
    * 計器の BET（ノーマルのみ）。時間は意識させないよう秒数は出さず、
-   * 締切までは定価に取り消し線＋半額と、下辺の細いバーが静かに減るだけ。締切後は定価に戻る
+   * 締切までは定価に取り消し線＋割引額と、下辺の細いバーが静かに減るだけ。締切後は定価に戻る
    */
   private startBetRing(): void {
     cancelAnimationFrame(this.betRaf);
@@ -489,7 +489,7 @@ export class App {
     const html = (exp: boolean) =>
       exp
         ? `<small>BET</small><span class="bet-v"><b>${full}</b></span>`
-        : `<small>BET<em>速答で半額</em></small><span class="bet-v"><s>${full}</s><b>${half}</b></span><i class="bar"></i>`;
+        : `<small>BET<em>速答で割引</em></small><span class="bet-v"><s>${full}</s><b>${half}</b></span><i class="bar"></i>`;
     el.innerHTML = html(false);
     const tick = () => {
       if (this.phase !== 'answering') return;
@@ -508,7 +508,7 @@ export class App {
     cancelAnimationFrame(this.betRaf);
     if (this.practice || this.isRoundQ) return;
     const cost = costFor(correct, correct && fast, this.s.highRoller, this.spec);
-    const tag = !correct ? '<em class="ng">不正解</em>' : fast ? '<em>速答で半額</em>' : '';
+    const tag = !correct ? '<em class="ng">不正解</em>' : fast ? '<em>速答で割引</em>' : '';
     const el = $('#bet');
     el.classList.remove('expired');
     el.classList.add('settled');

@@ -30,14 +30,14 @@ function mulberry32(seed: number) {
 
 describe('yan', () => {
   it('コスト', () => {
-    expect(costFor(true, true)).toBe(20);
+    expect(costFor(true, true)).toBe(30);
     expect(costFor(true, false)).toBe(40);
-    expect(costFor(false, false)).toBe(120);
-    expect(costFor(false, true)).toBe(120);
+    expect(costFor(false, false)).toBe(60);
+    expect(costFor(false, true)).toBe(60);
   });
   it('ハイローラーはコスト2倍', () => {
-    expect(costFor(true, true, true)).toBe(40);
-    expect(costFor(false, false, true)).toBe(240);
+    expect(costFor(true, true, true)).toBe(60);
+    expect(costFor(false, false, true)).toBe(120);
   });
   it('ラウンド賞金：符・速答・連続・PREMIUM・ハイローラー（翻と親子では変わらない）', () => {
     const base = { mode: 'jissen' as Mode, fu: 40, yakuman: false, fast: false, combo: 1, premium: false, highRoller: false };
@@ -47,7 +47,7 @@ describe('yan', () => {
     expect(roundPrize({ ...base, fu: 0, yakuman: true })).toBeGreaterThan(v * 5);
     expect(roundPrize({ ...base, fast: true })).toBeGreaterThan(v);
     expect(roundPrize({ ...base, combo: 20 })).toBe(roundPrize({ ...base, combo: 5 }));
-    expect(roundPrize({ ...base, combo: 5 })).toBeGreaterThanOrEqual(v * 4.5);
+    expect(roundPrize({ ...base, combo: 5 })).toBeGreaterThanOrEqual(v * 2.7);
     expect(roundPrize({ ...base, premium: true, highRoller: true })).toBeGreaterThanOrEqual(v * 4.5);
     // 早見の満貫以上（符なし）は30符ぶん
     expect(roundPrize({ ...base, mode: 'hayami', fu: 0 })).toBe(roundPrize({ ...base, mode: 'hayami', fu: 30 }));
@@ -183,9 +183,9 @@ describe('BONUS の符の目盛り', () => {
     expect(ECONOMY.comboLadder.map((_, i) => comboMult(i))).toEqual(ECONOMY.comboLadder);
     expect(comboMult(99)).toBe(ECONOMY.comboLadder.at(-1));
   });
-  it('上乗せは超大当りのほうが期待値が高く、最低 ×3', () => {
+  it('上乗せは超大当りのほうが期待値が高く、最低 ×2', () => {
     expect(uwanoseMean(true)).toBeGreaterThan(uwanoseMean(false));
     const rng = mulberry32(3);
-    for (let i = 0; i < 200; i++) expect(drawUwanose(rng, true)).toBeGreaterThanOrEqual(3);
+    for (let i = 0; i < 200; i++) expect(drawUwanose(rng, true)).toBeGreaterThanOrEqual(2);
   });
 });

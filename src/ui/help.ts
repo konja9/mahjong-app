@@ -24,7 +24,7 @@ export function fastWindows(): string {
 export const FLOW: { title: string; body: string }[] = [
   {
     title: '点数を答える',
-    body: `麻雀の点数を4択で答えます。1問の BET は ${costFor(true, false)} yan。締切までに正解すると半額の ${costFor(true, true)} yan で済みます。間違えると −${costFor(false, false)} yan。`,
+    body: `麻雀の点数を4択で答えます。1問の BET は ${costFor(true, false)} yan。締切までに正解すると ${costFor(true, true)} yan に割引。間違えると −${costFor(false, false)} yan。`,
   },
   {
     title: '正解すると台が回る',
@@ -67,7 +67,7 @@ function rules(mode: Mode): string {
     <table class="help-table">
       <tr><th>初期所持金</th><td>${ECONOMY.initial.toLocaleString()} yan</td></tr>
       <tr><th>1問の BET</th><td>${costFor(true, false)} yan</td></tr>
-      <tr><th>速答で正解</th><td>半額の ${costFor(true, true)} yan（締切 ${fastWindows()}）</td></tr>
+      <tr><th>速答で正解</th><td>${costFor(true, true)} yan に割引（締切 ${fastWindows()}）</td></tr>
       <tr><th>不正解・パス・時間切れ</th><td>${costFor(false, false)} yan</td></tr>
       <tr><th>計器（画面下）</th><td>所持金・BET・収支を常に表示。BET は回答すると実際にかかった額に変わります。BONUS 中は収支の枠が出玉になります</td></tr>
     </table>

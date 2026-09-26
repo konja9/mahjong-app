@@ -9,11 +9,11 @@ export const ECONOMY = {
   /** 1問のコスト */
   cost: 40,
   /** 速答で正解したときのコスト */
-  fastCost: 20,
-  /** 速答（半額）の締切（秒）。モードの難しさに合わせる */
+  fastCost: 30,
+  /** 速答（割引）の締切（秒）。モードの難しさに合わせる */
   fastSeconds: { hayami: 6, fu: 12, jissen: 20 } as Record<Mode, number>,
   /** 不正解・パス・時間切れの追加ペナルティ */
-  missPenalty: 80,
+  missPenalty: 20,
   /** 大当り 1 回のラウンド数（ラウンド問題の数） */
   rounds: 6,
   /**
@@ -25,27 +25,27 @@ export const ECONOMY = {
   /** 速答なら 1.2 倍 */
   fastMult: 1.2,
   /** ラウンド内の連続正解の倍率の階段（1問目 ×1、2問連続 ×1.5 …）。1問ミスで最初に戻る */
-  comboLadder: [1, 1.5, 2, 3, 5],
+  comboLadder: [1, 1.2, 1.5, 2, 3],
   /** PREMIUM（赤5筒）大当りのラウンドは 2 倍 */
   premiumMult: 2,
   /** 全問正解の上乗せ抽選：ラウンドで得た賞金に掛ける倍率と重み（PREMIUM は最低 ×3） */
   uwanose: [
-    [2, 50],
-    [3, 30],
-    [5, 15],
-    [10, 5],
+    [1.5, 50],
+    [2, 30],
+    [3, 15],
+    [5, 5],
   ] as [number, number][],
   uwanosePremium: [
-    [3, 55],
-    [5, 30],
-    [10, 15],
+    [2, 50],
+    [3, 35],
+    [5, 15],
   ] as [number, number][],
   /**
    * モード別のレート（1符あたりの yan）。
    * 正解率85%・速答5割のプレイヤーの回収率がどのモードでもほぼ100%になるよう
    * tests/economy.test.ts のシミュレーションで決めた値
    */
-  modeScale: { hayami: 0.3, fu: 0.46, jissen: 0.29 } as Record<Mode, number>,
+  modeScale: { hayami: 0.56, fu: 0.84, jissen: 0.53 } as Record<Mode, number>,
   /** ハイローラー：コスト 2 倍・ラウンド賞金 2.5 倍 */
   highRoller: { costMult: 2, prizeMult: 2.5 },
   /** 残りがこれ未満で警告表示 */

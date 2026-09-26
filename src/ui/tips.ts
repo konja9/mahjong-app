@@ -52,7 +52,7 @@ export function tipText(id: Exclude<TipId, 'firstHit'>, fastSec: number, spec: M
     case 'miss':
       return `不正解は BET と合わせて −${costFor(false, false)} yan。解説を読んで次の問題へ`;
     case 'fast':
-      return `速答ボーナス！ ${fastSec}秒以内に正解すると BET が半額になります`;
+      return `速答ボーナス！ ${fastSec}秒以内に正解すると BET が ${costFor(true, true)} yan に割引されます`;
     case 'low':
       return '所持金が残りわずか。プラクティスなら yan を使わずに練習できます';
   }

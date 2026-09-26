@@ -519,15 +519,15 @@ export class Fx {
       await this.sleep(60 + i * i * 2.2);
       if (this.skipped) return;
     }
-    const tier = mult >= 10 ? 'rainbow' : mult >= 5 ? 'gold' : '';
+    const tier = mult >= 5 ? 'rainbow' : mult >= 3 ? 'gold' : '';
     this.show(
-      `<div class="uwa-roll done ${tier}"><small>上乗せ</small><b>×${mult}</b><em>+${(base * (mult - 1)).toLocaleString()} yan</em></div>`,
-      mult >= 5 ? 'rays gold-rays' : 'rays',
+      `<div class="uwa-roll done ${tier}"><small>上乗せ</small><b>×${mult}</b><em>+${Math.round(base * (mult - 1)).toLocaleString()} yan</em></div>`,
+      mult >= 3 ? 'rays gold-rays' : 'rays',
     );
-    this.particles.burst(innerWidth / 2, innerHeight * 0.5, mult >= 5 ? 120 : 60, 'coin', 1.3);
-    this.flash(mult >= 5 ? 3 : 1);
-    (mult >= 10 ? sfx.yakuman : sfx.fanfare)();
-    sfx.coins(mult >= 5 ? 16 : 8, 1.2);
+    this.particles.burst(innerWidth / 2, innerHeight * 0.5, mult >= 3 ? 120 : 60, 'coin', 1.3);
+    this.flash(mult >= 3 ? 3 : 1);
+    (mult >= 5 ? sfx.yakuman : sfx.fanfare)();
+    sfx.coins(mult >= 3 ? 16 : 8, 1.2);
     await this.sleep(1600);
     this.clear();
   }

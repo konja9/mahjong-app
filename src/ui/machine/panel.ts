@@ -297,8 +297,8 @@ export class MachinePanel {
         if (g !== this.gen) return;
         [0, 2, 1].forEach((i) => this.reel.stop(i, r.symbols[i]));
         this.reel.hit();
-        const cands = [2, 3, 5, 10];
-        await this.fx.uwanose(u.mult, u.base, premium ? cands.slice(1) : cands);
+        const cands = (premium ? ECONOMY.uwanosePremium : ECONOMY.uwanose).map(([m]) => m);
+        await this.fx.uwanose(u.mult, u.base, cands);
         if (g !== this.gen) return;
         u.pay();
       }

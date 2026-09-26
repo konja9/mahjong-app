@@ -14,7 +14,7 @@ export const markIntroSeen = (): void => save(KEY, true);
 /** 各ステップの小さな図（実際の計器・液晶帯と同じ見た目） */
 const VISUALS = [
   `<div class="iv iv-q">
-    <div class="mt-cell mt-bet"><div class="bet-box"><small>BET<em>速答で半額</em></small><span class="bet-v"><s>${costFor(true, false)}</s><b>${costFor(true, true)}</b></span><i class="bar"></i></div></div>
+    <div class="mt-cell mt-bet"><div class="bet-box"><small>BET<em>速答で割引</em></small><span class="bet-v"><s>${costFor(true, false)}</s><b>${costFor(true, true)}</b></span><i class="bar"></i></div></div>
     <div class="iv-choices"><span><kbd>1</kbd>3900</span><span class="on"><kbd>2</kbd>5200</span><span><kbd>3</kbd>6400</span><span><kbd>4</kbd>7700</span></div>
   </div>`,
   `<div class="iv iv-flow">
