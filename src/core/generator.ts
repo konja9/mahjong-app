@@ -72,6 +72,9 @@ const FU_WEIGHTS = [
   [110, 0.1],
 ] as const;
 
+/** 超大当り（PREMIUM）の BONUS で役満を出す割合。ほかの BONUS・RUSH は通常時と同じ分布 */
+export const PREMIUM_YAKUMAN_RATE = 0.3;
+
 /** 生成した手の符に応じた採用率（高い符は実戦ではまれなので間引く） */
 function fuAcceptRate(fu: number): number {
   if (fu >= 70) return 0.05;
@@ -84,32 +87,26 @@ export function generateHayami(
   rules: Rules,
   f: Filters,
   rng: Rng = Math.random,
-  boost = false,
-  round = false,
+  premium = false,
 ): HayamiQuestion {
   for (;;) {
     const dealer = rollSeat(rng, f);
     const tsumo = rollTsumo(rng, f);
-    // ラウンド問題は満貫以上だけ
-    const han = round
-      ? weighted(rng, [
-          [5, 30],
-          [6, 26],
-          [8, 20],
-          [11, 12],
-          [13, 12],
-        ] as const)
-      : weighted(rng, [
-          [1, 16],
-          [2, 26],
-          [3, 26],
-          [4, 20],
-          [5, 4],
-          [6, 3],
-          [8, 2],
-          [11, boost ? 10 : 1],
-          [13, boost ? 16 : 1],
-        ] as const);
+    // 超大当りの BONUS だけは役満（数え役満）が出やすい
+    const han =
+      premium && rng() < PREMIUM_YAKUMAN_RATE
+        ? 13
+        : weighted(rng, [
+            [1, 16],
+            [2, 26],
+            [3, 26],
+            [4, 20],
+            [5, 4],
+            [6, 3],
+            [8, 2],
+            [11, 1],
+            [13, 1],
+          ] as const);
     const fu = han >= 5 ? 0 : weighted(rng, FU_WEIGHTS);
     if (han < 5 && !isValidHanFu(han, fu, tsumo)) continue;
     return { mode: 'hayami', han, fu, dealer, tsumo, score: calcScore(han, fu, dealer, tsumo, rules) };
@@ -317,10 +314,8 @@ export interface HandGenOptions {
   rules: Rules;
   filters: Filters;
   rng?: Rng;
-  /** 確変中：役満（符計算では高打点）が出やすくなる */
-  boost?: boolean;
-  /** 大当りのラウンド問題：高打点中心（役満は時々） */
-  round?: boolean;
+  /** 超大当りの BONUS：実戦は役満が出やすい */
+  premium?: boolean;
 }
 
 export function generateHandQuestion({
@@ -328,8 +323,7 @@ export function generateHandQuestion({
   rules,
   filters,
   rng = Math.random,
-  boost = false,
-  round = false,
+  premium = false,
 }: HandGenOptions): HandQuestion {
   for (let attempt = 0; attempt < 5000; attempt++) {
     const flavor: Flavor = weighted(rng, [
@@ -342,7 +336,7 @@ export function generateHandQuestion({
       ['chiitoi', mode === 'fu' ? 3 : 6],
       ['kokushi', mode === 'fu' ? 0 : 0.5],
     ] as const);
-    const yakumanRate = mode === 'jissen' ? (round ? 0.015 : boost ? 0.35 : 0) : 0;
+    const yakumanRate = mode === 'jissen' && premium ? PREMIUM_YAKUMAN_RATE : 0;
     const yakumanBoost = rng() < yakumanRate;
     const built = yakumanBoost
       ? buildYakuman(rng)
@@ -400,14 +394,10 @@ export function generateHandQuestion({
     if (mode === 'fu' && ev.han >= 5 && rng() < 0.8) continue;
     // 符の分布を実戦に寄せる（役満は符と無関係なので対象外）
     if (!ev.yakuman && rng() >= fuAcceptRate(ev.fu.fu)) continue;
-    // 役満は出すぎないように間引く（確変中は間引かない）
-    if (ev.yakuman && !boost && !round && rng() < 0.5) continue;
-    // 確変中の符計算は高打点の手を増やす
-    if (boost && mode === 'fu' && ev.han < 3 && rng() < 0.6) continue;
-    // ラウンド問題：安い手はほとんど出さない
-    if (round && !ev.yakuman && ev.han < (mode === 'fu' ? 3 : 4) && rng() < 0.9) continue;
+    // 役満は出すぎないように間引く（超大当りの BONUS は間引かない）
+    if (ev.yakuman && !premium && rng() < 0.5) continue;
     // ドラ過多の問題は間引く
-    if (ev.han >= 8 && !ev.yakuman && !round && rng() < 0.6) continue;
+    if (ev.han >= 8 && !ev.yakuman && rng() < 0.6) continue;
     return { mode, hand, sit, ev };
   }
   throw new Error('failed to generate question');
@@ -418,9 +408,8 @@ export function generateQuestion(
   rules: Rules,
   filters: Filters,
   rng: Rng = Math.random,
-  boost = false,
-  round = false,
+  premium = false,
 ): Question {
-  if (mode === 'hayami') return generateHayami(rules, filters, rng, boost, round);
-  return generateHandQuestion({ mode, rules, filters, rng, boost, round });
+  if (mode === 'hayami') return generateHayami(rules, filters, rng, premium);
+  return generateHandQuestion({ mode, rules, filters, rng, premium });
 }

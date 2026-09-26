@@ -12,10 +12,19 @@ export interface PanelHooks {
   onBusy(busy: boolean): void;
   /** 状態（通常/確変）が変わった・回転が終わった */
   onState(): void;
-  /** 大当り：ラウンド問題（賞金タイム）が終わるまで待つ。戻り値は出玉合計 */
-  onJackpot(o: { premium: boolean }): Promise<number>;
+  /** 大当り：ラウンド問題（賞金タイム）が終わるまで待つ。戻り値は出玉合計と上乗せ */
+  onJackpot(o: { premium: boolean }): Promise<JackpotResult>;
+  /** 液晶帯のタップ（台選び） */
+  onTap?(): void;
   /** 初めての人向けのガイドを出すきっかけ */
   onEvent?(e: 'enter' | 'reach' | 'jackpot' | 'rush'): void;
+}
+
+export interface JackpotResult {
+  /** 出玉合計（上乗せ込み） */
+  total: number;
+  /** 全問正解の上乗せ。pay() で上乗せ分を所持金に入れる */
+  uwanose?: { mult: number; base: number; pay: () => void };
 }
 
 /** BONUS 中に液晶帯の下段に出す表示 */
@@ -23,14 +32,20 @@ export interface BonusView {
   /** 今のラウンド（1〜rounds）。0 は大当り直後で、まだラウンド問題の前 */
   n: number;
   rounds: number;
-  /** 次に正解したときの連続正解の倍率 */
-  mult: number;
-  /** 賞金表（PREMIUM・ハイローラー込み。親・速答・連続は含まない） */
-  rows: { key: string; label: string; prize: number }[];
+  /** ここまでの連続正解数 */
+  combo: number;
+  /** 連続正解の倍率の階段 */
+  ladder: number[];
+  /** 符の目盛り（PREMIUM・ハイローラー込み。速答・連続は含まない） */
+  cells: { key: number | string; label: string; prize: number }[];
+  /** 1符あたりの yan */
+  rate: number;
   /** 直前の回答で光らせるマス（正解） */
-  lit?: string;
+  lit?: number | string;
   /** 直前の回答で外したマス */
-  miss?: string;
+  miss?: number | string;
+  /** 直前の正解で連続の段が上がった */
+  up?: boolean;
   premium: boolean;
 }
 
@@ -54,7 +69,7 @@ export class MachinePanel {
       <div class="lcd">
         <div class="m-screen"></div>
         <div class="lcd-info">
-          <div class="m-head"><span class="m-spec"></span><span class="m-state">通常</span><span class="m-st"></span><span class="m-hr">×2</span><span class="m-spins">回転 <b data-k="sinceHit">0</b></span></div>
+          <div class="m-head"><button class="m-spec" type="button" aria-label="台選び"></button><span class="m-state">通常</span><span class="m-st"></span><span class="m-hr">×2</span><span class="m-spins">回転 <b data-k="sinceHit">0</b></span></div>
           <div class="m-msg" aria-live="polite"></div>
           <div class="m-bottom">
             <div class="m-holds" aria-label="保留">${Array.from({ length: MAX_HOLDS }, () => '<span class="hold"></span>').join('')}</div>
@@ -65,6 +80,7 @@ export class MachinePanel {
       </div>
       <div class="m-bonus" hidden></div>`;
     this.reel = new Reel(root.querySelector<HTMLElement>('.m-screen')!, 'mini');
+    root.querySelector('.lcd')!.addEventListener('click', () => this.hooks.onTap?.());
     this.idleSymbols();
     this.render();
   }
@@ -98,16 +114,24 @@ export class MachinePanel {
       return;
     }
     const pips = Array.from({ length: v.rounds }, (_, i) => `<i class="${i < v.n ? 'on' : ''}"></i>`).join('');
-    const cells = v.rows
-      .map((r) => {
-        const cls = r.key === v.lit ? ' lit' : r.key === v.miss ? ' miss' : '';
-        const value = r.key === v.miss ? 'パンク' : r.prize.toLocaleString();
-        return `<div class="b-cell${cls}"><small>${r.label}</small><b>${value}</b></div>`;
+    // 連続正解の階段：今の段（次に正解したときの倍率）を光らせる
+    const step = Math.min(v.combo, v.ladder.length - 1);
+    const ladder = v.ladder
+      .map((m, i) => `<i class="${i < step ? 'past' : i === step ? `now${v.up ? ' up' : ''}` : ''}">×${m}</i>`)
+      .join('<span>›</span>');
+    const cells = v.cells
+      .map((c) => {
+        const cls = c.key === v.lit ? ' lit' : c.key === v.miss ? ' miss' : '';
+        const value = c.key === v.miss ? 'パンク' : c.prize.toLocaleString();
+        return `<div class="b-cell${cls}${c.key === 'yakuman' ? ' ym' : ''}"><small>${c.label}${typeof c.key === 'number' ? '<u>符</u>' : ''}</small><b>${value}</b></div>`;
       })
       .join('');
-    el.innerHTML = `<div class="b-head"><span class="b-title">ROUND ${Math.max(v.n, 1)}/${v.rounds}</span><span class="b-pips">${pips}</span><span class="b-mult">連続 ×${v.mult.toFixed(1)}</span></div>
+    const rate = v.rate.toFixed(2).replace(/\.?0+$/, '');
+    el.innerHTML = `<div class="b-head"><span class="b-title">ROUND ${Math.max(v.n, 1)}/${v.rounds}</span><span class="b-pips">${pips}</span></div>
+      <div class="b-ladder${v.up ? ' up' : ''}"><small>連続</small>${ladder}</div>
       <div class="b-table">${cells}</div>
-      <div class="b-note">親 ×${ECONOMY.dealerMult}・速答 ×${ECONOMY.fastMult}</div>`;
+      <div class="b-note">賞金 ＝ 符 × ${rate}・速答 ×${ECONOMY.fastMult}・全問正解で上乗せ</div>`;
+    if (v.up && this.level() !== 'off') sfx.lampUp();
     el.hidden = false;
     this.premium = v.premium;
     // 台の表示は「BONUS」にまとめ、告知（BONUS 6R）は消す
@@ -117,13 +141,16 @@ export class MachinePanel {
 
   private premium = false;
 
-  /** 役満直撃：次の回転を確変大当り確定にする */
-  direct(): void {
-    this.machine.holds.unshift({ hit: true, kakuhen: true, color: 4 });
-    this.machine.holds = this.machine.holds.slice(0, MAX_HOLDS);
-    this.msg('役満直撃!!', 'win');
-    this.render(true);
-    this.kick();
+  /** BONUS の出題時の予告（2 赤・3 金・4 虹）。符が高い手ほど熱い */
+  fuNotice(color: number): void {
+    if (color < 2) {
+      this.msg('', '');
+      return;
+    }
+    const [text, cls] = color >= 4 ? ['激アツ!!', 'n-rainbow'] : color >= 3 ? ['高符チャンス!', 'n-gold'] : ['チャンス', 'n-red'];
+    // 出題中なので画面を覆う演出は出さず、液晶帯の文字と音だけにする
+    this.msg(text, cls);
+    if (this.level() !== 'off') (color >= 3 ? sfx.gekiatsu : sfx.stamp)();
   }
 
   /** 保留も回転もない */
@@ -257,9 +284,24 @@ export class MachinePanel {
       this.hooks.onBusy(false);
       this.msg(`BONUS ${this.machine.spec.rounds}R`, 'win');
       this.hooks.onEvent?.('jackpot');
-      const total = await this.hooks.onJackpot({ premium });
+      const res = await this.hooks.onJackpot({ premium });
       if (g !== this.gen) return;
       this.hooks.onBusy(true);
+      const total = res.total;
+      if (res.uwanose) {
+        // 全問正解：リールがもう一度回って上乗せ倍率を抽選
+        const u = res.uwanose;
+        this.msg('全問正解!! 上乗せ', 'win');
+        this.reel.spinAll();
+        await this.wait(600);
+        if (g !== this.gen) return;
+        [0, 2, 1].forEach((i) => this.reel.stop(i, r.symbols[i]));
+        this.reel.hit();
+        const cands = [2, 3, 5, 10];
+        await this.fx.uwanose(u.mult, u.base, premium ? cands.slice(1) : cands);
+        if (g !== this.gen) return;
+        u.pay();
+      }
       await this.fx.jackpotOutro({
         kakuhen: r.kakuhen,
         premium,
@@ -288,11 +330,13 @@ export class MachinePanel {
     const bonus = this.root.classList.contains('bonus');
     this.root.classList.toggle('rush', m.rush && !bonus);
     this.root.querySelector('.m-state')!.textContent = bonus
-      ? `${this.premium ? 'PREMIUM ' : ''}BONUS`
+      ? this.premium
+        ? 'PREMIUM'
+        : 'BONUS'
       : m.rush
         ? `RUSH${m.data.rushChain > 1 ? ` ${m.data.rushChain}連` : ''}`
         : '通常';
-    this.root.querySelector('.m-st')!.textContent = !bonus && m.rush ? `残り${m.stLeft}/${m.spec.st} 役満UP` : '';
+    this.root.querySelector('.m-st')!.textContent = !bonus && m.rush ? `残り${m.stLeft}/${m.spec.st}` : '';
     const holds = this.root.querySelectorAll<HTMLElement>('.hold');
     holds.forEach((h, i) => {
       const hold = m.holds[i];
@@ -300,7 +344,7 @@ export class MachinePanel {
     });
     if (pop && m.holds.length) holds[m.holds.length - 1]?.classList.add('lamp-pop');
     this.root.querySelector('[data-k="sinceHit"]')!.textContent = String(m.data.sinceHit);
-    this.root.querySelector('.m-spec')!.textContent = m.spec.id === 'ama' ? '' : m.spec.name;
+    this.root.querySelector('.m-spec')!.textContent = `${m.spec.name} ▾`;
   }
 
   /** セッション開始時にリセット */

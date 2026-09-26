@@ -1,6 +1,5 @@
 /** ノーマルモードの通貨 yan。パラメータはここに集約する */
 import type { Mode } from '../../core/generator';
-import type { LimitName } from '../../core/score';
 import { load, save } from '../storage';
 import { type MachineSpec, SPECS } from './specs';
 
@@ -17,30 +16,36 @@ export const ECONOMY = {
   missPenalty: 80,
   /** 大当り 1 回のラウンド数（ラウンド問題の数） */
   rounds: 6,
-  /** ラウンド問題の賞金表（打点別） */
-  paytable: {
-    under: 5,
-    満貫: 20,
-    跳満: 30,
-    倍満: 50,
-    三倍満: 80,
-    役満: 300,
-  },
-  /** 親の手は 1.5 倍 */
-  dealerMult: 1.5,
+  /**
+   * BONUS の賞金は「符 × レート」。翻・ドラ・親子の運では増えず、計算した符そのものが賞金になる。
+   * 早見の満貫以上（符が出ない）は 30符ぶん、役満（超大当りで出る）は 300符ぶん
+   */
+  limitFu: 30,
+  yakumanFu: 300,
   /** 速答なら 1.2 倍 */
   fastMult: 1.2,
-  /** ラウンド内の連続正解ごとに +0.1 倍（最大 1.5 倍） */
-  comboStep: 0.1,
-  comboMax: 1.5,
+  /** ラウンド内の連続正解の倍率の階段（1問目 ×1、2問連続 ×1.5 …）。1問ミスで最初に戻る */
+  comboLadder: [1, 1.5, 2, 3, 5],
   /** PREMIUM（赤5筒）大当りのラウンドは 2 倍 */
   premiumMult: 2,
+  /** 全問正解の上乗せ抽選：ラウンドで得た賞金に掛ける倍率と重み（PREMIUM は最低 ×3） */
+  uwanose: [
+    [2, 50],
+    [3, 30],
+    [5, 15],
+    [10, 5],
+  ] as [number, number][],
+  uwanosePremium: [
+    [3, 55],
+    [5, 30],
+    [10, 15],
+  ] as [number, number][],
   /**
-   * モード別の賞金補正。出題される手の打点分布がモードで違うため、
+   * モード別のレート（1符あたりの yan）。
    * 正解率85%・速答5割のプレイヤーの回収率がどのモードでもほぼ100%になるよう
    * tests/economy.test.ts のシミュレーションで決めた値
    */
-  modeScale: { hayami: 1.05, fu: 6.4, jissen: 1.12 } as Record<Mode, number>,
+  modeScale: { hayami: 0.3, fu: 0.46, jissen: 0.29 } as Record<Mode, number>,
   /** ハイローラー：コスト 2 倍・ラウンド賞金 2.5 倍 */
   highRoller: { costMult: 2, prizeMult: 2.5 },
   /** 残りがこれ未満で警告表示 */
@@ -54,8 +59,9 @@ export function costFor(correct: boolean, fast: boolean, highRoller = false, spe
 
 export interface RoundPrizeInput {
   mode: Mode;
-  limit: LimitName;
-  dealer: boolean;
+  /** 手の符（早見の満貫以上は 0） */
+  fu: number;
+  yakuman: boolean;
   fast: boolean;
   /** このラウンド内での連続正解数（今回を含む） */
   combo: number;
@@ -65,22 +71,51 @@ export interface RoundPrizeInput {
   spec?: MachineSpec;
 }
 
-export function paytableKey(limit: LimitName): keyof typeof ECONOMY.paytable {
-  if (limit === '' ) return 'under';
-  if (limit === '数え役満' || limit === 'ダブル役満' || limit === 'トリプル役満') return '役満';
-  return limit;
+/** 賞金の計算に使う符（役満・符なしの手の換算込み） */
+export function prizeFu(fu: number, yakuman: boolean): number {
+  if (yakuman) return ECONOMY.yakumanFu;
+  return fu > 0 ? fu : ECONOMY.limitFu;
+}
+
+/** 1符あたりの yan（PREMIUM・ハイローラー・台を込み、速答と連続は別） */
+export function fuRate(mode: Mode, premium: boolean, highRoller: boolean, spec: MachineSpec = SPECS.ama): number {
+  let v = ECONOMY.modeScale[mode] * spec.prizeMult;
+  if (premium) v *= ECONOMY.premiumMult;
+  if (highRoller) v *= ECONOMY.highRoller.prizeMult;
+  return v;
+}
+
+/** 次に正解したときの連続正解の倍率（combo はここまでの連続正解数） */
+export function comboMult(combo: number): number {
+  const l = ECONOMY.comboLadder;
+  return l[Math.min(Math.max(0, combo), l.length - 1)];
 }
 
 /** ラウンド問題の賞金 */
 export function roundPrize(p: RoundPrizeInput): number {
-  let v = ECONOMY.paytable[paytableKey(p.limit)] * ECONOMY.modeScale[p.mode];
-  if (p.dealer) v *= ECONOMY.dealerMult;
+  let v = prizeFu(p.fu, p.yakuman) * fuRate(p.mode, p.premium, p.highRoller, p.spec);
   if (p.fast) v *= ECONOMY.fastMult;
-  v *= Math.min(ECONOMY.comboMax, 1 + ECONOMY.comboStep * Math.max(0, p.combo - 1));
-  if (p.premium) v *= ECONOMY.premiumMult;
-  if (p.highRoller) v *= ECONOMY.highRoller.prizeMult;
-  v *= (p.spec ?? SPECS.ama).prizeMult;
-  return Math.round(v / 5) * 5;
+  v *= comboMult(p.combo - 1);
+  return Math.max(1, Math.round(v));
+}
+
+/** 全問正解の上乗せ抽選。倍率を返す */
+export function drawUwanose(rng: () => number, premium: boolean): number {
+  const table = premium ? ECONOMY.uwanosePremium : ECONOMY.uwanose;
+  const total = table.reduce((s, [, w]) => s + w, 0);
+  let r = rng() * total;
+  for (const [m, w] of table) {
+    r -= w;
+    if (r < 0) return m;
+  }
+  return table[table.length - 1][0];
+}
+
+/** 上乗せ倍率の期待値 */
+export function uwanoseMean(premium: boolean): number {
+  const table = premium ? ECONOMY.uwanosePremium : ECONOMY.uwanose;
+  const total = table.reduce((s, [, w]) => s + w, 0);
+  return table.reduce((s, [m, w]) => s + (m * w) / total, 0);
 }
 
 export interface Wallet {
@@ -118,32 +153,29 @@ export function applyDelta(w: Wallet, delta: number): Wallet {
 
 export const isBankrupt = (w: Wallet): boolean => w.balance <= 0;
 
-/** BONUS 中に出す賞金表の1マス */
-export interface PaytableRow {
-  key: keyof typeof ECONOMY.paytable;
+/** BONUS 中に液晶帯へ出す符の目盛り */
+export const FU_SCALE = [30, 40, 50, 60, 70, 80] as const;
+
+export interface FuScaleCell {
+  /** 30〜70 は符、80 は「80〜」、yakuman は役満 */
+  key: number | 'yakuman';
   label: string;
   prize: number;
 }
 
-const PAYTABLE_LABELS: [keyof typeof ECONOMY.paytable, LimitName, string][] = [
-  ['under', '', '未満'],
-  ['満貫', '満貫', '満貫'],
-  ['跳満', '跳満', '跳満'],
-  ['倍満', '倍満', '倍満'],
-  ['三倍満', '三倍満', '三倍'],
-  ['役満', '役満', '役満'],
-];
-
-/** 賞金表：子・速答なし・連続1問目の賞金（PREMIUM とハイローラーは込み） */
-export function paytableRows(mode: Mode, premium: boolean, highRoller: boolean, spec: MachineSpec = SPECS.ama): PaytableRow[] {
-  return PAYTABLE_LABELS.map(([key, limit, label]) => ({
-    key,
-    label,
-    prize: roundPrize({ mode, limit, dealer: false, fast: false, combo: 1, premium, highRoller, spec }),
-  }));
+/** 目盛りの各マスの賞金（速答なし・連続1問目） */
+export function fuScale(mode: Mode, premium: boolean, highRoller: boolean, spec: MachineSpec = SPECS.ama): FuScaleCell[] {
+  const cell = (fu: number, yakuman: boolean) =>
+    roundPrize({ mode, fu, yakuman, fast: false, combo: 1, premium, highRoller, spec });
+  const cells: FuScaleCell[] = FU_SCALE.map((fu) => ({ key: fu, label: fu === 80 ? '80〜' : fu === 30 ? '〜30' : `${fu}`, prize: cell(fu, false) }));
+  if (premium) cells.push({ key: 'yakuman', label: '役満', prize: cell(0, true) });
+  return cells;
 }
 
-/** 次に正解したときの連続正解の倍率（combo はここまでの連続正解数） */
-export function comboMult(combo: number): number {
-  return Math.min(ECONOMY.comboMax, 1 + ECONOMY.comboStep * Math.max(0, combo));
+/** 手の符が目盛りのどのマスに入るか */
+export function fuScaleKey(fu: number, yakuman: boolean): FuScaleCell['key'] {
+  if (yakuman) return 'yakuman';
+  const f = prizeFu(fu, false);
+  if (f >= 80) return 80;
+  return Math.max(30, Math.floor(f / 10) * 10);
 }

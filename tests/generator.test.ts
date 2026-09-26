@@ -54,24 +54,26 @@ describe('generateHandQuestion', () => {
   }
 });
 
-describe('確変ブースト', () => {
-  it('実戦で役満が3割以上出る・すべて正しい和了形', () => {
+describe('超大当りの BONUS', () => {
+  it('実戦で役満が約3割・すべて正しい和了形', () => {
     const rng = mulberry32(99);
     let yakuman = 0;
     for (let i = 0; i < 1000; i++) {
-      const q = generateHandQuestion({ mode: 'jissen', rules: DEFAULT_RULES, filters: anyFilter, rng, boost: true });
+      const q = generateHandQuestion({ mode: 'jissen', rules: DEFAULT_RULES, filters: anyFilter, rng, premium: true });
       expect(decompose(q.hand, q.sit.tsumo).length).toBeGreaterThan(0);
       const counts = toCounts([...allTiles(q.hand), ...q.sit.doraIndicators, ...q.sit.uraIndicators]);
       expect(Math.max(...counts)).toBeLessThanOrEqual(4);
       if (q.ev.yakuman) yakuman++;
     }
-    expect(yakuman).toBeGreaterThan(300);
+    expect(yakuman).toBeGreaterThan(250);
+    expect(yakuman).toBeLessThan(380);
   });
-  it('早見で13翻・11翻が増える', () => {
+  it('早見で13翻が約3割', () => {
     const rng = mulberry32(5);
     let big = 0;
-    for (let i = 0; i < 1000; i++) if (generateHayami(DEFAULT_RULES, anyFilter, rng, true).han >= 11) big++;
-    expect(big).toBeGreaterThan(150);
+    for (let i = 0; i < 1000; i++) if (generateHayami(DEFAULT_RULES, anyFilter, rng, true).han === 13) big++;
+    expect(big).toBeGreaterThan(250);
+    expect(big).toBeLessThan(380);
   });
 });
 
@@ -108,24 +110,24 @@ describe('符の分布', () => {
   }
 });
 
-describe('大当りのラウンド問題', () => {
-  it('実戦：満貫以上が7割以上、役満は5〜20%', () => {
+describe('通常時の分布', () => {
+  it('実戦：満貫以上は半分未満、役満は4%未満', () => {
     const rng = mulberry32(21);
     let limit = 0;
     let yakuman = 0;
     const n = 1000;
     for (let i = 0; i < n; i++) {
-      const q = generateHandQuestion({ mode: 'jissen', rules: DEFAULT_RULES, filters: anyFilter, rng, round: true });
-      expect(decompose(q.hand, q.sit.tsumo).length).toBeGreaterThan(0);
+      const q = generateHandQuestion({ mode: 'jissen', rules: DEFAULT_RULES, filters: anyFilter, rng });
       if (q.ev.score.limit) limit++;
       if (q.ev.yakuman) yakuman++;
     }
-    expect(limit / n).toBeGreaterThan(0.7);
-    expect(yakuman / n).toBeGreaterThan(0.05);
-    expect(yakuman / n).toBeLessThan(0.2);
+    expect(limit / n).toBeLessThan(0.5);
+    expect(yakuman / n).toBeLessThan(0.04);
   });
-  it('早見：すべて5翻以上', () => {
+  it('早見：13翻は1%程度', () => {
     const rng = mulberry32(22);
-    for (let i = 0; i < 500; i++) expect(generateHayami(DEFAULT_RULES, anyFilter, rng, false, true).han).toBeGreaterThanOrEqual(5);
+    let big = 0;
+    for (let i = 0; i < 2000; i++) if (generateHayami(DEFAULT_RULES, anyFilter, rng).han === 13) big++;
+    expect(big / 2000).toBeLessThan(0.03);
   });
 });

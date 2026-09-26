@@ -326,7 +326,8 @@
 }
 .b-table {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 4px;
 }
 .b-cell {
@@ -1107,19 +1108,28 @@ body.busy .bet-box .bar {
 }
 
 /* 液晶帯：台の名前と称号 */
-#machine .m-spec:empty {
-  display: none;
+/* 台の名前は台選びのボタンを兼ねる（液晶帯のどこをタップしても開く） */
+#machine .lcd {
+  cursor: pointer;
 }
 #machine .m-spec {
-  padding: 0 6px;
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, var(--gold) 70%, transparent);
   border-radius: 4px;
-  background: var(--gold);
-  color: #000;
+  background: transparent;
+  color: var(--gold);
+  font: inherit;
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.08em;
   align-self: center;
+  cursor: pointer;
 }
+#machine .m-spec:focus-visible {
+  outline: 2px solid var(--gold-hot);
+  outline-offset: 2px;
+}
+
 #machine .m-title {
   flex: 1;
   text-align: right;
@@ -1160,4 +1170,215 @@ body.busy .bet-box .bar {
   #machine[data-look='rainbow']::after {
     animation: none;
   }
+}
+
+/* ---- BONUS：連続正解の倍率の階段 */
+.b-ladder {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--gold) 45%, #555);
+}
+.b-ladder small {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 10px;
+  margin-right: 2px;
+  color: color-mix(in srgb, var(--gold) 75%, #888);
+}
+.b-ladder span {
+  font-size: 10px;
+  opacity: 0.6;
+}
+.b-ladder i {
+  font-style: normal;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.b-ladder i.past {
+  color: #f3e3a6;
+}
+.b-ladder i.now {
+  background: linear-gradient(180deg, #fff3b0, var(--gold-hot));
+  color: #231600;
+  box-shadow: 0 0 10px rgba(255, 216, 74, 0.7);
+}
+.b-ladder i.now.up {
+  animation: ladder-up 0.6s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+@keyframes ladder-up {
+  0% { transform: scale(1.8); filter: brightness(2); }
+  100% { transform: scale(1); filter: none; }
+}
+.b-ladder i.now:last-of-type {
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff);
+  color: #111;
+}
+.b-cell small u {
+  text-decoration: none;
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+.b-cell.ym {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+.b-cell.ym b {
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---- BONUS の出題時の予告（符が高い手ほど熱い） */
+.m-msg.n-red {
+  color: #ff5f7a;
+  text-shadow: 0 0 10px #ff3b5c;
+}
+.m-msg.n-gold {
+  color: var(--gold-hot);
+  text-shadow: 0 0 12px #ffb300;
+}
+.m-msg.n-rainbow {
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: pop 0.3s cubic-bezier(0.2, 1.6, 0.4, 1), slide-bg 1s linear infinite;
+}
+
+/* ---- 全問正解の上乗せ抽選 */
+.banner.uwanose {
+  background: linear-gradient(180deg, #fff3b0, var(--gold-hot));
+  color: #231600;
+  box-shadow: 0 0 60px rgba(255, 216, 74, 0.5);
+}
+.uwa-roll {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 18px 48px;
+  border-radius: 14px;
+  background: rgba(7, 7, 10, 0.85);
+  box-shadow: inset 0 0 0 2px var(--gold);
+  font-family: 'JetBrains Mono', monospace;
+}
+.uwa-roll small {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 0.2em;
+}
+.uwa-roll b {
+  font-size: clamp(56px, 14vw, 110px);
+  font-weight: 800;
+  color: #f3e3a6;
+  line-height: 1;
+}
+.uwa-roll em {
+  font-style: normal;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold-hot);
+}
+.uwa-roll.done {
+  animation: pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  box-shadow: inset 0 0 0 2px var(--gold-hot), 0 0 40px rgba(255, 216, 74, 0.5);
+}
+.uwa-roll.done.gold b {
+  color: var(--gold-hot);
+  text-shadow: 0 0 24px #ffb300;
+}
+.uwa-roll.done.rainbow b {
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+  .b-ladder i.now.up,
+  .uwa-roll.done {
+    animation: none;
+  }
+}
+
+/* ---- 計器の上の細い帯：今日のミッション（タップで一覧） */
+#mission-strip {
+  display: none;
+}
+:root[data-play='normal'] #mission-strip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 24px;
+  padding: 0 10px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 7px;
+  background: var(--sub-bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--sub);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+:root[data-play='normal'] body[data-phase='summary'] #mission-strip {
+  display: none;
+}
+#mission-strip small {
+  flex: none;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--main);
+}
+#mission-strip span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+#mission-strip i {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--main);
+  opacity: 0.55;
+  transition: width 0.4s;
+}
+#mission-strip.all span {
+  color: var(--main);
+}
+#mission-strip.flash {
+  animation: mission-flash 1.2s ease-out;
+}
+@keyframes mission-flash {
+  0%,
+  30% {
+    background: var(--main);
+    color: #111;
+  }
+  100% {
+    background: var(--sub-bg);
+  }
+}
+#mission-strip.flash small {
+  color: inherit;
+}
+@media (prefers-reduced-motion: reduce) {
+  #mission-strip.flash {
+    animation: none;
+  }
+}
+/* BONUS 中は台を切り替えられないので、台の名前は隠して BONUS の表示を広く取る */
+#machine.bonus .m-spec {
+  display: none;
 }

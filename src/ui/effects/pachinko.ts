@@ -503,6 +503,35 @@ export class Fx {
   }
 
   /** 大当り終了：出玉合計 → V 入賞 → 確変分岐 */
+  /** 全問正解の上乗せ抽選：倍率のルーレットが回って止まる */
+  async uwanose(mult: number, base: number, candidates: number[]): Promise<void> {
+    if (!this.enabled) return;
+    this.skipped = false;
+    this.show('<div class="banner uwanose"><span>全問正解!!</span><small>上乗せ抽選</small></div>', this.full ? 'rays gold-rays' : 'dim');
+    sfx.kakuhen();
+    await this.sleep(900);
+    if (this.skipped) return;
+    const steps = this.full ? 16 : 6;
+    for (let i = 0; i < steps; i++) {
+      const m = i === steps - 1 ? mult : candidates[i % candidates.length];
+      this.show(`<div class="uwa-roll${i === steps - 1 ? ' done' : ''}"><small>上乗せ</small><b>×${m}</b></div>`, 'dim');
+      sfx.reelTick();
+      await this.sleep(60 + i * i * 2.2);
+      if (this.skipped) return;
+    }
+    const tier = mult >= 10 ? 'rainbow' : mult >= 5 ? 'gold' : '';
+    this.show(
+      `<div class="uwa-roll done ${tier}"><small>上乗せ</small><b>×${mult}</b><em>+${(base * (mult - 1)).toLocaleString()} yan</em></div>`,
+      mult >= 5 ? 'rays gold-rays' : 'rays',
+    );
+    this.particles.burst(innerWidth / 2, innerHeight * 0.5, mult >= 5 ? 120 : 60, 'coin', 1.3);
+    this.flash(mult >= 5 ? 3 : 1);
+    (mult >= 10 ? sfx.yakuman : sfx.fanfare)();
+    sfx.coins(mult >= 5 ? 16 : 8, 1.2);
+    await this.sleep(1600);
+    this.clear();
+  }
+
   async jackpotOutro(o: { kakuhen: boolean; premium: boolean; rush: boolean; chain: number; total: number }): Promise<void> {
     if (!this.enabled) return;
     this.skipped = false;

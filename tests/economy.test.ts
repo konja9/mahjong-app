@@ -7,11 +7,13 @@ import {
   applyDelta,
   comboMult,
   costFor,
+  drawUwanose,
   freshWallet,
+  fuScale,
+  fuScaleKey,
   isBankrupt,
-  paytableKey,
-  paytableRows,
   roundPrize,
+  uwanoseMean,
 } from '../src/ui/machine/economy';
 import { Machine, PREMIUM_SYMBOL } from '../src/ui/machine/machine';
 import { type MachineSpec, SPECS } from '../src/ui/machine/specs';
@@ -37,15 +39,18 @@ describe('yan', () => {
     expect(costFor(true, true, true)).toBe(40);
     expect(costFor(false, false, true)).toBe(240);
   });
-  it('ラウンド賞金：打点・親・速答・連続・PREMIUM・ハイローラー', () => {
-    const base = { mode: 'jissen' as Mode, limit: '満貫' as const, dealer: false, fast: false, combo: 1, premium: false, highRoller: false };
+  it('ラウンド賞金：符・速答・連続・PREMIUM・ハイローラー（翻と親子では変わらない）', () => {
+    const base = { mode: 'jissen' as Mode, fu: 40, yakuman: false, fast: false, combo: 1, premium: false, highRoller: false };
     const v = roundPrize(base);
-    expect(roundPrize({ ...base, limit: '役満' })).toBeGreaterThan(v * 10);
-    expect(roundPrize({ ...base, dealer: true })).toBeGreaterThan(v);
+    expect(roundPrize({ ...base, fu: 70 })).toBeGreaterThan(v);
+    expect(roundPrize({ ...base, fu: 30 })).toBeLessThan(v);
+    expect(roundPrize({ ...base, fu: 0, yakuman: true })).toBeGreaterThan(v * 5);
     expect(roundPrize({ ...base, fast: true })).toBeGreaterThan(v);
-    expect(roundPrize({ ...base, combo: 20 })).toBe(roundPrize({ ...base, combo: 6 }));
-    expect(roundPrize({ ...base, combo: 6 })).toBeGreaterThan(v);
-    expect(roundPrize({ ...base, premium: true, highRoller: true })).toBeGreaterThanOrEqual(v * 4.9);
+    expect(roundPrize({ ...base, combo: 20 })).toBe(roundPrize({ ...base, combo: 5 }));
+    expect(roundPrize({ ...base, combo: 5 })).toBeGreaterThanOrEqual(v * 4.5);
+    expect(roundPrize({ ...base, premium: true, highRoller: true })).toBeGreaterThanOrEqual(v * 4.5);
+    // 早見の満貫以上（符なし）は30符ぶん
+    expect(roundPrize({ ...base, mode: 'hayami', fu: 0 })).toBe(roundPrize({ ...base, mode: 'hayami', fu: 30 }));
   });
   it('破産判定と推移', () => {
     let w = freshWallet();
@@ -78,35 +83,41 @@ export function simulate(
   spec: MachineSpec = SPECS.ama,
 ) {
   const rng = mulberry32(seed);
-  const pick = (round: boolean) => {
-    const q = generateQuestion(mode, DEFAULT_RULES, { seat: 'any', win: 'any' }, rng, false, round);
-    const s = q.mode === 'hayami' ? q.score : q.ev.score;
-    return { limit: s.limit, dealer: s.dealer, yakuman: q.mode !== 'hayami' && q.ev.yakuman > 0 };
+  const pick = (premium: boolean) => {
+    const q = generateQuestion(mode, DEFAULT_RULES, { seat: 'any', win: 'any' }, rng, premium);
+    return q.mode === 'hayami'
+      ? { fu: q.han >= 5 ? 0 : q.fu, yakuman: q.han >= 13 }
+      : { fu: q.ev.yakuman ? 0 : q.ev.fu.fu, yakuman: q.ev.yakuman > 0 };
   };
-  const roundPool = Array.from({ length: 800 }, () => pick(true));
   const normalPool = Array.from({ length: 800 }, () => pick(false));
+  const premiumPool = Array.from({ length: 800 }, () => pick(true));
   const m = new Machine(() => 'off', rng, spec);
   let spent = 0;
   let won = 0;
   const jackpot = (premium: boolean) => {
+    const pool = premium ? premiumPool : normalPool;
     let combo = 0;
+    let total = 0;
+    let perfect = true;
     for (let k = 0; k < spec.rounds; k++) {
-      const q = roundPool[Math.floor(rng() * roundPool.length)];
-      if (rng() < accuracy * 0.95) {
+      const q = pool[Math.floor(rng() * pool.length)];
+      if (rng() < accuracy) {
         combo++;
-        won += roundPrize({ mode, limit: q.limit, dealer: q.dealer, fast: rng() < fastRate, combo, premium, highRoller, spec });
-      } else combo = 0;
+        total += roundPrize({ mode, fu: q.fu, yakuman: q.yakuman, fast: rng() < fastRate, combo, premium, highRoller, spec });
+      } else {
+        combo = 0;
+        perfect = false;
+      }
     }
+    if (perfect) total *= drawUwanose(rng, premium);
+    won += total;
   };
   for (let i = 0; i < questions; i++) {
     const correct = rng() < accuracy;
     const fast = correct && rng() < fastRate;
     spent += costFor(correct, fast, highRoller, spec);
     if (!correct) continue;
-    const q = normalPool[Math.floor(rng() * normalPool.length)];
-    // 役満直撃（通常時のみ）
-    if (q.yakuman && !m.rush) m.holds.unshift({ hit: true, kakuhen: true, color: 4 });
-    else m.enter(1);
+    m.enter(1);
     for (let r = m.spin(); r; r = m.spin()) {
       if (r.hit) jackpot(r.symbols[0] === PREMIUM_SYMBOL);
       m.settle(r);
@@ -148,29 +159,33 @@ describe('経済バランス（シミュレーション）', () => {
   });
 });
 
-describe('BONUS の賞金表', () => {
-  it('各マスは roundPrize と一致し、打点の順に高い', () => {
+describe('BONUS の符の目盛り', () => {
+  it('各マスは roundPrize と一致し、符の順に高い。役満は超大当りだけ', () => {
     for (const mode of ['hayami', 'fu', 'jissen'] as Mode[]) {
       for (const premium of [false, true]) {
         for (const hr of [false, true]) {
-          const rows = paytableRows(mode, premium, hr);
-          expect(rows.map((r) => r.key)).toEqual(['under', '満貫', '跳満', '倍満', '三倍満', '役満']);
-          for (const r of rows) {
-            const limit = r.key === 'under' ? '' : r.key;
-            expect(paytableKey(limit)).toBe(r.key);
-            expect(r.prize).toBe(
-              roundPrize({ mode, limit, dealer: false, fast: false, combo: 1, premium, highRoller: hr }),
-            );
-          }
-          for (let i = 1; i < rows.length; i++) expect(rows[i].prize).toBeGreaterThan(rows[i - 1].prize);
+          const cells = fuScale(mode, premium, hr);
+          expect(cells.some((c) => c.key === 'yakuman')).toBe(premium);
+          for (let i = 1; i < cells.length; i++) expect(cells[i].prize).toBeGreaterThan(cells[i - 1].prize);
         }
       }
     }
   });
-
-  it('連続正解の倍率は 1.0 から 0.1 ずつ上がり最大 1.5', () => {
-    expect(comboMult(0)).toBe(1);
-    expect(comboMult(2)).toBeCloseTo(1.2);
-    expect(comboMult(9)).toBe(ECONOMY.comboMax);
+  it('手の符からマスを引く', () => {
+    expect(fuScaleKey(20, false)).toBe(30);
+    expect(fuScaleKey(25, false)).toBe(30);
+    expect(fuScaleKey(0, false)).toBe(30);
+    expect(fuScaleKey(40, false)).toBe(40);
+    expect(fuScaleKey(110, false)).toBe(80);
+    expect(fuScaleKey(0, true)).toBe('yakuman');
+  });
+  it('連続正解の倍率は階段状で、上限で止まる', () => {
+    expect(ECONOMY.comboLadder.map((_, i) => comboMult(i))).toEqual(ECONOMY.comboLadder);
+    expect(comboMult(99)).toBe(ECONOMY.comboLadder.at(-1));
+  });
+  it('上乗せは超大当りのほうが期待値が高く、最低 ×3', () => {
+    expect(uwanoseMean(true)).toBeGreaterThan(uwanoseMean(false));
+    const rng = mulberry32(3);
+    for (let i = 0; i < 200; i++) expect(drawUwanose(rng, true)).toBeGreaterThanOrEqual(3);
   });
 });

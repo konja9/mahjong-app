@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeChoices } from '../src/core/choices';
 import { generateQuestion } from '../src/core/generator';
 import { DEFAULT_RULES } from '../src/core/rules';
-import { formatAnswer } from '../src/core/score';
+import { calcScore, formatAnswer } from '../src/core/score';
 
 function mulberry32(seed: number) {
   return () => {
@@ -32,6 +32,33 @@ describe('makeChoices', () => {
         expect(correct[0].label).toBe(expected);
         for (const c of choices) expect(pattern(c.label)).toBe(pattern(expected));
       }
+    });
+  }
+
+  for (const mode of ['hayami', 'jissen'] as const) {
+    it(`${mode}: BONUS の4翻以下は、誤答の大半が同じ翻で符だけ違う点数`, () => {
+      const rng = mulberry32(mode.length * 13);
+      let same = 0;
+      let total = 0;
+      for (let i = 0; i < 600; i++) {
+        const q = generateQuestion(mode, DEFAULT_RULES, { seat: 'any', win: 'any' }, rng);
+        const han = q.mode === 'hayami' ? q.han : q.mode === 'jissen' ? q.ev.han : 0;
+        const s = q.mode === 'hayami' ? q.score : q.mode === 'jissen' ? q.ev.score : null;
+        if (!s || han >= 5 || s.limit) continue;
+        const labels = new Set(
+          [20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 110].map((fu) =>
+            formatAnswer(calcScore(han, fu, s.dealer, s.tsumo, DEFAULT_RULES)),
+          ),
+        );
+        const choices = makeChoices(q, DEFAULT_RULES, rng, true);
+        expect(choices).toHaveLength(4);
+        expect(new Set(choices.map((c) => c.label)).size).toBe(4);
+        for (const c of choices.filter((c) => !c.correct)) {
+          total++;
+          if (labels.has(c.label)) same++;
+        }
+      }
+      expect(same / total).toBeGreaterThan(0.85);
     });
   }
 });

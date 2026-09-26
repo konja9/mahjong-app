@@ -36,6 +36,7 @@ function pointCandidates(
   dealer: boolean,
   tsumo: boolean,
   rules: Rules,
+  fuFocus = false,
 ): Candidate[] {
   const out: Candidate[] = [];
   const limit0 = yakuman0 > 0 || han0 >= 5;
@@ -49,6 +50,8 @@ function pointCandidates(
       if (yakuman0 > 0) dist = 13 - Math.min(han, 13) + 1;
       else if (limit0 && han >= 5) dist = Math.abs(LIMIT_TIER(han) - LIMIT_TIER(han0));
       else dist = Math.abs(han - han0) + Math.abs(fu - (fu0 || 30)) / 10;
+      // 符を試す出題：翻違いは候補が足りないときの埋め草にする
+      if (fuFocus && !limit0 && han !== han0) dist += 10;
       out.push({ label, dist });
     }
   }
@@ -68,8 +71,11 @@ function shuffle<T>(arr: T[], rng: Rng): T[] {
   return a;
 }
 
-/** 正解1つと紛らわしい誤答3つの4択を作る */
-export function makeChoices(q: Question, rules: Rules, rng: Rng = Math.random): Choice[] {
+/**
+ * 正解1つと紛らわしい誤答3つの4択を作る。
+ * fuFocus（BONUS・RUSH）では、4翻以下の手の誤答を「同じ翻で符だけ違う点数」にして、符が分からないと当てられないようにする
+ */
+export function makeChoices(q: Question, rules: Rules, rng: Rng = Math.random, fuFocus = false): Choice[] {
   let correct: string;
   let cands: Candidate[];
   if (q.mode === 'fu') {
@@ -78,11 +84,11 @@ export function makeChoices(q: Question, rules: Rules, rng: Rng = Math.random): 
     cands = FU_LIST.filter((f) => fu0 > 50 || f < 70).map((f) => ({ label: `${f}符`, dist: Math.abs(f - fu0) / 10 }));
   } else if (q.mode === 'hayami') {
     correct = formatAnswer(q.score);
-    cands = pointCandidates(q.han, q.fu, 0, q.dealer, q.tsumo, rules);
+    cands = pointCandidates(q.han, q.fu, 0, q.dealer, q.tsumo, rules, fuFocus);
   } else {
     const s = q.ev.score;
     correct = formatAnswer(s);
-    cands = pointCandidates(q.ev.han, q.ev.fu.fu, q.ev.yakuman, s.dealer, s.tsumo, rules);
+    cands = pointCandidates(q.ev.han, q.ev.fu.fu, q.ev.yakuman, s.dealer, s.tsumo, rules, fuFocus);
   }
   const wrong = pickNearest(correct, cands, rng);
   return shuffle(

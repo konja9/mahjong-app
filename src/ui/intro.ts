@@ -2,7 +2,7 @@
  * 初めて開いたときだけ出す3ステップの導入。
  * 「正解 → 玉が入って台が回る → 大当りで BONUS」の流れを先に見せる
  */
-import { ECONOMY, costFor, paytableRows } from './machine/economy';
+import { ECONOMY, costFor, fuScale } from './machine/economy';
 import { FLOW } from './help';
 import { load, save } from './storage';
 
@@ -23,9 +23,10 @@ const VISUALS = [
     <span class="iv-arrow">→</span><span class="iv-reel"><b>7</b><b>7</b><b>7</b></span>
   </div>`,
   `<div class="iv iv-bonus">
-    <div class="b-head"><span class="b-title">ROUND 1/${ECONOMY.rounds}</span><span class="b-pips">${Array.from({ length: ECONOMY.rounds }, (_, i) => `<i class="${i < 1 ? 'on' : ''}"></i>`).join('')}</span></div>
-    <div class="b-table">${paytableRows('jissen', false, false)
-      .map((r) => `<div class="b-cell${r.key === '倍満' ? ' lit' : ''}"><small>${r.label}</small><b>${r.prize}</b></div>`)
+    <div class="b-head"><span class="b-title">ROUND 2/${ECONOMY.rounds}</span><span class="b-pips">${Array.from({ length: ECONOMY.rounds }, (_, i) => `<i class="${i < 2 ? 'on' : ''}"></i>`).join('')}</span></div>
+    <div class="b-ladder"><small>連続</small>${ECONOMY.comboLadder.map((m, i) => `<i class="${i < 1 ? 'past' : i === 1 ? 'now' : ''}">×${m}</i>`).join('<span>›</span>')}</div>
+    <div class="b-table">${fuScale('jissen', false, false)
+      .map((c) => `<div class="b-cell${c.key === 50 ? ' lit' : ''}"><small>${c.label}<u>符</u></small><b>${c.prize}</b></div>`)
       .join('')}</div>
   </div>`,
 ];

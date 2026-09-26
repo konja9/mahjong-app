@@ -11,15 +11,18 @@ import {
   applyDelta,
   comboMult,
   costFor,
+  drawUwanose,
   freshWallet,
+  fuRate,
+  fuScale,
+  fuScaleKey,
   isBankrupt,
   loadWallet,
-  paytableKey,
-  paytableRows,
+  prizeFu,
   roundPrize,
   saveWallet,
 } from './machine/economy';
-import { MachinePanel } from './machine/panel';
+import { type JackpotResult, MachinePanel } from './machine/panel';
 import { practiceScore, speedMultiplier } from '../core/practiceScore';
 import { doraLabel, handExplain, hayamiExplain, situationChips, situationLabel } from './explain';
 import { type Settings, loadSettings, saveSettings } from './settings';
@@ -28,7 +31,7 @@ import { introHtml, introSeen, markIntroSeen } from './intro';
 import { SPECS } from './machine/specs';
 import { dateKey, ensureToday, recordAnswer } from './missions';
 import { renderOdometer } from './odometer';
-import { type ShopTab, buyItem, equipItem, equipped, loadShop, saveShop, shopHtml, unlockMachine } from './shop';
+import { type ShopView, buyItem, equipItem, equipped, loadShop, missionStrip, saveShop, shopHtml, unlockMachine } from './shop';
 import { load, save } from './storage';
 import { type TipId, Tips, tipText } from './tips';
 import { TILE_DEFS, handHtml, tilesInline } from './tileView';
@@ -76,6 +79,22 @@ function questionMeta(q: Question): { dealer: boolean; tsumo: boolean } {
   return { dealer: q.sit.seatWind === EAST, tsumo: q.sit.tsumo };
 }
 
+/** BONUS の賞金に使う手の符と役満（早見の満貫以上は符 0） */
+function handFu(q: Question): { fu: number; yakuman: boolean } {
+  if (q.mode === 'hayami') return { fu: q.han >= 5 ? 0 : q.fu, yakuman: q.han >= 13 };
+  return { fu: q.ev.yakuman ? 0 : q.ev.fu.fu, yakuman: q.ev.yakuman > 0 };
+}
+
+/** BONUS の出題時の予告の熱さ（0 なし・2 赤・3 金・4 虹）。符が高いほど熱いが、ガセもある */
+function fuNotice(fu: number, yakuman: boolean, rng: () => number = Math.random): number {
+  const r = rng();
+  if (yakuman) return 4;
+  if (fu >= 70) return r < 0.6 ? 4 : 3;
+  if (fu >= 50) return r < 0.5 ? 3 : 2;
+  if (fu >= 40) return r < 0.3 ? 2 : 0;
+  return r < 0.12 ? 2 : 0;
+}
+
 function scoreOf(q: Question): ScoreResult {
   return q.mode === 'hayami' ? q.score : q.ev.score;
 }
@@ -101,9 +120,11 @@ export class App {
     n: number;
     total: number;
     combo: number;
+    /** ここまで全問正解か（上乗せ抽選の条件） */
+    perfect: boolean;
     premium: boolean;
     highRoller: boolean;
-    resolve: (total: number) => void;
+    resolve: (r: JackpotResult) => void;
   } | null = null;
   /** 今出ている問題がラウンド問題か */
   private isRoundQ = false;
@@ -124,7 +145,7 @@ export class App {
   private tipsReset = false;
   /** 交換所（台・景品・ミッション） */
   private shop = loadShop();
-  private shopTab: ShopTab = 'machine';
+  private shopView: ShopView = 'items';
 
   constructor(private root: HTMLElement) {
     this.root.innerHTML = SHELL;
@@ -136,6 +157,10 @@ export class App {
         this.checkBankrupt();
       },
       onJackpot: ({ premium }) => this.startRound(premium),
+      onTap: () => {
+        // 演出中・BONUS 中は誤タップで開かないようにする
+        if (!this.practice && !this.busy && !this.round) this.openShop('machine');
+      },
       onEvent: (e) => this.tip(e),
     });
     this.panel.machine.spec = this.spec;
@@ -267,7 +292,7 @@ export class App {
   /** 出題モードの切り替え。ミドル以上の台は実戦のみ */
   private setMode(m: Mode): void {
     if (!this.practice && this.spec.jissenOnly && m !== 'jissen') {
-      this.toast(`${this.spec.name}の台は実戦のみです。交換所で甘デジに戻すと切り替えられます`);
+      this.toast(`${this.spec.name}の台は実戦のみです。液晶帯の台選びで甘デジに戻すと切り替えられます`);
       return;
     }
     this.update({ mode: m });
@@ -339,12 +364,14 @@ export class App {
     if (this.round) this.round.n++;
     document.body.classList.toggle('bonus', this.isRoundQ);
     this.renderBonus();
-    // 確変中は役満（高打点）が出やすい。ラウンド問題は高打点中心
-    const boost = !this.practice && this.panel.rush && !this.isRoundQ;
-    this.q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, boost, this.isRoundQ);
+    // BONUS・RUSH の出題は通常時と同じ分布。超大当りの BONUS だけ役満が出やすい
+    const premium = this.isRoundQ && !!this.round?.premium;
+    this.q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, premium);
     this.input = '';
     this.picked = -1;
-    this.choices = this.isChoice ? makeChoices(this.q, this.s.rules) : [];
+    // BONUS・RUSH の4択は、誤答を同じ翻で符だけ違う点数にして符を試す
+    const fuFocus = !this.practice && (this.isRoundQ || this.panel.rush);
+    this.choices = this.isChoice ? makeChoices(this.q, this.s.rules, Math.random, fuFocus) : [];
     this.setPhase('answering');
     this.startedAt = performance.now();
     this.renderQuestion();
@@ -361,6 +388,10 @@ export class App {
     this.startTimer();
     this.startBetRing();
     this.renderNet();
+    if (this.isRoundQ && this.fxLevel !== 'off') {
+      const h = handFu(this.q);
+      this.panel.fuNotice(fuNotice(h.fu, h.yakuman));
+    }
   }
 
   /** ハイローラーの切り替え（次の問題から反映。ラウンドの倍率は大当り時点で固定） */
@@ -380,8 +411,8 @@ export class App {
     $('#meter').classList.toggle('hr', on);
   }
 
-  /** BONUS の液晶表示（ラウンド・連続の倍率・賞金表）。result は直前の回答で光らせるマス */
-  private renderBonus(result: { lit?: string; miss?: string } = {}): void {
+  /** BONUS の液晶表示（ラウンド・連続の倍率・符の目盛り）。result は直前の回答で光らせるマス */
+  private renderBonus(result: { lit?: number | string; miss?: number | string; up?: boolean } = {}): void {
     const r = this.round;
     if (!r || this.practice) {
       this.panel.bonus(null);
@@ -390,18 +421,21 @@ export class App {
     this.panel.bonus({
       n: r.n,
       rounds: this.spec.rounds,
-      mult: comboMult(r.combo),
-      rows: paytableRows(this.s.mode, r.premium, r.highRoller, this.spec),
+      combo: r.combo,
+      ladder: ECONOMY.comboLadder,
+      cells: fuScale(this.s.mode, r.premium, r.highRoller, this.spec),
+      rate: fuRate(this.s.mode, r.premium, r.highRoller, this.spec),
       lit: result.lit,
       miss: result.miss,
+      up: result.up,
       premium: r.premium,
     });
   }
 
-  /** 大当り：ラウンド問題を出題し、終わったら出玉合計を返す */
-  private startRound(premium: boolean): Promise<number> {
+  /** 大当り：ラウンド問題を出題し、終わったら出玉合計（と上乗せ）を返す */
+  private startRound(premium: boolean): Promise<JackpotResult> {
     return new Promise((resolve) => {
-      this.round = { n: 0, total: 0, combo: 0, premium, highRoller: this.s.highRoller, resolve };
+      this.round = { n: 0, total: 0, combo: 0, perfect: true, premium, highRoller: this.s.highRoller, resolve };
       this.tips.first('firstHit');
       this.renderBonus();
       this.renderProgress();
@@ -417,7 +451,12 @@ export class App {
     this.isRoundQ = false;
     document.body.classList.remove('bonus');
     this.panel.bonus(null);
-    r.resolve(r.total);
+    // 全問正解なら上乗せ抽選。上乗せ分は演出のあとで所持金に入る
+    if (r.perfect && r.total > 0) {
+      const mult = drawUwanose(Math.random, r.premium);
+      const add = r.total * (mult - 1);
+      r.resolve({ total: r.total + add, uwanose: { mult, base: r.total, pay: () => this.changeBalance(add, 1200) } });
+    } else r.resolve({ total: r.total });
   }
 
   /** 回答にかかった時間（発展リーチ・大当りで止まっていた時間は除く） */
@@ -693,12 +732,12 @@ export class App {
         const r = this.round;
         const mult = comboMult(r.combo);
         r.combo++;
-        const s = scoreOf(this.q);
+        const h = handFu(this.q);
         const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
         const prize = roundPrize({
           mode: this.s.mode,
-          limit: s.limit,
-          dealer: s.dealer,
+          fu: h.fu,
+          yakuman: h.yakuman,
           fast,
           combo: r.combo,
           premium: r.premium,
@@ -706,17 +745,17 @@ export class App {
           spec: this.spec,
         });
         r.total += prize;
-        // 賞金の内訳：賞金表のマス × 親 × 速答 × 連続
-        const key = paytableKey(s.limit);
-        const row = paytableRows(this.s.mode, r.premium, r.highRoller, this.spec).find((x) => x.key === key)!;
+        // 賞金の内訳：符 × レート × 速答 × 連続
+        const pf = prizeFu(h.fu, h.yakuman);
+        const rate = fuRate(this.s.mode, r.premium, r.highRoller, this.spec);
         const factors = [
-          `${row.label} ${row.prize.toLocaleString()}`,
-          s.dealer ? `親×${ECONOMY.dealerMult}` : '',
+          h.yakuman ? `役満(${pf}符)` : h.fu ? `${h.fu}符` : `満貫以上(${pf}符)`,
+          `×${rate.toFixed(2).replace(/\.?0+$/, '')}`,
           fast ? `速答×${ECONOMY.fastMult}` : '',
-          mult > 1 ? `連続×${mult.toFixed(1)}` : '',
+          mult > 1 ? `連続×${mult}` : '',
         ].filter(Boolean);
         extra = `<span class="prize">+${prize.toLocaleString()} yan</span><span class="muted breakdown">${factors.join(' ')}</span>`;
-        this.renderBonus({ lit: key });
+        this.renderBonus({ lit: fuScaleKey(h.fu, h.yakuman), up: comboMult(r.combo) > mult });
         this.fx.roundWin(prize, answerEl, $('#net'), () => this.changeBalance(prize, 900));
       } else if (!this.practice && elapsed <= ECONOMY.fastSeconds[this.s.mode]) {
         this.tip('fast');
@@ -726,18 +765,14 @@ export class App {
       const streak = ss.streak;
       if (!this.practice) {
         this.fx.hit(streak, answerEl);
-        // 正解＝始動口入賞。通常時の役満は直撃で確変大当り確定。ラウンド中は台に玉を入れない
+        // 正解＝始動口入賞。ラウンド中は台に玉を入れない
         if (!this.isRoundQ) {
-          if (this.q.mode !== 'hayami' && this.q.ev.yakuman > 0 && !this.panel.rush) this.panel.direct();
-          else {
-            this.tutorialHit();
-            void this.panel.enter(1, answerEl);
-          }
+          this.tutorialHit();
+          void this.panel.enter(1, answerEl);
         }
-        // ラウンド中はほぼ毎問が高い手なので、役満以外の大演出は省いてテンポを保つ
-        const t = this.isRoundQ && tier < 3 ? 0 : tier;
-        // コインは実際にお金が入るとき（BONUS）だけ。通常時の満貫・跳満は役名と火花だけ
-        void this.fx.win(t, label, answerEl, this.isRoundQ).then(async () => {
+        // BONUS の出玉演出は符の高さで決める（難しい手ほど派手）。通常時は打点の役名と火花だけ
+        const w = this.isRoundQ ? this.fuTier() : { tier, label };
+        void this.fx.win(w.tier, w.label, answerEl, this.isRoundQ).then(async () => {
           if (this.phase === 'result') await this.fx.milestone(streak);
         });
       }
@@ -745,7 +780,9 @@ export class App {
       ss.streak = 0;
       if (this.isRoundQ && this.round) {
         this.round.combo = 0;
-        this.renderBonus({ miss: paytableKey(scoreOf(this.q).limit) });
+        this.round.perfect = false;
+        const h = handFu(this.q);
+        this.renderBonus({ miss: fuScaleKey(h.fu, h.yakuman) });
       }
       ss.misses.push({ q: this.q, input: yours });
       // 通常時のお金は計器だけで見せる。BONUS の外れはパンク
@@ -770,6 +807,16 @@ export class App {
       const res = $('#result');
       if (main) main.scrollTo({ top: Math.max(0, res.offsetTop - main.offsetTop - 8), behavior: 'smooth' });
     }
+  }
+
+  /** BONUS の正解演出の段階（符が高いほど派手） */
+  private fuTier(): { tier: WinTier; label: string } {
+    const h = handFu(this.q);
+    if (h.yakuman) return { tier: 3, label: '役満' };
+    if (h.fu >= 70) return { tier: 2, label: `${h.fu}符` };
+    if (h.fu >= 50) return { tier: 1, label: `${h.fu}符` };
+    // 40符以下は出玉のコインだけ（テンポを保つ）
+    return { tier: 0, label: '' };
   }
 
   /** 手の打点に応じた正解演出の段階 */
@@ -1059,7 +1106,9 @@ export class App {
     });
     $('#open-settings').addEventListener('click', () => this.openSettings());
     $('#open-help').addEventListener('click', () => this.openHelp());
-    $('#open-shop').addEventListener('click', () => this.openShop());
+    $('#open-shop').addEventListener('click', () => this.openShop('items'));
+    $('#mission-strip').addEventListener('click', () => this.openShop('missions'));
+    this.renderMissionStrip();
     this.bindShop();
     $('#hr-toggle').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1275,7 +1324,7 @@ export class App {
     this.panel.machine.forceNextHit();
   }
 
-  // ------------------------------------------------------------ 交換所（台・景品・ミッション）
+  // ------------------------------------------------------------ 台選び・交換所・ミッション
 
   private bindShop(): void {
     const dlg = $<HTMLDialogElement>('#shop-dialog');
@@ -1288,8 +1337,7 @@ export class App {
       const b = t.closest<HTMLElement>('button');
       if (!b || b.hasAttribute('disabled')) return;
       const d = b.dataset;
-      if (d.shopTab) this.shopTab = d.shopTab as ShopTab;
-      else if (d.buy) this.pay(buyItem(this.shop, d.buy, this.wallet.balance));
+      if (d.buy) this.pay(buyItem(this.shop, d.buy, this.wallet.balance));
       else if (d.equip) equipItem(this.shop, d.equip);
       else if (d.unlock) this.pay(unlockMachine(this.shop, d.unlock as keyof typeof SPECS, this.wallet.balance));
       else if (d.machine) this.switchMachine(d.machine as keyof typeof SPECS);
@@ -1300,8 +1348,10 @@ export class App {
     dlg.addEventListener('close', () => this.pause('shop', false));
   }
 
-  private openShop(): void {
+  private openShop(view: ShopView): void {
     const dlg = $<HTMLDialogElement>('#shop-dialog');
+    this.shopView = view;
+    dlg.dataset.view = view;
     this.renderShop();
     this.pause('shop', true);
     if (!dlg.open) dlg.showModal();
@@ -1310,10 +1360,10 @@ export class App {
   private renderShop(): void {
     this.shop.missions = ensureToday(this.shop.missions);
     const canSwitch = !this.round && this.panel.idle;
-    $('#shop-dialog').innerHTML = shopHtml(this.shop, this.shopTab, this.wallet.balance, canSwitch);
+    $('#shop-dialog').innerHTML = shopHtml(this.shop, this.shopView, this.wallet.balance, canSwitch);
   }
 
-  /** 交換所での支払い（0 なら何もしない） */
+  /** 台の解放・景品の支払い（0 なら何もしない） */
   private pay(price: number): void {
     if (price > 0) this.changeBalance(-price);
   }
@@ -1354,6 +1404,20 @@ export class App {
     for (const d of done) {
       this.toast(`ミッション達成：${d.label}　+${d.reward.toLocaleString()} yan`);
       this.changeBalance(d.reward, 900);
+    }
+    this.renderMissionStrip(done.length > 0);
+  }
+
+  /** 計器の上の細い帯：今日のミッションの進み具合。達成した瞬間は光らせる */
+  private renderMissionStrip(flash = false): void {
+    const el = $('#mission-strip');
+    const m = missionStrip(this.shop);
+    el.innerHTML = `<small>ミッション ${m.done}/${m.total}</small><span>${m.text}</span><i style="width:${Math.round(m.ratio * 100)}%"></i>`;
+    el.classList.toggle('all', m.done === m.total);
+    if (flash) {
+      el.classList.remove('flash');
+      void el.offsetWidth;
+      el.classList.add('flash');
     }
   }
 
@@ -1501,6 +1565,7 @@ const SHELL = `
     <div id="question"></div>
     <div id="dock">
       <div id="tip" role="status" aria-live="polite" hidden></div>
+      <button id="mission-strip" type="button" aria-label="今日のミッション"></button>
       <div id="meter">
         <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><small>所持</small><b>0</b></div>
         <div class="mt-cell mt-bet"><div id="bet" class="bet-box"></div><button id="hr-toggle" class="mt-hr" type="button" aria-pressed="false" aria-label="ハイローラー（BET×2・賞金×2.5）">×2</button></div>
