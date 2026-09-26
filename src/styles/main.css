@@ -12,7 +12,8 @@
   --tile-red: #c8323c;
   --tile-green: #1d8a50;
   --tile-blue: #2458a6;
-  --tile-back: #d9a522;
+  --tile-back: #1f5c45;
+  --tile-bone: #e6dcc2;
 }
 
 * {
@@ -254,7 +255,7 @@ main {
 
 /* ------------------------------------------------------------ question: hand */
 .q-hand {
-  --tile-h: clamp(40px, 5.3vw, 66px);
+  --tile-h: clamp(44px, 5.8vw, 72px);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -281,7 +282,7 @@ main {
 .tiles-inline {
   display: inline-flex;
   gap: 2px;
-  --tile-h: 34px;
+  --tile-h: 37px;
 }
 .hand {
   display: flex;
@@ -322,14 +323,22 @@ main {
   height: var(--tile-h, 60px);
   width: auto;
   flex: none;
-  filter: drop-shadow(0 3px 0 color-mix(in srgb, var(--tile-edge) 70%, #000));
+  /* 接地の柔らかい影（厚みは SVG の中で描く） */
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.35));
 }
 .tile.sideways {
-  height: calc(var(--tile-h, 60px) * 0.75);
+  /* 横向きは 80×67（縦向き 60×87 と同じ高さの基準で揃える） */
+  height: calc(var(--tile-h, 60px) * 67 / 87);
 }
 .tile.win {
-  filter: drop-shadow(0 0 0 var(--main)) drop-shadow(0 3px 0 var(--main));
-  transform: translateY(-4px);
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.85)) drop-shadow(0 12px 10px rgba(0, 0, 0, 0.45));
+  transform: translateY(-6px);
+}
+.tile-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
 }
 .tile-glyph {
   font-family: 'Noto Serif JP', 'Noto Sans JP', serif;
@@ -1784,7 +1793,7 @@ body.god::before {
 
   /* ---- 手牌の問題 */
   .q-hand {
-    --tile-h: calc((100vw - 32px - 22px) / 14 * 1.333);
+    --tile-h: calc((100vw - 24px - 22px) / 14 * 87 / 60);
     gap: 12px;
   }
   .q-info {
@@ -1807,7 +1816,7 @@ body.god::before {
     gap: 6px;
   }
   .tiles-inline {
-    --tile-h: 28px;
+    --tile-h: 31px;
   }
   .hand {
     gap: 10px 8px;
@@ -1821,10 +1830,10 @@ body.god::before {
     width: 100%;
   }
   .tile {
-    filter: drop-shadow(0 2px 0 color-mix(in srgb, var(--tile-edge) 70%, #000));
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
   }
   .tile.win {
-    transform: translateY(-3px);
+    transform: translateY(-4px);
   }
 
   /* ---- 4択：親指で押しやすい大きさ */
@@ -2562,6 +2571,8 @@ body.busy #answer {
     inset 0 0 0 1px color-mix(in srgb, var(--gold) 70%, transparent),
     inset 0 0 0 4px #07070a,
     inset 0 0 0 5px color-mix(in srgb, var(--gold) 25%, transparent),
+    inset 0 1px 0 6px rgba(255, 255, 255, 0.03),
+    inset 0 14px 28px rgba(0, 0, 0, 0.55),
     0 20px 50px rgba(0, 0, 0, 0.6) !important;
   font-family: 'JetBrains Mono', monospace;
 }

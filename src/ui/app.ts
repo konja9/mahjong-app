@@ -25,9 +25,10 @@ import { doraLabel, handExplain, hayamiExplain, situationChips, situationLabel }
 import { type Settings, loadSettings, saveSettings } from './settings';
 import { type HelpTab, helpHtml } from './help';
 import { introHtml, introSeen, markIntroSeen } from './intro';
+import { renderOdometer } from './odometer';
 import { load, save } from './storage';
 import { type TipId, Tips, tipText } from './tips';
-import { handHtml, tilesInline } from './tileView';
+import { TILE_DEFS, handHtml, tilesInline } from './tileView';
 
 type Phase = 'answering' | 'suspense' | 'result' | 'summary';
 
@@ -91,7 +92,6 @@ export class App {
   private busy = false;
   private pausedAt = 0;
   private wallet: Wallet = loadWallet();
-  private shownBalance = this.wallet.balance;
   private betRaf = 0;
   /** 大当りのラウンド（賞金タイム）。null なら通常時 */
   private round: {
@@ -322,6 +322,11 @@ export class App {
     this.setPhase('answering');
     this.startedAt = performance.now();
     this.renderQuestion();
+    // 問題の切り替え：少し下から現れる
+    const qel = $('#question');
+    qel.classList.remove('q-in');
+    void qel.offsetWidth;
+    qel.classList.add('q-in');
     this.renderInput();
     this.renderProgress();
     $('#result').innerHTML = '';
@@ -452,7 +457,8 @@ export class App {
     const v = r ? r.total : this.wallet.balance - this.session.startBalance;
     el.classList.toggle('bonus', !!r);
     el.classList.toggle('minus', !r && v < 0);
-    el.innerHTML = `<small>${r ? '出玉' : '収支'}</small><b>${v > 0 ? '+' : v < 0 ? '−' : '±'}${Math.abs(v).toLocaleString()}</b>`;
+    el.querySelector('small')!.textContent = r ? '出玉' : '収支';
+    renderOdometer(el.querySelector('b')!, `${v > 0 ? '+' : v < 0 ? '−' : '±'}${Math.abs(v).toLocaleString()}`);
   }
 
   /** 所持金の増減（計器の数字が回り、差額が浮き上がる） */
@@ -468,20 +474,9 @@ export class App {
     const target = this.wallet.balance;
     w.classList.toggle('low', target < ECONOMY.lowWarn);
     if (target < ECONOMY.lowWarn && !this.practice && delta < 0) this.tip('low');
-    if (!animate || this.fxLevel === 'off') {
-      this.shownBalance = target;
-      val.textContent = target.toLocaleString();
-    } else {
-      const from = this.shownBalance;
-      const t0 = performance.now();
-      const step = (now: number) => {
-        const k = Math.min(1, (now - t0) / rollMs);
-        val.textContent = Math.round(from + (target - from) * (1 - (1 - k) ** 3)).toLocaleString();
-        if (k < 1) requestAnimationFrame(step);
-      };
-      this.shownBalance = target;
-      requestAnimationFrame(step);
-    }
+    // 数字は桁ごとに回る（オドメーター）。動きの速さは CSS で決める
+    val.style.setProperty('--odo-ms', `${animate ? rollMs : 0}ms`);
+    renderOdometer(val, target.toLocaleString());
     if (delta) {
       const d = document.createElement('span');
       d.className = `yan-delta ${delta > 0 ? 'up' : 'down'}`;
@@ -510,9 +505,21 @@ export class App {
     const pts = hist.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
     const base = y(ECONOMY.initial).toFixed(1);
     const up = hist[hist.length - 1] >= ECONOMY.initial;
+    // 所持金が増えた区間（＝BONUS の賞金）は金の線で重ねる
+    const gains = hist
+      .slice(1)
+      .map((v, i) => (v > hist[i] ? `M${x(i).toFixed(1)} ${y(hist[i]).toFixed(1)} L${x(i + 1).toFixed(1)} ${y(v).toFixed(1)}` : ''))
+      .join(' ');
+    const last = hist.length - 1;
     el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="${up ? 'up' : 'down'}">
+      <defs><linearGradient id="slump-fill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="currentColor" stop-opacity="0.28"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/>
+      </linearGradient></defs>
+      <polygon points="0,${h} ${pts} ${w},${h}" class="area" fill="url(#slump-fill)"/>
       <line x1="0" x2="${w}" y1="${base}" y2="${base}" class="base"/>
-      <polyline points="${pts}" class="line"/></svg>`;
+      <polyline points="${pts}" class="line"/>
+      ${gains ? `<path d="${gains}" class="gain"/>` : ''}
+      <circle cx="${x(last).toFixed(1)}" cy="${y(hist[last]).toFixed(1)}" r="4" class="end"/></svg>`;
   }
 
   /** 所持金が尽きたら、保留の抽選をすべて待ってから破産判定 */
@@ -1411,4 +1418,5 @@ const SHELL = `
 <dialog id="settings-dialog"></dialog>
 <dialog id="help-dialog"></dialog>
 <dialog id="intro-dialog" class="intro-dialog"></dialog>
+${TILE_DEFS}
 `;

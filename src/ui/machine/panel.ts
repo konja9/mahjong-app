@@ -286,7 +286,7 @@ export class MachinePanel {
       : m.rush
         ? `RUSH${m.data.rushChain > 1 ? ` ${m.data.rushChain}連` : ''}`
         : '通常';
-    this.root.querySelector('.m-st')!.textContent = !bonus && m.rush ? `残り ${m.stLeft}/${ST_SPINS}・役満UP` : '';
+    this.root.querySelector('.m-st')!.textContent = !bonus && m.rush ? `残り${m.stLeft}/${ST_SPINS} 役満UP` : '';
     const holds = this.root.querySelectorAll<HTMLElement>('.hold');
     holds.forEach((h, i) => {
       const hold = m.holds[i];

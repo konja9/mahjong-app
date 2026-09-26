@@ -636,14 +636,23 @@ export class Fx {
     document.body.appendChild(el);
     const mx = (x0 + x1) / 2;
     const my = Math.min(y0, y1) - 120;
-    const anim = el.animate(
-      [
-        { transform: `translate(${x0}px, ${y0}px) scale(0.6)` },
-        { transform: `translate(${mx}px, ${my}px) scale(1.1)`, offset: 0.5 },
-        { transform: `translate(${x1}px, ${y1}px) scale(0.8)` },
-      ],
-      { duration: this.full ? 520 : 300, easing: 'cubic-bezier(0.3, 0.1, 0.5, 1)' },
-    );
+    const frames = [
+      { transform: `translate(${x0}px, ${y0}px) scale(0.6)` },
+      { transform: `translate(${mx}px, ${my}px) scale(1.1)`, offset: 0.5 },
+      { transform: `translate(${x1}px, ${y1}px) scale(0.8)` },
+    ];
+    const timing = { duration: this.full ? 520 : 300, easing: 'cubic-bezier(0.3, 0.1, 0.5, 1)' };
+    const anim = el.animate(frames, timing);
+    // 光の尾：同じ軌道を少し遅れて追う半透明の残像
+    if (this.full) {
+      for (let i = 1; i <= 3; i++) {
+        const t = document.createElement('div');
+        t.className = 'pball trail';
+        t.style.opacity = String(0.45 - i * 0.12);
+        document.body.appendChild(t);
+        t.animate(frames, { ...timing, delay: i * 28, fill: 'backwards' }).onfinish = () => t.remove();
+      }
+    }
     return new Promise((res) => {
       anim.onfinish = () => {
         el.remove();

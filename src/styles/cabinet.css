@@ -721,3 +721,255 @@ body.busy .bet-box .bar {
     animation: none;
   }
 }
+
+/* ============================================================ 液晶帯を本物の液晶に */
+/* リール窓：円筒の陰影・ガラスの反射・走査線・ペイライン */
+#machine .m-screen {
+  position: relative;
+  overflow: hidden;
+}
+#machine .m-screen::before,
+#machine .m-screen::after,
+.reel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+#machine .m-screen::before {
+  background:
+    linear-gradient(to bottom, transparent calc(50% - 0.5px), rgba(255, 216, 74, 0.35) calc(50% - 0.5px), rgba(255, 216, 74, 0.35) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px);
+}
+#machine .m-screen::after,
+.reel::after {
+  background:
+    linear-gradient(118deg, transparent 38%, rgba(255, 255, 255, 0.09) 44%, transparent 52%),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 28%, transparent 72%, rgba(0, 0, 0, 0.75));
+}
+.reel::after {
+  border-radius: inherit;
+}
+
+/* 保留：発光する LED */
+#machine[data-skin='gold'] .hold {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transform: none;
+  background: radial-gradient(circle at 40% 35%, #2c2c33, #09090b 70%);
+  box-shadow: inset 0 1px 2px #000, 0 0 0 1px color-mix(in srgb, var(--gold) 30%, transparent);
+}
+#machine[data-skin='gold'] .hold.on {
+  background: radial-gradient(circle at 40% 35%, #fff 0 16%, var(--lamp) 46%, color-mix(in srgb, var(--lamp) 55%, #000) 100%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--lamp) 60%, transparent),
+    0 0 6px var(--lamp),
+    0 0 16px color-mix(in srgb, var(--lamp) 55%, transparent);
+}
+#machine[data-skin='gold'] .hold.on.rainbow {
+  background: radial-gradient(circle at 40% 35%, #fff 0 16%, transparent 40%),
+    conic-gradient(#ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d);
+}
+
+/* 状態：刻印風の大きな文字 */
+#machine .m-state {
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  background: linear-gradient(180deg, #fbf0c4 0%, #d9b650 55%, #9c7a24 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 0 #000);
+}
+#machine.bonus .m-state {
+  background: linear-gradient(180deg, #fffbe0 0%, var(--gold-hot) 50%, #e0a000 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+@media (min-width: 641px) {
+  #machine .m-state {
+    font-size: 22px;
+  }
+}
+
+/* 回転数：7セグ風（消灯した 888 の上に点灯した数字） */
+#machine .m-spins b {
+  position: relative;
+  display: inline-block;
+  min-width: 3ch;
+  text-align: right;
+  text-shadow: 0 0 6px rgba(243, 227, 166, 0.5);
+}
+#machine .m-spins b::before {
+  content: '888';
+  position: absolute;
+  right: 0;
+  color: rgba(243, 227, 166, 0.05);
+  text-shadow: none;
+}
+
+/* メッセージは細い光の帯に */
+#machine .m-msg:not(:empty) {
+  padding-left: 8px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.07), transparent 80%);
+  border-left: 2px solid currentColor;
+}
+/* 小さいリール（液晶帯）は窓側で陰影を付けるので、リール個別の陰影は付けない */
+#machine .reel::after {
+  display: none;
+}
+
+/* ============================================================ 質感と光 */
+/* ごく薄い粒子・ビネット・盤面のスポットライト */
+#app::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 42% at 50% 46%, rgba(255, 255, 255, 0.035), transparent 70%),
+    radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.5)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.06'/%3E%3C/svg%3E");
+}
+
+/* 計器と選択肢：上面の光と押し込み */
+.mt-cell {
+  background: linear-gradient(180deg, #1d1e25, #141519);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px var(--line),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.choice {
+  background: linear-gradient(180deg, #1e1f26, #15161b);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 3px 0 #07080a,
+    0 8px 14px rgba(0, 0, 0, 0.3);
+}
+.choice:not([disabled]):active,
+.choice.is-picked {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.5),
+    0 1px 0 #07080a;
+}
+.choice kbd {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #3a3d48, #23252c);
+  color: var(--text);
+  box-shadow: 0 1px 0 #000, inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.choice.is-correct,
+.choice.is-wrong,
+.choice.is-dim {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* 精算画面のグラフ：面・BONUS の区間・最後の点 */
+.sum-slump .area {
+  stroke: none;
+}
+.sum-slump .gain {
+  fill: none;
+  stroke: var(--gold-hot);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 3px rgba(255, 216, 74, 0.6));
+}
+.sum-slump .end {
+  fill: var(--main);
+}
+.sum-slump svg.down .end {
+  fill: var(--error);
+}
+
+/* ============================================================ 動きの手触り */
+/* オドメーター：桁ごとの縦の帯 */
+.odo-d {
+  display: inline-block;
+  height: 1.15em;
+  overflow: hidden;
+  vertical-align: top;
+}
+.odo-s {
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--odo-ms, 600ms) cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.odo-s i {
+  height: 1.15em;
+  line-height: 1.15em;
+  font-style: normal;
+}
+.mt-net .odo-s {
+  --odo-ms: 600ms;
+}
+
+/* 問題の切り替え・解説の段階表示 */
+#question.q-in {
+  animation: q-in 0.22s ease-out both;
+}
+#result > *,
+#result .explain .ex-cols > * {
+  animation: rise 0.28s ease-out both;
+}
+#result > :nth-child(2),
+#result .explain .ex-cols > :nth-child(1) {
+  animation-delay: 60ms;
+}
+#result .explain .ex-cols > :nth-child(2) {
+  animation-delay: 120ms;
+}
+#result .explain .ex-cols > :nth-child(3) {
+  animation-delay: 180ms;
+}
+@keyframes q-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* 始動口へ飛ぶ玉の光の尾 */
+.pball.trail {
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+  transform: scale(0.8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #question.q-in,
+  #result > *,
+  #result .explain .ex-cols > * {
+    animation: none;
+  }
+  .odo-s {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* RUSH の残り回転は状態の下の行に回して、途中で切れないようにする */
+  #machine .m-head {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+  #machine .m-st {
+    order: 9;
+    flex-basis: 100%;
+    font-size: 10px;
+    letter-spacing: 0.02em;
+  }
+  #machine .m-st:empty {
+    display: none;
+  }
+  #machine .m-head {
+    gap: 6px;
+  }
+}
