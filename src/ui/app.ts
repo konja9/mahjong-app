@@ -437,10 +437,22 @@ export class App {
     return new Promise((resolve) => {
       this.round = { n: 0, total: 0, combo: 0, perfect: true, premium, highRoller: this.s.highRoller, resolve };
       this.tips.first('firstHit');
+      // 回答待ちの問題があれば、その問題を ROUND 1 にする（BET なし・賞金あり）。
+      // 回答済みなら次の問題から ROUND 1
+      if (this.phase === 'answering' && !this.isRoundQ) {
+        this.round.n = 1;
+        this.isRoundQ = true;
+        document.body.classList.add('bonus');
+        // 4択はまだ選んでいないので、BONUS 用（符違いの誤答）に作り直す
+        if (this.isChoice && this.picked < 0) {
+          this.choices = makeChoices(this.q, this.s.rules, Math.random, true);
+          this.renderInput();
+        }
+        this.startBetRing();
+        this.renderNet();
+      }
       this.renderBonus();
       this.renderProgress();
-      // 回答待ちの問題はそのまま。次の問題からラウンド問題になる
-      if (this.phase === 'answering' && !this.isRoundQ) this.hint(this.compact ? '' : '次の問題から BONUS ラウンド');
     });
   }
 

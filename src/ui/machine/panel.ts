@@ -127,7 +127,7 @@ export class MachinePanel {
       })
       .join('');
     const rate = v.rate.toFixed(2).replace(/\.?0+$/, '');
-    el.innerHTML = `<div class="b-head"><span class="b-title">ROUND ${Math.max(v.n, 1)}/${v.rounds}</span><span class="b-pips">${pips}</span></div>
+    el.innerHTML = `<div class="b-head"><span class="b-title">${v.n ? `ROUND ${v.n}/${v.rounds}` : `次の問題から ROUND 1/${v.rounds}`}</span><span class="b-pips">${pips}</span></div>
       <div class="b-ladder${v.up ? ' up' : ''}"><small>連続</small>${ladder}</div>
       <div class="b-table">${cells}</div>
       <div class="b-note">賞金 ＝ 符 × ${rate}・速答 ×${ECONOMY.fastMult}・全問正解で上乗せ</div>`;

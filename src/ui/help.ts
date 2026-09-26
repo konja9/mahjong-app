@@ -32,7 +32,7 @@ export const FLOW: { title: string; body: string }[] = [
   },
   {
     title: `大当りで BONUS ${ECONOMY.rounds}問`,
-    body: `大当りすると次の${ECONOMY.rounds}問が BONUS ラウンド。BET なしで、正解した手の符が高いほど賞金が入ります。連続正解で倍率が上がり、全問正解なら上乗せ。確変なら RUSH に突入して、さらに当たりやすくなります。`,
+    body: `大当りすると、そのとき出ている問題から${ECONOMY.rounds}問が BONUS ラウンド。BET なしで、正解した手の符が高いほど賞金が入ります。連続正解で倍率が上がり、全問正解なら上乗せ。確変なら RUSH に突入して、さらに当たりやすくなります。`,
   },
 ];
 
