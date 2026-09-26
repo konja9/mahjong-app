@@ -8,6 +8,7 @@ import {
   comboMult,
   costFor,
   drawUwanose,
+  extraRoundsFor,
   freshWallet,
   fuScale,
   fuScaleKey,
@@ -85,9 +86,10 @@ export function simulate(
   const rng = mulberry32(seed);
   const pick = (premium: boolean) => {
     const q = generateQuestion(mode, DEFAULT_RULES, { seat: 'any', win: 'any' }, rng, premium);
+    const ext = extraRoundsFor(q.mode === 'hayami' ? q.score.limit : q.ev.score.limit);
     return q.mode === 'hayami'
-      ? { fu: q.han >= 5 ? 0 : q.fu, yakuman: q.han >= 13 }
-      : { fu: q.ev.yakuman ? 0 : q.ev.fu.fu, yakuman: q.ev.yakuman > 0 };
+      ? { fu: q.han >= 5 ? 0 : q.fu, yakuman: q.han >= 13, ext }
+      : { fu: q.ev.yakuman ? 0 : q.ev.fu.fu, yakuman: q.ev.yakuman > 0, ext };
   };
   const normalPool = Array.from({ length: 800 }, () => pick(false));
   const premiumPool = Array.from({ length: 800 }, () => pick(true));
@@ -99,10 +101,12 @@ export function simulate(
     let combo = 0;
     let total = 0;
     let perfect = true;
-    for (let k = 0; k < spec.rounds; k++) {
+    let extra = 0;
+    for (let k = 0; k < spec.rounds + extra; k++) {
       const q = pool[Math.floor(rng() * pool.length)];
       if (rng() < accuracy) {
         combo++;
+        extra += Math.min(q.ext, ECONOMY.extraRounds.max - extra);
         total += roundPrize({ mode, fu: q.fu, yakuman: q.yakuman, fast: rng() < fastRate, combo, premium, highRoller, spec });
       } else {
         combo = 0;
@@ -185,6 +189,15 @@ describe('BONUS の符の目盛り', () => {
   it('連続正解の倍率は階段状で、上限で止まる', () => {
     expect(ECONOMY.comboLadder.map((_, i) => comboMult(i))).toEqual(ECONOMY.comboLadder);
     expect(comboMult(99)).toBe(ECONOMY.comboLadder.at(-1));
+  });
+  it('満貫以上のラウンド上乗せ', () => {
+    expect(extraRoundsFor('')).toBe(0);
+    expect(extraRoundsFor('満貫')).toBe(1);
+    expect(extraRoundsFor('跳満')).toBe(1);
+    expect(extraRoundsFor('倍満')).toBe(2);
+    expect(extraRoundsFor('三倍満')).toBe(2);
+    expect(extraRoundsFor('役満')).toBe(3);
+    expect(extraRoundsFor('数え役満')).toBe(3);
   });
   it('上乗せは超大当りのほうが期待値が高く、最低 ×2', () => {
     expect(uwanoseMean(true)).toBeGreaterThan(uwanoseMean(false));

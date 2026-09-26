@@ -215,6 +215,18 @@ export class MachinePanel {
     this.msg('確変終了', 'end');
   }
 
+  /** BONUS のラウンド上乗せ（満貫以上の正解） */
+  roundUp(add: number): void {
+    this.msg(`ラウンド上乗せ +${add}R`, 'win');
+    this.root.classList.remove('round-up');
+    void this.root.offsetWidth;
+    this.root.classList.add('round-up');
+    if (this.level() !== 'off') {
+      sfx.lampUp();
+      sfx.round(add);
+    }
+  }
+
   /** RUSH 中の不正解：ST を1回転消費する（抽選なし） */
   missSpin(): void {
     if (!this.machine.rush || this.root.classList.contains('bonus')) return;
@@ -294,7 +306,8 @@ export class MachinePanel {
       const chain = this.machine.data.rushChain;
       await this.fx.jackpotIntro({ premium, rush, chain, rounds: this.machine.spec.rounds });
       if (g !== this.gen) return;
-      // ラウンド問題の間は回答できるようにし、台は止めておく
+      // ラウンド問題の間は回答できるようにし、台は止めておく。BONUS の曲を流す
+      this.fx.bonusBgm(true);
       this.hooks.onBusy(false);
       this.msg(`BONUS ${this.machine.spec.rounds}R`, 'win');
       this.hooks.onEvent?.('jackpot');
@@ -316,6 +329,8 @@ export class MachinePanel {
         if (g !== this.gen) return;
         u.pay();
       }
+      // V入賞の結果を曲でばらさないよう、BONUS の曲はここで止める（確変なら RUSH の曲は突入演出・syncRush で流れる）
+      this.fx.bonusBgm(false);
       await this.fx.jackpotOutro({
         kakuhen: r.kakuhen,
         premium,

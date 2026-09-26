@@ -257,18 +257,32 @@ export const sfx = {
   },
 };
 
-/** 確変中に流れる合成 BGM（スケジューラ方式） */
+export type BgmTheme = 'bonus' | 'rush';
+
+/** テーマごとのコード進行。RUSH は短調で疾走感、BONUS は明るい長調 */
+const BGM_CHORDS: Record<BgmTheme, number[][]> = {
+  rush: [
+    [57, 60, 64, 69],
+    [53, 57, 60, 65],
+    [55, 59, 62, 67],
+    [52, 56, 59, 64],
+  ],
+  bonus: [
+    [60, 64, 67, 72],
+    [57, 60, 64, 69],
+    [53, 57, 60, 65],
+    [55, 59, 62, 67],
+  ],
+};
+
+/** BONUS・RUSH 中に流れる合成 BGM（スケジューラ方式） */
 export const bgm = (() => {
   let timer = 0;
   let step = 0;
   let nextTime = 0;
   let bpm = 150;
-  const chords = [
-    [57, 60, 64, 69],
-    [53, 57, 60, 65],
-    [55, 59, 62, 67],
-    [52, 56, 59, 64],
-  ];
+  let theme: BgmTheme = 'rush';
+  let chords = BGM_CHORDS.rush;
   const schedule = () => {
     const c = ready();
     if (!c || !master) return;
@@ -288,13 +302,17 @@ export const bgm = (() => {
     }
   };
   return {
-    start(tempo = 150): void {
+    /** 曲を流す。別の曲が鳴っていれば切り替え、同じ曲ならテンポだけ合わせる */
+    play(t: BgmTheme, tempo = 150): void {
       bpm = tempo;
       const c = ready();
-      if (!c || timer) return;
+      if (!c) return;
+      if (timer && theme === t) return;
+      theme = t;
+      chords = BGM_CHORDS[t];
       step = 0;
       nextTime = c.currentTime + 0.05;
-      timer = window.setInterval(schedule, 25);
+      if (!timer) timer = window.setInterval(schedule, 25);
     },
     setTempo(tempo: number): void {
       bpm = tempo;
@@ -305,6 +323,9 @@ export const bgm = (() => {
     },
     get playing(): boolean {
       return timer !== 0;
+    },
+    get theme(): BgmTheme | null {
+      return timer ? theme : null;
     },
   };
 })();

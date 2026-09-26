@@ -46,7 +46,7 @@ export function tipText(id: Exclude<TipId, 'firstHit'>, fastSec: number, spec: M
     case 'reach':
       return 'リーチ！ 真ん中もそろえば大当り。保留や予告の色が熱いほど期待大';
     case 'jackpot':
-      return `大当り！ ここから${spec.rounds}問は BONUS。BET なしで、符の高い手を当てるほど賞金。連続正解で倍率アップ`;
+      return `大当り！ ここから${spec.rounds}問は BONUS。BET なしで、符の高い手ほど賞金、満貫以上でラウンド上乗せ`;
     case 'rush':
       return `RUSH 突入！ ${spec.st}回転のあいだ大当り確率 1/${spec.rushOdds}。不正解でも1回転減ります`;
     case 'miss':

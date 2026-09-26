@@ -12,6 +12,7 @@ import {
   comboMult,
   costFor,
   drawUwanose,
+  extraRoundsFor,
   freshWallet,
   fuRate,
   fuScale,
@@ -120,6 +121,8 @@ export class App {
     n: number;
     total: number;
     combo: number;
+    /** 満貫以上の正解で増えたラウンド数 */
+    extra: number;
     /** ここまで全問正解か（上乗せ抽選の条件） */
     perfect: boolean;
     premium: boolean;
@@ -359,7 +362,7 @@ export class App {
       return;
     }
     // ラウンドを消化しきったら大当り終了（台の V・確変分岐へ）
-    if (this.round && this.round.n >= this.spec.rounds) this.endRound();
+    if (this.round && this.round.n >= this.roundCount) this.endRound();
     this.isRoundQ = !!this.round;
     if (this.round) this.round.n++;
     document.body.classList.toggle('bonus', this.isRoundQ);
@@ -392,6 +395,11 @@ export class App {
       const h = handFu(this.q);
       this.panel.fuNotice(fuNotice(h.fu, h.yakuman));
     }
+    // 大当りの時点で音が使えなかった（未操作・音オフから復帰）場合も、問題ごとに曲を合わせ直す
+    if (!this.practice) {
+      if (this.isRoundQ) this.fx.bonusBgm(true);
+      else if (this.panel.rush && !this.busy) this.fx.syncRush(true);
+    }
   }
 
   /** ハイローラーの切り替え（次の問題から反映。ラウンドの倍率は大当り時点で固定） */
@@ -420,7 +428,7 @@ export class App {
     }
     this.panel.bonus({
       n: r.n,
-      rounds: this.spec.rounds,
+      rounds: this.roundCount,
       combo: r.combo,
       ladder: ECONOMY.comboLadder,
       cells: fuScale(this.s.mode, r.premium, r.highRoller, this.spec),
@@ -432,10 +440,15 @@ export class App {
     });
   }
 
+  /** この BONUS の問題数（台のラウンド数＋満貫以上での上乗せ） */
+  private get roundCount(): number {
+    return this.spec.rounds + (this.round?.extra ?? 0);
+  }
+
   /** 大当り：ラウンド問題を出題し、終わったら出玉合計（と上乗せ）を返す */
   private startRound(premium: boolean): Promise<JackpotResult> {
     return new Promise((resolve) => {
-      this.round = { n: 0, total: 0, combo: 0, perfect: true, premium, highRoller: this.s.highRoller, resolve };
+      this.round = { n: 0, total: 0, combo: 0, extra: 0, perfect: true, premium, highRoller: this.s.highRoller, resolve };
       this.tips.first('firstHit');
       // 回答待ちの問題があれば、その問題を ROUND 1 にする（BET なし・賞金あり）。
       // 回答済みなら次の問題から ROUND 1
@@ -766,8 +779,14 @@ export class App {
           fast ? `速答×${ECONOMY.fastMult}` : '',
           mult > 1 ? `連続×${mult}` : '',
         ].filter(Boolean);
-        extra = `<span class="prize">+${prize.toLocaleString()} yan</span><span class="muted breakdown">${factors.join(' ')}</span>`;
+        // 満貫以上はラウンド上乗せ（1回の BONUS で上限あり）
+        const limit = scoreOf(this.q).limit;
+        const add = Math.min(extraRoundsFor(limit), ECONOMY.extraRounds.max - r.extra);
+        if (add > 0) r.extra += add;
+        const ext = add > 0 ? `<span class="round-up">${limit} → +${add}R</span>` : '';
+        extra = `<span class="prize">+${prize.toLocaleString()} yan</span>${ext}<span class="muted breakdown">${factors.join(' ')}</span>`;
         this.renderBonus({ lit: fuScaleKey(h.fu, h.yakuman), up: comboMult(r.combo) > mult });
+        if (add > 0) this.panel.roundUp(add);
         this.fx.roundWin(prize, answerEl, $('#net'), () => this.changeBalance(prize, 900));
       } else if (!this.practice && elapsed <= ECONOMY.fastSeconds[this.s.mode]) {
         this.tip('fast');

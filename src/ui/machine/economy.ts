@@ -1,5 +1,6 @@
 /** ノーマルモードの通貨 yan。パラメータはここに集約する */
 import type { Mode } from '../../core/generator';
+import type { LimitName } from '../../core/score';
 import { load, save } from '../storage';
 import { type MachineSpec, SPECS } from './specs';
 
@@ -26,6 +27,8 @@ export const ECONOMY = {
   fastMult: 1.2,
   /** ラウンド内の連続正解の倍率の階段（1問目 ×1、2問連続 ×1.5 …）。1問ミスで最初に戻る */
   comboLadder: [1, 1.2, 1.5, 2, 3],
+  /** BONUS で満貫以上を正解したときのラウンド上乗せ（満貫・跳満 / 倍満・三倍満 / 役満）と、1回の BONUS の上限 */
+  extraRounds: { mangan: 1, baiman: 2, yakuman: 3, max: 3 },
   /** PREMIUM（赤5筒）大当りのラウンドは 2 倍 */
   premiumMult: 2,
   /** 全問正解の上乗せ抽選：ラウンドで得た賞金に掛ける倍率と重み（PREMIUM は最低 ×3） */
@@ -45,7 +48,7 @@ export const ECONOMY = {
    * 正解率85%・速答5割のプレイヤーの回収率がどのモードでもほぼ100%になるよう
    * tests/economy.test.ts のシミュレーションで決めた値
    */
-  modeScale: { hayami: 0.66, fu: 1.03, jissen: 0.63 } as Record<Mode, number>,
+  modeScale: { hayami: 0.52, fu: 0.88, jissen: 0.48 } as Record<Mode, number>,
   /** ハイローラー：コスト 2 倍・ラウンド賞金 2.5 倍 */
   highRoller: { costMult: 2, prizeMult: 2.5 },
   /** 残りがこれ未満で警告表示 */
@@ -97,6 +100,15 @@ export function roundPrize(p: RoundPrizeInput): number {
   if (p.fast) v *= ECONOMY.fastMult;
   v *= comboMult(p.combo - 1);
   return Math.max(1, Math.round(v));
+}
+
+/** 満貫以上を正解したときのラウンド上乗せ数（満貫未満は 0。4翻40符などの満貫も含む） */
+export function extraRoundsFor(limit: LimitName): number {
+  const e = ECONOMY.extraRounds;
+  if (limit === '') return 0;
+  if (limit === '満貫' || limit === '跳満') return e.mangan;
+  if (limit === '倍満' || limit === '三倍満') return e.baiman;
+  return e.yakuman;
 }
 
 /** 全問正解の上乗せ抽選。倍率を返す */

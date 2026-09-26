@@ -388,7 +388,7 @@ export class Fx {
     if (!this.enabled) return;
     this.skipped = false;
     sfx.kakuhen();
-    if (this.full) bgm.start(150);
+    bgm.play('rush', this.rushTempo());
     this.show('<div class="banner kakuhen"><span>確変突入</span><small>RUSH START</small></div>', this.full ? 'rays' : '');
     if (this.full) this.particles.burst(innerWidth / 2, innerHeight / 2, 80, 'confetti', 1.3);
     await this.sleep(1200);
@@ -399,8 +399,19 @@ export class Fx {
   syncRush(on: boolean): void {
     if (on) {
       this.root.classList.add('kakuhen');
-      if (this.full) bgm.start(150);
+      // BONUS 中は BONUS の曲のまま
+      if (this.enabled && bgm.theme !== 'bonus') bgm.play('rush', this.rushTempo());
     }
+  }
+
+  private rushTempo(): number {
+    return this.root.classList.contains('chou') ? 178 : 150;
+  }
+
+  /** BONUS の曲。on で BONUS の曲にし、off で止める。演出がオフのときは鳴らさない */
+  bonusBgm(on: boolean): void {
+    if (on && this.enabled) bgm.play('bonus', 165);
+    else if (!on) bgm.stop();
   }
 
   /** RUSH 中の連チャン数に応じた演出（5連以上で超確変） */
@@ -408,10 +419,8 @@ export class Fx {
     if (chain >= 5) {
       if (!this.root.classList.contains('chou')) {
         this.root.classList.add('chou');
-        if (this.full) {
-          bgm.setTempo(178);
-          this.startAmbient();
-        }
+        if (bgm.theme === 'rush') bgm.setTempo(178);
+        if (this.full) this.startAmbient();
       }
     }
   }
@@ -446,7 +455,7 @@ export class Fx {
     if (this.skipped) return;
     this.skipped = false;
     this.show(
-      `<div class="rounds"><small>BONUS</small><span class="round-n">${o.rounds}R</span><div class="round-note">高い手を当てて稼げ！</div></div>`,
+      `<div class="rounds"><small>BONUS</small><span class="round-n">${o.rounds}R</span><div class="round-note">符で稼げ！ 満貫以上でラウンド上乗せ</div></div>`,
       this.full ? 'rays gold-rays' : '',
     );
     sfx.round(1);

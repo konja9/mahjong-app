@@ -1382,3 +1382,35 @@ body.busy .bet-box .bar {
 #machine.bonus .m-spec {
   display: none;
 }
+
+/* ---- BONUS のラウンド上乗せ（満貫以上の正解） */
+#machine.round-up .b-pips {
+  animation: round-up 0.9s ease-out;
+}
+#machine.round-up .b-pips i:last-child {
+  animation: pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+@keyframes round-up {
+  0%,
+  40% {
+    filter: drop-shadow(0 0 8px var(--gold-hot)) brightness(1.6);
+  }
+  100% {
+    filter: none;
+  }
+}
+.verdict .round-up {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #fff3b0, var(--gold-hot));
+  color: #231600;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  #machine.round-up .b-pips,
+  #machine.round-up .b-pips i:last-child {
+    animation: none;
+  }
+}

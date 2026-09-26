@@ -32,7 +32,7 @@ export const FLOW: { title: string; body: string }[] = [
   },
   {
     title: `大当りで BONUS ${ECONOMY.rounds}問`,
-    body: `大当りすると、そのとき出ている問題から${ECONOMY.rounds}問が BONUS ラウンド。BET なしで、正解した手の符が高いほど賞金が入ります。連続正解で倍率が上がり、全問正解なら上乗せ。確変なら RUSH に突入して、さらに当たりやすくなります。`,
+    body: `大当りすると、そのとき出ている問題から${ECONOMY.rounds}問が BONUS ラウンド。BET なしで、正解した手の符が高いほど賞金が入ります。連続正解で倍率が上がり、満貫以上を当てるとラウンドが増え、全問正解なら上乗せ。確変なら RUSH に突入して、さらに当たりやすくなります。`,
   },
 ];
 
@@ -82,7 +82,7 @@ function rules(mode: Mode): string {
     <table class="help-table prize">
       ${plain.map((c) => `<tr><th>${c.label}符</th><td>+${c.prize.toLocaleString()} yan</td></tr>`).join('')}
     </table>
-    <p class="help-note">賞金は<b>正解した手の符</b>で決まります（翻・ドラ・親子では増えません。早見の満貫以上は30符ぶん）。速答は×${ECONOMY.fastMult}。ラウンド内の連続正解で ${ECONOMY.comboLadder.map((m) => `×${m}`).join('→')} と上がり、1問外すと×1に戻ります。<b>全問正解</b>ならラウンドの賞金に上乗せ抽選（平均×${uwanoseMean(false).toFixed(1)}）。赤五筒でそろう PREMIUM 大当りは賞金×${ECONOMY.premiumMult}、役満が出やすく（役満 +${cells.at(-1)!.prize.toLocaleString()} yan）、上乗せは最低×${ECONOMY.uwanosePremium[0][0]}。不正解はパンク（賞金なし）ですが、BET はかかりません。</p>
+    <p class="help-note">賞金は<b>正解した手の符</b>で決まります（翻・ドラ・親子では増えません。早見の満貫以上は30符ぶん）。速答は×${ECONOMY.fastMult}。ラウンド内の連続正解で ${ECONOMY.comboLadder.map((m) => `×${m}`).join('→')} と上がり、1問外すと×1に戻ります。<b>満貫以上</b>を正解するとラウンド上乗せ（満貫・跳満 +${ECONOMY.extraRounds.mangan}R、倍満・三倍満 +${ECONOMY.extraRounds.baiman}R、役満 +${ECONOMY.extraRounds.yakuman}R。1回の BONUS で最大 +${ECONOMY.extraRounds.max}R）。<b>全問正解</b>ならラウンドの賞金に上乗せ抽選（平均×${uwanoseMean(false).toFixed(1)}）。赤五筒でそろう PREMIUM 大当りは賞金×${ECONOMY.premiumMult}、役満が出やすく（役満 +${cells.at(-1)!.prize.toLocaleString()} yan）、上乗せは最低×${ECONOMY.uwanosePremium[0][0]}。不正解はパンク（賞金なし）ですが、BET はかかりません。</p>
     <div class="set-sec">その他</div>
     <table class="help-table">
       <tr><th>ハイローラー</th><td>BET ×${ECONOMY.highRoller.costMult}、BONUS の賞金 ×${ECONOMY.highRoller.prizeMult}。画面下の計器の「×2」でいつでも切り替え</td></tr>
@@ -113,6 +113,7 @@ function terms(): string {
       ['発展', 'リーチから大きな演出に移ること。回答はいったん止まる'],
       ['確変', '確率変動。大当り確率が上がった状態'],
       ['ST・RUSH', `確変が続く回転数（${ST_SPINS}回転）と、その間の状態。不正解でも1回転減る。4択は符の違いで迷わせる`],
+      ['ラウンド上乗せ', 'BONUS 中に満貫以上を正解すると、BONUS の問題数が増える'],
       ['上乗せ', 'BONUS を全問正解すると、ラウンドの賞金に倍率を掛ける抽選がある'],
       ['回転', '前回の大当りから回った数（液晶帯の右上）'],
       ['スランプグラフ', '精算画面に出る所持金の推移。点線が初期所持金'],
