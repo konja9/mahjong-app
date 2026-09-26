@@ -114,7 +114,8 @@
   }
   :root[data-play='normal'] #dock {
     margin: auto -12px 0;
-    padding: 10px 12px 12px;
+    /* 親指で押しやすいよう、4択を画面下から少し持ち上げる */
+    padding: 10px 12px calc(env(safe-area-inset-bottom) + clamp(20px, 6vh, 56px));
   }
 }
 @media (min-width: 641px) {
@@ -971,5 +972,13 @@ body.busy .bet-box .bar {
   }
   #machine .m-head {
     gap: 6px;
+  }
+}
+
+/* 数値入力ではテンキーが下に続くので、ドックの下余白はテンキー側で取る */
+@media (max-width: 640px) {
+  :root[data-answer='input'] #dock,
+  :root[data-play='normal'][data-answer='input'] #dock {
+    padding-bottom: 8px;
   }
 }

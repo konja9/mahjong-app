@@ -1766,7 +1766,7 @@ body.god::before {
     position: sticky;
     bottom: 0;
     margin: auto -16px 0;
-    padding: 12px 16px 12px;
+    padding: 12px 16px calc(env(safe-area-inset-bottom) + clamp(20px, 6vh, 56px));
     gap: 8px;
     background: linear-gradient(to bottom, transparent, var(--bg) 14px);
     z-index: 5;
@@ -1921,7 +1921,8 @@ body.god::before {
   }
   #numpad {
     max-width: none;
-    padding: 0 16px calc(10px + env(safe-area-inset-bottom));
+    /* 親指で押しやすいよう、画面下から少し持ち上げる */
+    padding: 0 16px calc(env(safe-area-inset-bottom) + clamp(16px, 5vh, 48px));
     gap: 6px;
   }
   #numpad button {
@@ -2648,16 +2649,6 @@ body.busy #answer {
   text-shadow: 0 0 14px #ffb300;
 }
 /* ============================================================ 遊び方（？）・初回導入・一言ガイド */
-.help-btn {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 16px;
-  font-weight: 800;
-  border: 2px solid currentColor;
-  border-radius: 50%;
-  width: 26px;
-  height: 26px;
-  line-height: 1;
-}
 .help-tabs {
   margin: 12px 0 4px;
   gap: 6px;
@@ -2955,10 +2946,6 @@ body.busy #answer {
   }
 }
 @media (max-width: 640px) {
-  .help-btn {
-    width: 30px;
-    height: 30px;
-  }
   .help-dl {
     grid-template-columns: 1fr;
     gap: 0 0;
