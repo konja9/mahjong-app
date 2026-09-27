@@ -39,6 +39,13 @@ export interface Unlock {
   label: string;
 }
 
+/** 称号のレア度（計器のプレートの色） */
+export type Rarity = 'common' | 'rare' | 'epic' | 'legend';
+export const RARITY_LABEL: Record<Rarity, string> = { common: 'コモン', rare: 'レア', epic: 'エピック', legend: 'レジェンド' };
+
+/** 買う称号のレア度は値段で決める */
+const rarityByPrice = (p: number): Rarity => (p >= 60000 ? 'legend' : p >= 15000 ? 'epic' : p >= 5000 ? 'rare' : 'common');
+
 export interface ShopItem {
   id: string;
   kind: ItemKind;
@@ -48,10 +55,12 @@ export interface ShopItem {
   value: string;
   /** 実力で解放する称号（買えない） */
   unlock?: Unlock;
+  /** 称号のレア度 */
+  rarity?: Rarity;
 }
 
-const title = (id: string, name: string, price: number): ShopItem => ({ id: `title-${id}`, kind: 'title', name, price, value: name });
-const earned = (id: string, name: string, unlock: Unlock): ShopItem => ({ id: `title-${id}`, kind: 'title', name, price: 0, value: name, unlock });
+const title = (id: string, name: string, price: number): ShopItem => ({ id: `title-${id}`, kind: 'title', name, price, value: name, rarity: rarityByPrice(price) });
+const earned = (id: string, name: string, rarity: Rarity, unlock: Unlock): ShopItem => ({ id: `title-${id}`, kind: 'title', name, price: 0, value: name, unlock, rarity });
 
 export const ITEMS: ShopItem[] = [
   { id: 'back-green', kind: 'back', name: '深緑', price: 0, value: '#1f5c45' },
@@ -83,18 +92,18 @@ export const ITEMS: ShopItem[] = [
   title('legend', '伝説の打ち手', 40000),
   title('master', 'パチふと名人', 60000),
   // 実力で解放する称号（運の条件は入れない）
-  earned('first-perfect', '初陣', { get: (s) => s.perfectBonus, target: 1, label: 'BONUS を初めて全問正解' }),
-  earned('perfect10', '完全試合', { get: (s) => s.perfectBonus, target: 10, label: 'BONUS の全問正解 10 回' }),
-  earned('streak20', '連チャン職人', { get: (s) => s.maxStreak, target: 20, label: '20 連続正解' }),
-  earned('streak50', '不動心', { get: (s) => s.maxStreak, target: 50, label: '50 連続正解' }),
-  earned('streak100', '無双', { get: (s) => s.maxStreak, target: 100, label: '100 連続正解' }),
-  earned('fu500', '符の求道者', { get: (s) => s.correct.fu, target: 500, label: '符計算で累計 500 問正解' }),
-  earned('fu2000', '符の達人', { get: (s) => s.correct.fu, target: 2000, label: '符計算で累計 2,000 問正解' }),
-  earned('hayami1000', '早見の鬼', { get: (s) => s.correct.hayami, target: 1000, label: '早見で累計 1,000 問正解' }),
-  earned('jissen500', '実戦派', { get: (s) => s.correct.jissen, target: 500, label: '実戦で累計 500 問正解' }),
-  earned('fast300', '電光石火', { get: (s) => s.fast, target: 300, label: '速答で累計 300 問正解' }),
-  earned('tsumo200', 'ツモ計算士', { get: (s) => s.splitTsumo, target: 200, label: '子のツモを累計 200 問正解' }),
-  earned('precise', '精密機械', { get: (s) => s.precise, target: 1, label: '1回の遊びで 100 問以上を正解率 95% 以上' }),
+  earned('first-perfect', '初陣', 'rare', { get: (s) => s.perfectBonus, target: 1, label: 'BONUS を初めて全問正解' }),
+  earned('perfect10', '完全試合', 'epic', { get: (s) => s.perfectBonus, target: 10, label: 'BONUS の全問正解 10 回' }),
+  earned('streak20', '連チャン職人', 'rare', { get: (s) => s.maxStreak, target: 20, label: '20 連続正解' }),
+  earned('streak50', '不動心', 'epic', { get: (s) => s.maxStreak, target: 50, label: '50 連続正解' }),
+  earned('streak100', '無双', 'legend', { get: (s) => s.maxStreak, target: 100, label: '100 連続正解' }),
+  earned('fu500', '符の求道者', 'rare', { get: (s) => s.correct.fu, target: 500, label: '符計算で累計 500 問正解' }),
+  earned('fu2000', '符の達人', 'legend', { get: (s) => s.correct.fu, target: 2000, label: '符計算で累計 2,000 問正解' }),
+  earned('hayami1000', '早見の鬼', 'epic', { get: (s) => s.correct.hayami, target: 1000, label: '早見で累計 1,000 問正解' }),
+  earned('jissen500', '実戦派', 'rare', { get: (s) => s.correct.jissen, target: 500, label: '実戦で累計 500 問正解' }),
+  earned('fast300', '電光石火', 'rare', { get: (s) => s.fast, target: 300, label: '速答で累計 300 問正解' }),
+  earned('tsumo200', 'ツモ計算士', 'rare', { get: (s) => s.splitTsumo, target: 200, label: '子のツモを累計 200 問正解' }),
+  earned('precise', '精密機械', 'epic', { get: (s) => s.precise, target: 1, label: '1回の遊びで 100 問以上を正解率 95% 以上' }),
 ];
 
 export interface ShopState {
@@ -206,7 +215,8 @@ export function itemsHtml(s: ShopState, balance: number, canPreview = true): str
       const v = Math.min(i.unlock.get(s.stats), i.unlock.target);
       cond = `<div class="shop-desc">${i.unlock.label}</div><div class="mis-bar"><i style="width:${(v / i.unlock.target) * 100}%"></i></div><div class="shop-desc">${v.toLocaleString()}/${i.unlock.target.toLocaleString()}</div>`;
     } else if (i.unlock) cond = `<div class="shop-desc">${i.unlock.label}</div>`;
-    const name = `<div class="shop-name">${swatch}${i.name}${i.unlock ? '<em>実力</em>' : ''}</div>`;
+    const rar = i.rarity && i.value ? `<span class="rar r-${i.rarity}">${RARITY_LABEL[i.rarity]}</span>` : '';
+    const name = `<div class="shop-name">${swatch}${i.name}${rar}${i.unlock ? '<em>実力</em>' : ''}</div>`;
     return `<div class="shop-row${on ? ' cur' : ''}${i.unlock && !have ? ' locked' : ''}"><div class="mis">${name}${cond}</div><div class="shop-acts">${preview}${btn}</div></div>`;
   };
   const group = (title: string, items: ShopItem[]) => `<div class="set-sec">${title}</div>${items.map(row).join('')}`;
@@ -219,7 +229,7 @@ export function itemsHtml(s: ShopState, balance: number, canPreview = true): str
     group('BGM（BONUS・RUSH の曲）', of('bgm')) +
     group('称号', titles.filter((i) => !i.unlock)) +
     group(`実力の称号 <span class="muted small">${earnedCount}/${titles.filter((i) => i.unlock).length}</span>`, titles.filter((i) => i.unlock)) +
-    '<p class="help-note">実力の称号は買えません。ノーマルで条件を満たすと自動で手に入ります。</p>'
+    '<p class="help-note">称号は装備すると、画面下の計器の「所持」の横にプレートで表示されます（色はレア度）。実力の称号は買えません。ノーマルで条件を満たすと自動で手に入ります。</p>'
   );
 }
 

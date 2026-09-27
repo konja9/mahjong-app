@@ -33,7 +33,7 @@ import { introHtml, introSeen, markIntroSeen } from './intro';
 import { SPECS } from './machine/specs';
 import { dateKey, ensureToday, recordAnswer } from './missions';
 import { renderOdometer } from './odometer';
-import { type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, missionStrip, saveShop, shopHtml, unlockMachine } from './shop';
+import { RARITY_LABEL, type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, missionStrip, saveShop, shopHtml, unlockMachine } from './shop';
 import { load, save } from './storage';
 import { type TipId, Tips, tipText } from './tips';
 import { TILE_DEFS, handHtml, tilesInline } from './tileView';
@@ -1381,8 +1381,14 @@ export class App {
         }
         return;
       }
-      if (d.buy) this.pay(buyItem(this.shop, d.buy, this.wallet.balance));
-      else if (d.equip) equipItem(this.shop, d.equip);
+      if (d.buy) {
+        this.pay(buyItem(this.shop, d.buy, this.wallet.balance));
+        if (d.buy.startsWith('title-')) window.setTimeout(() => this.renderTitlePlate(true), 50);
+      }
+      else if (d.equip) {
+        equipItem(this.shop, d.equip);
+        if (d.equip.startsWith('title-')) window.setTimeout(() => this.renderTitlePlate(true), 50);
+      }
       else if (d.unlock) this.pay(unlockMachine(this.shop, d.unlock as keyof typeof SPECS, this.wallet.balance));
       else if (d.machine) this.switchMachine(d.machine as keyof typeof SPECS);
       saveShop(this.shop);
@@ -1432,7 +1438,7 @@ export class App {
     document.documentElement.style.setProperty('--tile-back', equipped(this.shop, 'back').value);
     const m = $('#machine');
     m.dataset.look = equipped(this.shop, 'skin').value;
-    this.panel.setTitle(equipped(this.shop, 'title').value);
+    this.renderTitlePlate();
     bgm.setTrack(equipped(this.shop, 'bgm').value as BgmTrack);
   }
 
@@ -1467,7 +1473,23 @@ export class App {
 
   /** 実力の称号の条件を満たしていたら取得して知らせる */
   private grantUnlocks(): void {
-    for (const it of checkUnlocks(this.shop)) this.toast(`称号を獲得：${it.name}（交換所で装備できます）`);
+    for (const it of checkUnlocks(this.shop)) {
+      this.toast(`称号を獲得：${it.name}（${RARITY_LABEL[it.rarity ?? 'common']}）。交換所で装備すると、計器の所持の横に表示されます`);
+    }
+  }
+
+  /** 計器の「所持」の横の称号のプレート（色はレア度）。flash で一瞬光らせる */
+  private renderTitlePlate(flash = false): void {
+    const t = equipped(this.shop, 'title');
+    const el = $('#wallet .mt-title');
+    el.hidden = !t.value;
+    el.textContent = t.value;
+    el.className = `mt-title r-${t.rarity ?? 'common'}`;
+    $('#wallet').classList.toggle('titled', !!t.value);
+    if (flash && t.value) {
+      void el.offsetWidth;
+      el.classList.add('flash');
+    }
   }
 
   /** 計器の上の細い帯：今日のミッションの進み具合。達成した瞬間は光らせる */
@@ -1629,7 +1651,7 @@ const SHELL = `
       <div id="tip" role="status" aria-live="polite" hidden></div>
       <button id="mission-strip" type="button" aria-label="今日のミッション"></button>
       <div id="meter">
-        <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><small>所持</small><b>0</b></div>
+        <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><div class="mt-top"><small>所持</small><span class="mt-title" hidden></span></div><b>0</b></div>
         <div class="mt-cell mt-bet"><div id="bet" class="bet-box"></div></div>
         <div class="mt-cell mt-net" id="net"><small>収支</small><b>±0</b></div>
       </div>

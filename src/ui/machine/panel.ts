@@ -73,7 +73,6 @@ export class MachinePanel {
           <div class="m-msg" aria-live="polite"></div>
           <div class="m-bottom">
             <div class="m-holds" aria-label="保留">${Array.from({ length: MAX_HOLDS }, () => '<span class="hold"></span>').join('')}</div>
-            <span class="m-title"></span>
             <div class="m-chucker" title="始動口"><span></span></div>
           </div>
         </div>
@@ -91,11 +90,6 @@ export class MachinePanel {
 
   get stopped(): boolean {
     return this.isStopped;
-  }
-
-  /** 称号（交換所の景品） */
-  setTitle(t: string): void {
-    this.root.querySelector('.m-title')!.textContent = t;
   }
 
   /** BONUS の表示（ラウンド・連続の倍率・賞金表）。null で消す */

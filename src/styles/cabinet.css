@@ -1090,17 +1090,6 @@ body.busy .bet-box .bar {
   outline-offset: 2px;
 }
 
-#machine .m-title {
-  flex: 1;
-  text-align: right;
-  padding-right: 10px;
-  font-size: 11px;
-  font-style: italic;
-  color: color-mix(in srgb, var(--gold) 80%, #fff);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 /* 液晶のスキン（景品） */
 #machine[data-look='silver'] {
@@ -1547,4 +1536,100 @@ body.busy .bet-box .bar {
 .set-sec .small {
   font-size: 11px;
   font-weight: 400;
+}
+
+/* ---- 計器：所持の横の称号のプレート（色はレア度。金は大当り・BONUS 専用なので使わない） */
+.mt-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.mt-title {
+  min-width: 0;
+  max-width: 100%;
+  padding: 1px 6px;
+  border-radius: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 14px;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+.mt-title[hidden] {
+  display: none;
+}
+.mt-title.r-rare,
+.rar.r-rare {
+  color: #dfe6ff;
+  background: rgba(106, 141, 255, 0.18);
+  box-shadow: inset 0 0 0 1px #6a8dff;
+}
+.mt-title.r-epic,
+.rar.r-epic {
+  color: #f6e2ff;
+  background: rgba(214, 107, 255, 0.2);
+  box-shadow: inset 0 0 0 1px #d66bff;
+}
+.mt-title.r-legend,
+.rar.r-legend {
+  position: relative;
+  color: #fff;
+  background:
+    linear-gradient(rgba(12, 13, 18, 0.82), rgba(12, 13, 18, 0.82)) padding-box,
+    linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d) border-box;
+  background-size: 100% 100%, 300% 100%;
+  border: 1px solid transparent;
+  box-shadow: 0 0 10px rgba(214, 180, 255, 0.35);
+  animation: plate-holo 4s linear infinite;
+}
+@keyframes plate-holo {
+  to {
+    background-position: 0 0, -300% 0;
+  }
+}
+.mt-title.flash {
+  animation: plate-flash 0.9s ease-out;
+}
+.mt-title.r-legend.flash {
+  animation: plate-flash 0.9s ease-out, plate-holo 4s linear infinite;
+}
+@keyframes plate-flash {
+  0%,
+  30% {
+    filter: brightness(2.2);
+    transform: scale(1.12);
+  }
+  100% {
+    filter: none;
+    transform: none;
+  }
+}
+/* 狭い画面では、称号があるときは「所持」のラベルを隠してプレートだけにする */
+@media (max-width: 640px) {
+  #wallet.titled .mt-top small {
+    display: none;
+  }
+}
+/* 交換所の一覧：レア度の印 */
+.rar {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 0 5px;
+  border-radius: 4px;
+  line-height: 16px;
+  color: var(--sub);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mt-title.r-legend,
+  .rar.r-legend,
+  .mt-title.flash {
+    animation: none;
+  }
 }
