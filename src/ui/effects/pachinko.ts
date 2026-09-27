@@ -388,7 +388,7 @@ export class Fx {
     if (!this.enabled) return;
     this.skipped = false;
     sfx.kakuhen();
-    bgm.play('rush', this.rushTempo());
+    bgm.play('rush', this.chouNow());
     this.show('<div class="banner kakuhen"><span>確変突入</span><small>RUSH START</small></div>', this.full ? 'rays' : '');
     if (this.full) this.particles.burst(innerWidth / 2, innerHeight / 2, 80, 'confetti', 1.3);
     await this.sleep(1200);
@@ -400,17 +400,18 @@ export class Fx {
     if (on) {
       this.root.classList.add('kakuhen');
       // BONUS 中は BONUS の曲のまま
-      if (this.enabled && bgm.theme !== 'bonus') bgm.play('rush', this.rushTempo());
+      if (this.enabled && bgm.theme !== 'bonus') bgm.play('rush', this.chouNow());
     }
   }
 
-  private rushTempo(): number {
-    return this.root.classList.contains('chou') ? 178 : 150;
+  /** 超確変中（BGM のテンポを上げる） */
+  private chouNow(): boolean {
+    return this.root.classList.contains('chou');
   }
 
   /** BONUS の曲。on で BONUS の曲にし、off で止める。演出がオフのときは鳴らさない */
   bonusBgm(on: boolean): void {
-    if (on && this.enabled) bgm.play('bonus', 165);
+    if (on && this.enabled) bgm.play('bonus');
     else if (!on) bgm.stop();
   }
 
@@ -419,7 +420,7 @@ export class Fx {
     if (chain >= 5) {
       if (!this.root.classList.contains('chou')) {
         this.root.classList.add('chou');
-        if (bgm.theme === 'rush') bgm.setTempo(178);
+        if (bgm.theme === 'rush') bgm.setFast(true);
         if (this.full) this.startAmbient();
       }
     }

@@ -2,7 +2,7 @@ import { type Choice, makeChoices } from '../core/choices';
 import { type HandQuestion, type Mode, type Question, generateQuestion } from '../core/generator';
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
 import { EAST } from '../core/tiles';
-import { configureAudio, sfx, unlockAudio } from './audio';
+import { type BgmTrack, bgm, configureAudio, sfx, unlockAudio } from './audio';
 import { Fx, type WinTier } from './effects/pachinko';
 import type { EffectLevel } from './effects/performance';
 import {
@@ -11,6 +11,7 @@ import {
   applyDelta,
   comboMult,
   costFor,
+  ballsFor,
   drawUwanose,
   extraRoundsFor,
   freshWallet,
@@ -32,7 +33,7 @@ import { introHtml, introSeen, markIntroSeen } from './intro';
 import { SPECS } from './machine/specs';
 import { dateKey, ensureToday, recordAnswer } from './missions';
 import { renderOdometer } from './odometer';
-import { type ShopView, buyItem, equipItem, equipped, loadShop, missionStrip, saveShop, shopHtml, unlockMachine } from './shop';
+import { type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, missionStrip, saveShop, shopHtml, unlockMachine } from './shop';
 import { load, save } from './storage';
 import { type TipId, Tips, tipText } from './tips';
 import { TILE_DEFS, handHtml, tilesInline } from './tileView';
@@ -461,6 +462,11 @@ export class App {
     this.isRoundQ = false;
     document.body.classList.remove('bonus');
     this.panel.bonus(null);
+    if (r.perfect) {
+      this.shop.stats.perfectBonus++;
+      this.grantUnlocks();
+      saveShop(this.shop);
+    }
     // 全問正解なら上乗せ抽選。上乗せ分は演出のあとで所持金に入る
     if (r.perfect && r.total > 0) {
       const mult = drawUwanose(Math.random, r.premium);
@@ -782,7 +788,9 @@ export class App {
         // 正解＝始動口入賞。ラウンド中は台に玉を入れない
         if (!this.isRoundQ) {
           this.tutorialHit();
-          void this.panel.enter(1, answerEl);
+          // 連続正解で電チュー開放（玉が2個・3個入る）。段が上がった瞬間だけ告知する
+          const balls = ballsFor(this.s.mode, ss.streak);
+          void this.panel.enter(balls, answerEl, balls > ballsFor(this.s.mode, ss.streak - 1));
         }
         // BONUS の出玉演出は符の高さで決める（難しい手ほど派手）。通常時は打点の役名と火花だけ
         const w = this.isRoundQ ? this.fuTier() : { tier, label };
@@ -951,8 +959,16 @@ export class App {
     const acc = ss.answered ? Math.round((ss.correct / ss.answered) * 100) : 100;
     $('#progress').innerHTML = `<span>${ss.answered + (this.phase === 'answering' || this.phase === 'suspense' ? 1 : 0)}${total}</span>
       <span class="muted">正答率 ${acc}%</span>
-      <span class="streak${ss.streak >= 20 ? ' holo' : ss.streak >= 10 ? ' ten' : ss.streak >= 5 ? ' mid' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>
+      <span class="streak${ss.streak >= 20 ? ' holo' : ss.streak >= 10 ? ' ten' : ss.streak >= 5 ? ' mid' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>${this.ballsTag()}
       ${this.practice && this.s.count ? `<span class="score">SCORE <b>${ss.score.toLocaleString()}</b></span>` : ''}`;
+  }
+
+  /** 問題数の横に出す「次の正解で入る玉の数」（ノーマルで2個以上のときだけ） */
+  private ballsTag(): string {
+    if (this.practice) return '';
+    const n = ballsFor(this.s.mode, this.session.streak + 1);
+    if (n < 2) return '';
+    return `<span class="balls b${n}" title="次の正解で玉が${n}個入る（電チュー）">${'<i></i>'.repeat(n)}</span>`;
   }
 
   /** end: 規定問題数の終了 / settle: ノーマルの精算 / bankrupt: 破産 */
@@ -1356,6 +1372,15 @@ export class App {
       const b = t.closest<HTMLElement>('button');
       if (!b || b.hasAttribute('disabled')) return;
       const d = b.dataset;
+      if (d.preview) {
+        // 試聴：本番の BGM（BONUS・RUSH）が鳴っている間はしない
+        unlockAudio();
+        if (bgm.preview(d.preview as BgmTrack)) {
+          b.classList.add('playing');
+          window.setTimeout(() => b.classList.remove('playing'), 4500);
+        }
+        return;
+      }
       if (d.buy) this.pay(buyItem(this.shop, d.buy, this.wallet.balance));
       else if (d.equip) equipItem(this.shop, d.equip);
       else if (d.unlock) this.pay(unlockMachine(this.shop, d.unlock as keyof typeof SPECS, this.wallet.balance));
@@ -1378,8 +1403,9 @@ export class App {
 
   private renderShop(): void {
     this.shop.missions = ensureToday(this.shop.missions);
-    const canSwitch = !this.round && this.panel.idle;
-    $('#shop-dialog').innerHTML = shopHtml(this.shop, this.shopView, this.wallet.balance, canSwitch);
+    // 台選びは BONUS 中と台が回っている間はできない。試聴は BONUS・RUSH の曲が鳴っている間はできない
+    const ok = this.shopView === 'items' ? !this.round && !this.panel.rush : !this.round && this.panel.idle;
+    $('#shop-dialog').innerHTML = shopHtml(this.shop, this.shopView, this.wallet.balance, ok);
   }
 
   /** 台の解放・景品の支払い（0 なら何もしない） */
@@ -1407,6 +1433,7 @@ export class App {
     const m = $('#machine');
     m.dataset.look = equipped(this.shop, 'skin').value;
     this.panel.setTitle(equipped(this.shop, 'title').value);
+    bgm.setTrack(equipped(this.shop, 'bgm').value as BgmTrack);
   }
 
   /** ミッションの進み具合を更新し、達成したら報酬を渡す */
@@ -1419,12 +1446,28 @@ export class App {
       streak: this.session.streak,
       splitTsumo: this.q.mode !== 'fu' && tsumo && !dealer,
     });
+    // 実力の称号のための累計の記録
+    const st = this.shop.stats;
+    const ss = this.session;
+    if (correct) {
+      st.correct[this.s.mode]++;
+      if (fast) st.fast++;
+      if (this.q.mode !== 'fu' && tsumo && !dealer) st.splitTsumo++;
+    }
+    st.maxStreak = Math.max(st.maxStreak, ss.streak);
+    if (ss.answered >= 100 && ss.correct / ss.answered >= 0.95) st.precise = 1;
+    this.grantUnlocks();
     saveShop(this.shop);
     for (const d of done) {
       this.toast(`ミッション達成：${d.label}　+${d.reward.toLocaleString()} yan`);
       this.changeBalance(d.reward, 900);
     }
     this.renderMissionStrip(done.length > 0);
+  }
+
+  /** 実力の称号の条件を満たしていたら取得して知らせる */
+  private grantUnlocks(): void {
+    for (const it of checkUnlocks(this.shop)) this.toast(`称号を獲得：${it.name}（交換所で装備できます）`);
   }
 
   /** 計器の上の細い帯：今日のミッションの進み具合。達成した瞬間は光らせる */

@@ -2,22 +2,56 @@
  * yan の使い道：台の解放（液晶帯から開く台選び）・景品（交換所）・日替わりミッション（計器の上の帯）。
  * 保存は tensu.shop.v1 にまとめる。破産しても消えない（購入は恒久的な yan の使い道）
  */
+import type { Mode } from '../core/generator';
 import { MACHINE_IDS, type MachineId, SPECS } from './machine/specs';
 import { type MissionState, ensureToday, missionDef } from './missions';
 import { load, save } from './storage';
 
 const KEY = 'tensu.shop.v1';
 
-export type ItemKind = 'back' | 'skin' | 'title';
+export type ItemKind = 'back' | 'skin' | 'bgm' | 'title';
+
+/** 実力で解放する称号の条件に使う、ノーマルでの累計の記録 */
+export interface PlayStats {
+  correct: Record<Mode, number>;
+  fast: number;
+  splitTsumo: number;
+  maxStreak: number;
+  /** BONUS の全問正解の回数 */
+  perfectBonus: number;
+  /** 1回の遊び（精算まで）で100問以上・正解率95%以上を達成した */
+  precise: number;
+}
+
+export const freshStats = (): PlayStats => ({
+  correct: { hayami: 0, fu: 0, jissen: 0 },
+  fast: 0,
+  splitTsumo: 0,
+  maxStreak: 0,
+  perfectBonus: 0,
+  precise: 0,
+});
+
+/** 実力の称号の条件：記録の値が target 以上で解放 */
+export interface Unlock {
+  get: (s: PlayStats) => number;
+  target: number;
+  label: string;
+}
 
 export interface ShopItem {
   id: string;
   kind: ItemKind;
   name: string;
   price: number;
-  /** back：牌の背の色 / skin：液晶のスキン名 / title：称号の文字 */
+  /** back：牌の背の色 / skin：液晶のスキン名 / bgm：曲の id / title：称号の文字 */
   value: string;
+  /** 実力で解放する称号（買えない） */
+  unlock?: Unlock;
 }
+
+const title = (id: string, name: string, price: number): ShopItem => ({ id: `title-${id}`, kind: 'title', name, price, value: name });
+const earned = (id: string, name: string, unlock: Unlock): ShopItem => ({ id: `title-${id}`, kind: 'title', name, price: 0, value: name, unlock });
 
 export const ITEMS: ShopItem[] = [
   { id: 'back-green', kind: 'back', name: '深緑', price: 0, value: '#1f5c45' },
@@ -29,11 +63,38 @@ export const ITEMS: ShopItem[] = [
   { id: 'skin-silver', kind: 'skin', name: '銀', price: 10000, value: 'silver' },
   { id: 'skin-urushi', kind: 'skin', name: '朱漆', price: 15000, value: 'urushi' },
   { id: 'skin-rainbow', kind: 'skin', name: '虹', price: 40000, value: 'rainbow' },
+  { id: 'bgm-standard', kind: 'bgm', name: 'スタンダード', price: 0, value: 'standard' },
+  { id: 'bgm-euro', kind: 'bgm', name: 'ユーロビート', price: 8000, value: 'euro' },
+  { id: 'bgm-wa', kind: 'bgm', name: '和風', price: 12000, value: 'wa' },
+  { id: 'bgm-chip', kind: 'bgm', name: 'チップチューン', price: 15000, value: 'chip' },
   { id: 'title-none', kind: 'title', name: 'なし', price: 0, value: '' },
-  { id: 'title-regular', kind: 'title', name: '雀荘の常連', price: 3000, value: '雀荘の常連' },
-  { id: 'title-fast', kind: 'title', name: '速答職人', price: 8000, value: '速答職人' },
-  { id: 'title-yakuman', kind: 'title', name: '役満ハンター', price: 15000, value: '役満ハンター' },
-  { id: 'title-master', kind: 'title', name: 'パチふと名人', price: 60000, value: 'パチふと名人' },
+  // 買う称号（安い順）
+  title('hayami-new', '早見の新人', 1500),
+  title('tenbou', '点棒係', 2000),
+  title('fu-apprentice', '符の見習い', 2500),
+  title('regular', '雀荘の常連', 3000),
+  title('night', '夜の雀士', 5000),
+  title('fu-reader', '符読み', 6000),
+  title('fast', '速答職人', 8000),
+  title('mangan', '満貫の申し子', 10000),
+  title('oni', '点数の鬼', 12000),
+  title('yakuman', '役満ハンター', 15000),
+  title('gambler', '鉄火場の勝負師', 20000),
+  title('legend', '伝説の打ち手', 40000),
+  title('master', 'パチふと名人', 60000),
+  // 実力で解放する称号（運の条件は入れない）
+  earned('first-perfect', '初陣', { get: (s) => s.perfectBonus, target: 1, label: 'BONUS を初めて全問正解' }),
+  earned('perfect10', '完全試合', { get: (s) => s.perfectBonus, target: 10, label: 'BONUS の全問正解 10 回' }),
+  earned('streak20', '連チャン職人', { get: (s) => s.maxStreak, target: 20, label: '20 連続正解' }),
+  earned('streak50', '不動心', { get: (s) => s.maxStreak, target: 50, label: '50 連続正解' }),
+  earned('streak100', '無双', { get: (s) => s.maxStreak, target: 100, label: '100 連続正解' }),
+  earned('fu500', '符の求道者', { get: (s) => s.correct.fu, target: 500, label: '符計算で累計 500 問正解' }),
+  earned('fu2000', '符の達人', { get: (s) => s.correct.fu, target: 2000, label: '符計算で累計 2,000 問正解' }),
+  earned('hayami1000', '早見の鬼', { get: (s) => s.correct.hayami, target: 1000, label: '早見で累計 1,000 問正解' }),
+  earned('jissen500', '実戦派', { get: (s) => s.correct.jissen, target: 500, label: '実戦で累計 500 問正解' }),
+  earned('fast300', '電光石火', { get: (s) => s.fast, target: 300, label: '速答で累計 300 問正解' }),
+  earned('tsumo200', 'ツモ計算士', { get: (s) => s.splitTsumo, target: 200, label: '子のツモを累計 200 問正解' }),
+  earned('precise', '精密機械', { get: (s) => s.precise, target: 1, label: '1回の遊びで 100 問以上を正解率 95% 以上' }),
 ];
 
 export interface ShopState {
@@ -42,18 +103,34 @@ export interface ShopState {
   owned: string[];
   equip: Record<ItemKind, string>;
   missions?: MissionState;
+  stats: PlayStats;
 }
+
+/** 最初から持っている景品（無料で、実力の条件がないもの） */
+const FREE = ITEMS.filter((i) => i.price === 0 && !i.unlock).map((i) => i.id);
 
 export const freshShop = (): ShopState => ({
   machine: 'ama',
   machines: ['ama'],
-  owned: ITEMS.filter((i) => i.price === 0).map((i) => i.id),
-  equip: { back: 'back-green', skin: 'skin-gold', title: 'title-none' },
+  owned: [...FREE],
+  equip: { back: 'back-green', skin: 'skin-gold', bgm: 'bgm-standard', title: 'title-none' },
+  stats: freshStats(),
 });
 
 export function loadShop(): ShopState {
-  const s = load<ShopState>(KEY, freshShop());
-  return { ...freshShop(), ...s, equip: { ...freshShop().equip, ...s.equip } };
+  const s = load<Partial<ShopState>>(KEY, freshShop());
+  const f = freshShop();
+  const stats = { ...f.stats, ...s.stats, correct: { ...f.stats.correct, ...s.stats?.correct } };
+  // 後から増えた無料の景品（BGM のスタンダードなど）も持っていることにする
+  const owned = [...new Set([...(s.owned ?? []), ...FREE])].filter((id) => ITEMS.some((i) => i.id === id));
+  return { ...f, ...s, owned, stats, equip: { ...f.equip, ...s.equip } };
+}
+
+/** 実力の称号のうち、条件を満たしたのに未取得のものを取得し、新しく取れたものを返す */
+export function checkUnlocks(s: ShopState): ShopItem[] {
+  const got = ITEMS.filter((i) => i.unlock && !s.owned.includes(i.id) && i.unlock.get(s.stats) >= i.unlock.target);
+  for (const i of got) s.owned.push(i.id);
+  return got;
 }
 export const saveShop = (s: ShopState): void => save(KEY, s);
 
@@ -63,7 +140,7 @@ export const equipped = (s: ShopState, kind: ItemKind): ShopItem => itemOf(s.equ
 /** 景品を買う。買えたら支払う額を返す（買えなければ 0） */
 export function buyItem(s: ShopState, id: string, balance: number): number {
   const it = itemOf(id);
-  if (!it || s.owned.includes(id) || balance < it.price) return 0;
+  if (!it || it.unlock || s.owned.includes(id) || balance < it.price) return 0;
   s.owned.push(id);
   s.equip[it.kind] = id;
   return it.price;
@@ -109,24 +186,41 @@ export function machinesHtml(s: ShopState, balance: number, canSwitch: boolean):
   );
 }
 
-/** 交換所：景品（見た目だけ） */
-export function itemsHtml(s: ShopState, balance: number): string {
-  const group = (kind: ItemKind, title: string) =>
-    `<div class="set-sec">${title}</div>` +
-    ITEMS.filter((i) => i.kind === kind)
-      .map((i) => {
-        const have = s.owned.includes(i.id);
-        const on = s.equip[kind] === i.id;
-        const swatch = kind === 'back' ? `<i class="swatch" style="background:${i.value}"></i>` : kind === 'skin' ? `<i class="swatch skin-${i.value}"></i>` : '';
-        const btn = on
-          ? '<span class="shop-state">装備中</span>'
-          : have
-            ? `<button class="shop-btn" data-equip="${i.id}">装備</button>`
-            : `<button class="shop-btn buy" data-buy="${i.id}"${balance >= i.price ? '' : ' disabled'}>${yen(i.price)}</button>`;
-        return `<div class="shop-row${on ? ' cur' : ''}"><div class="shop-name">${swatch}${i.name}</div>${btn}</div>`;
-      })
-      .join('');
-  return group('back', '牌の背') + group('skin', '液晶のスキン') + group('title', '称号');
+/** 交換所：景品（見た目と音だけ。学習には影響しない） */
+export function itemsHtml(s: ShopState, balance: number, canPreview = true): string {
+  const row = (i: ShopItem) => {
+    const have = s.owned.includes(i.id);
+    const on = s.equip[i.kind] === i.id;
+    const swatch =
+      i.kind === 'back' ? `<i class="swatch" style="background:${i.value}"></i>` : i.kind === 'skin' ? `<i class="swatch skin-${i.value}"></i>` : '';
+    const preview =
+      i.kind === 'bgm' ? `<button class="shop-btn ghost" data-preview="${i.value}"${canPreview ? '' : ' disabled'}>試聴</button>` : '';
+    let btn: string;
+    if (on) btn = '<span class="shop-state">装備中</span>';
+    else if (have) btn = `<button class="shop-btn" data-equip="${i.id}">装備</button>`;
+    else if (i.unlock) btn = '<span class="shop-lock" aria-label="未解放">🔒</span>';
+    else btn = `<button class="shop-btn buy" data-buy="${i.id}"${balance >= i.price ? '' : ' disabled'}>${yen(i.price)}</button>`;
+    // 実力の称号：条件と進み具合
+    let cond = '';
+    if (i.unlock && !have) {
+      const v = Math.min(i.unlock.get(s.stats), i.unlock.target);
+      cond = `<div class="shop-desc">${i.unlock.label}</div><div class="mis-bar"><i style="width:${(v / i.unlock.target) * 100}%"></i></div><div class="shop-desc">${v.toLocaleString()}/${i.unlock.target.toLocaleString()}</div>`;
+    } else if (i.unlock) cond = `<div class="shop-desc">${i.unlock.label}</div>`;
+    const name = `<div class="shop-name">${swatch}${i.name}${i.unlock ? '<em>実力</em>' : ''}</div>`;
+    return `<div class="shop-row${on ? ' cur' : ''}${i.unlock && !have ? ' locked' : ''}"><div class="mis">${name}${cond}</div><div class="shop-acts">${preview}${btn}</div></div>`;
+  };
+  const group = (title: string, items: ShopItem[]) => `<div class="set-sec">${title}</div>${items.map(row).join('')}`;
+  const of = (kind: ItemKind) => ITEMS.filter((i) => i.kind === kind);
+  const titles = of('title');
+  const earnedCount = titles.filter((i) => i.unlock && s.owned.includes(i.id)).length;
+  return (
+    group('牌の背', of('back')) +
+    group('液晶のスキン', of('skin')) +
+    group('BGM（BONUS・RUSH の曲）', of('bgm')) +
+    group('称号', titles.filter((i) => !i.unlock)) +
+    group(`実力の称号 <span class="muted small">${earnedCount}/${titles.filter((i) => i.unlock).length}</span>`, titles.filter((i) => i.unlock)) +
+    '<p class="help-note">実力の称号は買えません。ノーマルで条件を満たすと自動で手に入ります。</p>'
+  );
 }
 
 /** 今日のミッションの一覧 */
@@ -150,7 +244,8 @@ const TITLES: Record<ShopView, string> = { machine: '台選び', items: '交換�
 
 /** ダイアログの中身 */
 export function shopHtml(s: ShopState, view: ShopView, balance: number, canSwitch: boolean): string {
-  const body = view === 'machine' ? machinesHtml(s, balance, canSwitch) : view === 'items' ? itemsHtml(s, balance) : missionsHtml(s);
+  // canSwitch：台選びでは台を切り替えられるか、交換所では試聴できるか
+  const body = view === 'machine' ? machinesHtml(s, balance, canSwitch) : view === 'items' ? itemsHtml(s, balance, canSwitch) : missionsHtml(s);
   return `<div class="settings help shop">
     <div class="set-head"><span>${TITLES[view]}</span><span class="shop-wallet">所持 <b>${balance.toLocaleString()}</b> yan</span><button class="icon-btn" data-shop-close aria-label="閉じる">×</button></div>
     <div class="help-body">${body}</div>

@@ -162,7 +162,7 @@ export class MachinePanel {
   }
 
   /** 正解：玉が始動口に入る。n=2 なら電チュー開放 */
-  async enter(n: number, from: HTMLElement | null): Promise<void> {
+  async enter(n: number, from: HTMLElement | null, opened = false): Promise<void> {
     const g = this.gen;
     await this.fx.ball(from, this.chucker);
     if (g !== this.gen) return;
@@ -170,7 +170,7 @@ export class MachinePanel {
     // チューリップが開く
     this.chucker.classList.add('open');
     this.timers.push(window.setTimeout(() => this.chucker.classList.remove('open'), n > 1 ? 900 : 350));
-    if (n > 1) this.msg('電チュー開放!', 'denchu');
+    if (opened) this.msg('電チュー開放!', 'denchu');
     else if (!added) this.msg('保留MAX', '');
     if (added) this.hooks.onEvent?.('enter');
     this.render(true);

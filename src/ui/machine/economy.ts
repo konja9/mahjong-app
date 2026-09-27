@@ -10,7 +10,7 @@ export const ECONOMY = {
   /** 1問のコスト */
   cost: 40,
   /** 速答で正解したときのコスト */
-  fastCost: 30,
+  fastCost: 35,
   /** 速答（割引）の締切（秒）。モードの難しさに合わせる */
   fastSeconds: { hayami: 6, fu: 12, jissen: 20 } as Record<Mode, number>,
   /** 不正解・パス・時間切れの追加ペナルティ */
@@ -26,7 +26,12 @@ export const ECONOMY = {
   /** 速答なら 1.2 倍 */
   fastMult: 1.2,
   /** ラウンド内の連続正解の倍率の階段（1問目 ×1、2問連続 ×1.5 …）。1問ミスで最初に戻る */
-  comboLadder: [1, 1.2, 1.5, 2, 3],
+  comboLadder: [1, 1.2, 1.5, 2],
+  /**
+   * 電チュー開放：この連続正解数から、正解1回で玉が2個入る。
+   * 早見は連続正解しやすいので、必要な連続数を多くする
+   */
+  denchu: { hayami: 15, fu: 6, jissen: 4 } as Record<Mode, number>,
   /** BONUS で満貫以上を正解したときのラウンド上乗せ（満貫・跳満 / 倍満・三倍満 / 役満）と、1回の BONUS の上限 */
   extraRounds: { mangan: 1, baiman: 2, yakuman: 3, max: 3 },
   /** PREMIUM（赤5筒）大当りのラウンドは 2 倍 */
@@ -48,7 +53,7 @@ export const ECONOMY = {
    * 正解率85%・速答5割のプレイヤーの回収率がどのモードでもほぼ100%になるよう
    * tests/economy.test.ts のシミュレーションで決めた値
    */
-  modeScale: { hayami: 0.52, fu: 0.88, jissen: 0.48 } as Record<Mode, number>,
+  modeScale: { hayami: 0.625, fu: 0.77, jissen: 0.375 } as Record<Mode, number>,
   /** 残りがこれ未満で警告表示 */
   lowWarn: 200,
 };
@@ -96,6 +101,11 @@ export function roundPrize(p: RoundPrizeInput): number {
   if (p.fast) v *= ECONOMY.fastMult;
   v *= comboMult(p.combo - 1);
   return Math.max(1, Math.round(v));
+}
+
+/** 連続正解数（今回を含む）から、正解1回で台に入る玉の数 */
+export function ballsFor(mode: Mode, streak: number): number {
+  return streak >= ECONOMY.denchu[mode] ? 2 : 1;
 }
 
 /** 満貫以上を正解したときのラウンド上乗せ数（満貫未満は 0。4翻40符などの満貫も含む） */

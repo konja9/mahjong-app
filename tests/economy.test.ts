@@ -7,6 +7,7 @@ import {
   applyDelta,
   comboMult,
   costFor,
+  ballsFor,
   drawUwanose,
   extraRoundsFor,
   freshWallet,
@@ -31,7 +32,7 @@ function mulberry32(seed: number) {
 
 describe('yan', () => {
   it('コスト', () => {
-    expect(costFor(true, true)).toBe(30);
+    expect(costFor(true, true)).toBe(35);
     expect(costFor(true, false)).toBe(40);
     expect(costFor(false, false)).toBe(60);
     expect(costFor(false, true)).toBe(60);
@@ -44,7 +45,7 @@ describe('yan', () => {
     expect(roundPrize({ ...base, fu: 0, yakuman: true })).toBeGreaterThan(v * 5);
     expect(roundPrize({ ...base, fast: true })).toBeGreaterThan(v);
     expect(roundPrize({ ...base, combo: 20 })).toBe(roundPrize({ ...base, combo: 5 }));
-    expect(roundPrize({ ...base, combo: 5 })).toBeGreaterThanOrEqual(v * 2.7);
+    expect(roundPrize({ ...base, combo: 5 })).toBeGreaterThanOrEqual(v * 1.8);
     expect(roundPrize({ ...base, premium: true })).toBeGreaterThanOrEqual(v * 1.9);
     // 早見の満貫以上（符なし）は30符ぶん
     expect(roundPrize({ ...base, mode: 'hayami', fu: 0 })).toBe(roundPrize({ ...base, mode: 'hayami', fu: 30 }));
@@ -111,15 +112,17 @@ export function simulate(
     if (perfect) total *= drawUwanose(rng, premium);
     won += total;
   };
+  let streak = 0;
   for (let i = 0; i < questions; i++) {
     const correct = rng() < accuracy;
+    streak = correct ? streak + 1 : 0;
     const fast = correct && rng() < fastRate;
     spent += costFor(correct, fast, spec);
     if (!correct) {
       m.missSpin();
       continue;
     }
-    m.enter(1);
+    m.enter(ballsFor(mode, streak));
     for (let r = m.spin(); r; r = m.spin()) {
       if (r.hit) jackpot(r.symbols[0] === PREMIUM_SYMBOL);
       m.settle(r);
@@ -193,5 +196,16 @@ describe('BONUS の符の目盛り', () => {
     expect(uwanoseMean(true)).toBeGreaterThan(uwanoseMean(false));
     const rng = mulberry32(3);
     for (let i = 0; i < 200; i++) expect(drawUwanose(rng, true)).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('電チュー開放', () => {
+  it('モード別の連続正解数から玉が2個になる（早見は多く必要）', async () => {
+    const { ballsFor } = await import('../src/ui/machine/economy');
+    expect(ballsFor('jissen', ECONOMY.denchu.jissen - 1)).toBe(1);
+    expect(ballsFor('jissen', ECONOMY.denchu.jissen)).toBe(2);
+    expect(ballsFor('hayami', ECONOMY.denchu.jissen)).toBe(1);
+    expect(ECONOMY.denchu.hayami).toBeGreaterThan(ECONOMY.denchu.fu);
+    expect(ECONOMY.denchu.fu).toBeGreaterThan(ECONOMY.denchu.jissen);
   });
 });

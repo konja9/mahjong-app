@@ -74,6 +74,7 @@ function rules(mode: Mode): string {
     <div class="set-sec">台</div>
     <table class="help-table">
       <tr><th>大当り確率</th><td>通常 1/${NORMAL_ODDS}・RUSH 中 1/${RUSH_ODDS}（正解1回で1回転。RUSH 中は不正解でも ST が1回転減る）</td></tr>
+      <tr><th>電チュー開放</th><td>連続正解が続くと、正解1回で玉が2個入る（${(Object.keys(MODE_LABELS) as Mode[]).map((m) => `${MODE_LABELS[m]} ${ECONOMY.denchu[m]}連`).join('・')}から）。外すと1個に戻る。問題数の横の ●● が目印</td></tr>
       <tr><th>確変</th><td>大当りの ${Math.round(KAKUHEN_RATE * 100)}%。奇数と白發中でそろうと確変で、${ST_SPINS}回転の RUSH に入ります</td></tr>
       <tr><th>台の選択</th><td>液晶帯（台の名前 ▾）をタップすると台選び。大当りは重いが賞金の大きいミドル・MAX を yan で解放できます。ミドル以上は実戦のみ。上の表は甘デジの値です</td></tr>
       <tr><th>BONUS・RUSH の問題</th><td>出る手は通常時と同じ。4択の誤答は「同じ翻で符だけ違う点数」になり、符が分からないと当てられません</td></tr>
@@ -85,7 +86,7 @@ function rules(mode: Mode): string {
     <p class="help-note">賞金は<b>正解した手の符</b>で決まります（翻・ドラ・親子では増えません。早見の満貫以上は30符ぶん）。速答は×${ECONOMY.fastMult}。ラウンド内の連続正解で ${ECONOMY.comboLadder.map((m) => `×${m}`).join('→')} と上がり、1問外すと×1に戻ります。<b>満貫以上</b>を正解するとラウンド上乗せ（満貫・跳満 +${ECONOMY.extraRounds.mangan}R、倍満・三倍満 +${ECONOMY.extraRounds.baiman}R、役満 +${ECONOMY.extraRounds.yakuman}R。1回の BONUS で最大 +${ECONOMY.extraRounds.max}R）。<b>全問正解</b>ならラウンドの賞金に上乗せ抽選（平均×${uwanoseMean(false).toFixed(1)}）。赤五筒でそろう PREMIUM 大当りは賞金×${ECONOMY.premiumMult}、役満が出やすく（役満 +${cells.at(-1)!.prize.toLocaleString()} yan）、上乗せは最低×${ECONOMY.uwanosePremium[0][0]}。不正解はパンク（賞金なし）ですが、BET はかかりません。</p>
     <div class="set-sec">その他</div>
     <table class="help-table">
-      <tr><th>交換所</th><td>稼いだ yan で景品（牌の背・液晶のスキン・称号）を買えます（右上の景品のアイコン）</td></tr>
+      <tr><th>交換所</th><td>稼いだ yan で景品（牌の背・液晶のスキン・BGM・称号）を買えます（右上の景品のアイコン）。BGM は試聴できます。「実力の称号」は買えず、連続正解や累計正解数などの条件で手に入ります</td></tr>
       <tr><th>ミッション</th><td>計器の上の帯に今日のミッション。達成すると yan がもらえます。タップで一覧</td></tr>
       <tr><th>精算</th><td>出題設定の「精算」で、ここまでの成績・収支・大当り履歴を表示します。所持金と台はそのまま続きから遊べます</td></tr>
       <tr><th>破産</th><td>所持金が尽きると終了。${ECONOMY.initial.toLocaleString()} yan から再スタートします</td></tr>

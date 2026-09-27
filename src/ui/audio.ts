@@ -9,7 +9,7 @@ export function configureAudio(on: boolean, vol: number): void {
   enabled = on;
   volume = vol;
   if (master) master.gain.value = volume * 0.6;
-  if (!on) bgm.stop();
+  if (!on) bgm.stop(true);
 }
 
 /** ユーザー操作の中で呼び、AudioContext を起こす */
@@ -288,40 +288,71 @@ export const sfx = {
 };
 
 export type BgmTheme = 'bonus' | 'rush';
+export type BgmTrack = 'standard' | 'euro' | 'wa' | 'chip';
 
-/** テーマごとのコード進行。RUSH は短調で疾走感、BONUS は明るい長調 */
-const BGM_CHORDS: Record<BgmTheme, number[][]> = {
-  rush: [
-    [57, 60, 64, 69],
-    [53, 57, 60, 65],
-    [55, 59, 62, 67],
-    [52, 56, 59, 64],
-  ],
-  bonus: [
-    [60, 64, 67, 72],
-    [57, 60, 64, 69],
-    [53, 57, 60, 65],
-    [55, 59, 62, 67],
-  ],
-};
+/** 1曲の1テーマ分：コード進行（1小節ずつ）・メロディ（8分 × 4小節、null は休み）・テンポ */
+interface ThemeDef {
+  chords: number[][];
+  melody: (number | null)[];
+  tempo: number;
+}
 
 /**
- * テーマごとのメロディ（8分音符 × 4小節、null は休み）。
- * スマホのスピーカーは低音がほとんど出ないので、曲の輪郭は中高音のメロディで作る
+ * 曲の表（景品の BGM）。スマホのスピーカーは低音がほとんど出ないので、曲の輪郭は中高音のメロディで作る
  */
-const BGM_MELODY: Record<BgmTheme, (number | null)[]> = {
-  rush: [
-    81, null, 76, 81, 84, 83, 81, 76,
-    77, null, 81, 77, 84, 81, 77, 81,
-    79, null, 83, 79, 86, 83, 79, 83,
-    80, 83, 88, 83, 80, 76, 80, 83,
-  ],
-  bonus: [
-    72, 76, 79, 76, 84, 79, 76, 79,
-    81, 79, 76, 72, 76, null, 81, null,
-    77, 81, 84, 81, 77, 72, 77, 81,
-    79, 83, 86, 83, 79, null, 86, 84,
-  ],
+const TRACKS: Record<BgmTrack, Record<BgmTheme, ThemeDef>> = {
+  // スタンダード：RUSH は短調で疾走感、BONUS は明るい長調
+  standard: {
+    rush: {
+      tempo: 150,
+      chords: [[57, 60, 64, 69], [53, 57, 60, 65], [55, 59, 62, 67], [52, 56, 59, 64]],
+      melody: [81, null, 76, 81, 84, 83, 81, 76, 77, null, 81, 77, 84, 81, 77, 81, 79, null, 83, 79, 86, 83, 79, 83, 80, 83, 88, 83, 80, 76, 80, 83],
+    },
+    bonus: {
+      tempo: 165,
+      chords: [[60, 64, 67, 72], [57, 60, 64, 69], [53, 57, 60, 65], [55, 59, 62, 67]],
+      melody: [72, 76, 79, 76, 84, 79, 76, 79, 81, 79, 76, 72, 76, null, 81, null, 77, 81, 84, 81, 77, 72, 77, 81, 79, 83, 86, 83, 79, null, 86, 84],
+    },
+  },
+  // ユーロビート：速いテンポ、駆け上がるアルペジオとノコギリ波のリード、オクターブで跳ねるベース
+  euro: {
+    rush: {
+      tempo: 172,
+      chords: [[57, 60, 64, 69], [53, 57, 60, 65], [55, 59, 62, 67], [52, 55, 59, 64]],
+      melody: [76, 79, 81, 79, 76, 74, 72, 74, 77, 81, 84, 81, 77, 76, 74, 76, 79, 83, 86, 83, 79, 77, 76, 77, 76, 79, 83, 88, 86, 84, 83, 79],
+    },
+    bonus: {
+      tempo: 176,
+      chords: [[57, 61, 64, 69], [50, 53, 57, 62], [55, 59, 62, 67], [57, 61, 64, 69]],
+      melody: [81, 84, 88, 84, 81, 79, 76, 79, 77, 81, 84, 86, 84, 81, 77, 81, 79, 83, 86, 88, 86, 83, 79, 83, 81, 85, 88, 93, 88, 85, 81, 85],
+    },
+  },
+  // 和風：ヨナ抜き（D E G A B）のメロディ、琴のようにはじく音、太鼓
+  wa: {
+    rush: {
+      tempo: 140,
+      chords: [[50, 57, 62, 69], [55, 62, 67, 74], [57, 64, 69, 76], [52, 59, 64, 71]],
+      melody: [74, 76, 79, 81, 79, 76, 74, null, 79, 81, 83, 81, 79, 76, 79, null, 81, 83, 86, 83, 81, 79, 76, 79, 74, null, 76, 79, 76, 74, 71, 74],
+    },
+    bonus: {
+      tempo: 150,
+      chords: [[50, 57, 62, 69], [55, 62, 67, 74], [59, 66, 71, 78], [57, 64, 69, 76]],
+      melody: [86, 83, 81, 79, 81, 83, 86, null, 88, 86, 83, 81, 83, 86, 88, null, 91, 88, 86, 83, 86, 88, 91, 88, 86, null, 83, 81, 79, 81, 83, 86],
+    },
+  },
+  // チップチューン：8bit 風。矩形波のメロディ、細かいアルペジオ、三角波のベース、ノイズのドラム
+  chip: {
+    rush: {
+      tempo: 160,
+      chords: [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 56, 59]],
+      melody: [72, 76, 79, 84, 83, 79, 76, 79, 74, 77, 81, 86, 84, 81, 77, 81, 76, 79, 83, 88, 86, 83, 79, 83, 77, 81, 84, 89, 88, 84, 81, 79],
+    },
+    bonus: {
+      tempo: 168,
+      chords: [[60, 64, 67], [57, 60, 64], [53, 57, 60], [55, 59, 62]],
+      melody: [84, 88, 91, 88, 84, 88, 91, 96, 81, 84, 88, 84, 81, 84, 88, 93, 77, 81, 84, 81, 77, 81, 84, 89, 79, 83, 86, 83, 91, 89, 88, 86],
+    },
+  },
 };
 
 /** BONUS・RUSH 中に流れる合成 BGM（スケジューラ方式） */
@@ -329,67 +360,135 @@ export const bgm = (() => {
   let timer = 0;
   let step = 0;
   let nextTime = 0;
-  let bpm = 150;
   let theme: BgmTheme = 'rush';
-  let chords = BGM_CHORDS.rush;
-  let melody = BGM_MELODY.rush;
+  let track: BgmTrack = 'standard';
+  let fast = false;
+  let previewTimer = 0;
+  const def = () => TRACKS[track][theme];
+  const bpm = () => def().tempo + (fast ? 26 : 0);
   const schedule = () => {
     const c = ready();
     if (!c || !master) return;
-    const sixteenth = 60 / bpm / 4;
+    const sixteenth = 60 / bpm() / 4;
+    const { chords, melody } = def();
     while (nextTime < c.currentTime + 0.12) {
       const chord = chords[Math.floor(step / 16) % chords.length];
       const start = nextTime - c.currentTime;
-      // ベース（8分）：低音に加えて1オクターブ上の三角波で、スマホでも輪郭が出るようにする
-      if (step % 2 === 0) {
-        tone({ type: 'sawtooth', freq: note(chord[0] - 12), start, dur: sixteenth * 1.6, gain: 0.06, filter: 900, bgm: true });
-        tone({ type: 'triangle', freq: note(chord[0]), start, dur: sixteenth * 1.4, gain: 0.05, bgm: true });
+      const m = step % 2 === 0 ? melody[(step / 2) % melody.length] : null;
+      switch (track) {
+        case 'euro':
+          // オクターブで跳ねるベースと4つ打ち
+          tone({ type: 'sawtooth', freq: note(chord[0] - (step % 2 ? 0 : 12)), start, dur: sixteenth * 0.9, gain: 0.05, filter: 1400, bgm: true });
+          if (step % 4 === 0) tone({ type: 'sine', freq: 100, to: 45, start, dur: 0.12, gain: 0.24, bgm: true });
+          if (step % 8 === 4) noise(start, 0.1, 0.1, 2200, true);
+          if (step % 4 === 2) noise(start, 0.05, 0.04, 8000, true);
+          if (m !== null) {
+            tone({ type: 'sawtooth', freq: note(m), start, dur: sixteenth * 1.8, gain: 0.04, filter: 4200, bgm: true });
+            tone({ type: 'square', freq: note(m + 12), start, dur: sixteenth * 1.2, gain: 0.015, filter: 5000, bgm: true });
+          }
+          tone({ type: 'square', freq: note(chord[step % chord.length] + 12 + (step % 8 >= 4 ? 12 : 0)), start, dur: sixteenth * 0.8, gain: 0.03, filter: 4000, bgm: true });
+          break;
+        case 'wa':
+          // 太鼓（1拍目と裏）と、琴のようにはじく音
+          if (step % 16 === 0 || step % 16 === 6 || step % 16 === 10) tone({ type: 'sine', freq: 75, to: 38, start, dur: 0.25, gain: 0.3, bgm: true });
+          if (step % 8 === 4) noise(start, 0.06, 0.05, 1400, true);
+          if (step % 4 === 0) tone({ type: 'triangle', freq: note(chord[0]), start, dur: sixteenth * 3.5, gain: 0.05, bgm: true });
+          if (m !== null) {
+            tone({ type: 'triangle', freq: note(m), start, dur: 0.35, gain: 0.08, attack: 0.002, bgm: true });
+            tone({ type: 'square', freq: note(m + 12), start, dur: 0.12, gain: 0.012, attack: 0.002, filter: 3000, bgm: true });
+          }
+          if (step % 4 === 2) tone({ type: 'triangle', freq: note(chord[(step / 2) % chord.length] + 12), start, dur: 0.2, gain: 0.03, attack: 0.002, bgm: true });
+          break;
+        case 'chip':
+          // 三角波のベース・ノイズのドラム・細かいアルペジオ
+          if (step % 2 === 0) tone({ type: 'triangle', freq: note(chord[0] - 12 + (step % 4 ? 12 : 0)), start, dur: sixteenth * 1.5, gain: 0.08, bgm: true });
+          if (step % 4 === 0) noise(start, 0.05, 0.12, 300, true);
+          if (step % 8 === 4) noise(start, 0.08, 0.1, 3500, true);
+          if (m !== null) tone({ type: 'square', freq: note(m), start, dur: sixteenth * 1.6, gain: 0.045, attack: 0.001, bgm: true });
+          tone({ type: 'square', freq: note(chord[step % chord.length] + 24), start, dur: sixteenth * 0.6, gain: 0.018, attack: 0.001, bgm: true });
+          break;
+        default:
+          // スタンダード：8分のベース、キック・スネア・ハイハット、メロディとアルペジオ
+          if (step % 2 === 0) {
+            tone({ type: 'sawtooth', freq: note(chord[0] - 12), start, dur: sixteenth * 1.6, gain: 0.06, filter: 900, bgm: true });
+            tone({ type: 'triangle', freq: note(chord[0]), start, dur: sixteenth * 1.4, gain: 0.05, bgm: true });
+          }
+          if (step % 4 === 0) tone({ type: 'sine', freq: 90, to: 45, start, dur: 0.12, gain: 0.22, bgm: true });
+          if (step % 8 === 4) noise(start, 0.09, 0.09, 2500, true);
+          if (step % 2 === 1) noise(start, 0.03, 0.025, 9000, true);
+          if (m !== null) {
+            tone({ type: 'square', freq: note(m), start, dur: sixteenth * 1.7, gain: 0.05, filter: 3000, bgm: true });
+            tone({ type: 'triangle', freq: note(m - 12), start, dur: sixteenth * 1.7, gain: 0.03, bgm: true });
+          }
+          tone({ type: 'square', freq: note(chord[(step * 3) % chord.length] + 12 + (step % 16 >= 8 ? 12 : 0)), start, dur: sixteenth * 0.9, gain: 0.03, filter: 3500, bgm: true });
       }
-      // キック・スネア・ハイハット
-      if (step % 4 === 0) tone({ type: 'sine', freq: 90, to: 45, start, dur: 0.12, gain: 0.22, bgm: true });
-      if (step % 8 === 4) noise(start, 0.09, 0.09, 2500, true);
-      if (step % 2 === 1) noise(start, 0.03, 0.025, 9000, true);
-      // メロディ（8分）
-      if (step % 2 === 0) {
-        const m = melody[(step / 2) % melody.length];
-        if (m !== null) {
-          tone({ type: 'square', freq: note(m), start, dur: sixteenth * 1.7, gain: 0.05, filter: 3000, bgm: true });
-          tone({ type: 'triangle', freq: note(m - 12), start, dur: sixteenth * 1.7, gain: 0.03, bgm: true });
-        }
-      }
-      const arp = chord[(step * 3) % chord.length] + 12 + (step % 16 >= 8 ? 12 : 0);
-      tone({ type: 'square', freq: note(arp), start, dur: sixteenth * 0.9, gain: 0.03, filter: 3500, bgm: true });
       step++;
       nextTime += sixteenth;
     }
   };
+  const begin = (c: AudioContext) => {
+    step = 0;
+    nextTime = c.currentTime + 0.05;
+    if (!timer) timer = window.setInterval(schedule, 25);
+  };
+  const stopNow = () => {
+    clearInterval(timer);
+    timer = 0;
+  };
   return {
-    /** 曲を流す。別の曲が鳴っていれば切り替え、同じ曲ならテンポだけ合わせる */
-    play(t: BgmTheme, tempo = 150): void {
-      bpm = tempo;
+    /** 曲を流す。別のテーマが鳴っていれば切り替え、同じなら何もしない。quick は超確変などでテンポを上げる */
+    play(t: BgmTheme, quick = false): void {
+      fast = quick;
       const c = ready();
       if (!c) return;
       if (c.state !== 'running') void c.resume().catch(() => undefined);
+      if (previewTimer) {
+        clearTimeout(previewTimer);
+        previewTimer = 0;
+        stopNow();
+      }
       if (timer && theme === t) return;
       theme = t;
-      chords = BGM_CHORDS[t];
-      melody = BGM_MELODY[t];
-      step = 0;
-      nextTime = c.currentTime + 0.05;
-      if (!timer) timer = window.setInterval(schedule, 25);
+      begin(c);
     },
-    setTempo(tempo: number): void {
-      bpm = tempo;
+    /** 超確変などでテンポを上げる */
+    setFast(on: boolean): void {
+      fast = on;
     },
-    stop(): void {
-      clearInterval(timer);
-      timer = 0;
+    /** 装備した曲に切り替える（鳴っている最中なら次の音から新しい曲） */
+    setTrack(t: BgmTrack): void {
+      if (TRACKS[t]) track = t;
+    },
+    /** 交換所の試聴：その曲の BONUS を数秒流す。本番の曲が鳴っている間はしない */
+    preview(t: BgmTrack, ms = 4500): boolean {
+      const c = ready();
+      if (!c || (timer && !previewTimer)) return false;
+      if (c.state !== 'running') void c.resume().catch(() => undefined);
+      const keep = track;
+      clearTimeout(previewTimer);
+      track = t;
+      theme = 'bonus';
+      fast = false;
+      begin(c);
+      previewTimer = window.setTimeout(() => {
+        previewTimer = 0;
+        stopNow();
+        track = keep;
+      }, ms);
+      return true;
+    },
+    /** 止める。試聴中は force のときだけ止める（BONUS の終わりなどで試聴を切らない） */
+    stop(force = false): void {
+      if (previewTimer && !force) return;
+      clearTimeout(previewTimer);
+      previewTimer = 0;
+      stopNow();
     },
     get playing(): boolean {
       return timer !== 0;
     },
     get theme(): BgmTheme | null {
-      return timer ? theme : null;
+      return timer && !previewTimer ? theme : null;
     },
   };
 })();

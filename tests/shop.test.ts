@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { freshMissions, missionDef } from '../src/ui/missions';
-import { buyItem, equipItem, freshShop, missionStrip, unlockMachine } from '../src/ui/shop';
+import { ITEMS, buyItem, checkUnlocks, equipItem, freshShop, loadShop, missionStrip, unlockMachine } from '../src/ui/shop';
 
 describe('交換所', () => {
   it('所持金が足りないと買えない。買うと装備される', () => {
@@ -36,5 +36,47 @@ describe('ミッションの帯', () => {
     const all = missionStrip(s);
     expect(all.done).toBe(all.total);
     expect(all.ratio).toBe(1);
+  });
+});
+
+describe('称号と BGM', () => {
+  it('称号は25個以上あり、実力の称号は買えない・最初は持っていない', () => {
+    const titles = ITEMS.filter((i) => i.kind === 'title');
+    expect(titles.length).toBeGreaterThanOrEqual(25);
+    const s = freshShop();
+    const earned = titles.filter((i) => i.unlock);
+    expect(earned.length).toBeGreaterThanOrEqual(10);
+    for (const i of earned) {
+      expect(s.owned).not.toContain(i.id);
+      expect(buyItem(s, i.id, 1e9)).toBe(0);
+    }
+  });
+  it('条件を満たすと実力の称号が手に入る（一度だけ）', () => {
+    const s = freshShop();
+    expect(checkUnlocks(s)).toEqual([]);
+    s.stats.maxStreak = 20;
+    s.stats.perfectBonus = 1;
+    const got = checkUnlocks(s).map((i) => i.name);
+    expect(got).toContain('連チャン職人');
+    expect(got).toContain('初陣');
+    expect(got).not.toContain('不動心');
+    expect(checkUnlocks(s)).toEqual([]);
+    expect(equipItem(s, 'title-streak20')).toBe(true);
+  });
+  it('古い保存データ（stats・BGM なし）を読み込んでも動く', () => {
+    const store = new Map<string, string>();
+    const ls = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) };
+    Object.defineProperty(globalThis, 'localStorage', { value: ls, configurable: true });
+    store.set('tensu.shop.v1', JSON.stringify({ machine: 'ama', machines: ['ama'], owned: ['back-green', 'skin-gold', 'title-none', 'title-fast'], equip: { back: 'back-green', skin: 'skin-gold', title: 'title-fast' } }));
+    const s = loadShop();
+    expect(s.stats.correct.fu).toBe(0);
+    expect(s.owned).toContain('bgm-standard');
+    expect(s.equip.bgm).toBe('bgm-standard');
+    expect(s.equip.title).toBe('title-fast');
+  });
+  it('BGM を買って装備できる', () => {
+    const s = freshShop();
+    expect(buyItem(s, 'bgm-euro', 8000)).toBe(8000);
+    expect(s.equip.bgm).toBe('bgm-euro');
   });
 });

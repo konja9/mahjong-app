@@ -1505,3 +1505,46 @@ body.busy .bet-box .bar {
     animation: none;
   }
 }
+
+/* 問題数の横：次の正解で入る玉の数（電チュー） */
+#progress .balls {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: -4px;
+}
+#progress .balls i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, #b9bec9 55%, #6b707b);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+}
+
+/* 交換所：試聴ボタン・実力の称号（鍵と進み具合） */
+.shop-acts {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.shop-btn.ghost {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--sub);
+}
+.shop-btn.ghost.playing {
+  color: var(--main);
+  box-shadow: inset 0 0 0 1px var(--main);
+}
+.shop-lock {
+  font-size: 14px;
+  opacity: 0.6;
+}
+.shop-row.locked .shop-name {
+  color: var(--sub);
+}
+.set-sec .small {
+  font-size: 11px;
+  font-weight: 400;
+}
