@@ -3,7 +3,7 @@ import { fastWindows, helpHtml } from '../src/ui/help';
 import { introHtml } from '../src/ui/intro';
 import { ECONOMY } from '../src/ui/machine/economy';
 import { NORMAL_ODDS, RUSH_ODDS } from '../src/ui/machine/machine';
-import { Tips } from '../src/ui/tips';
+import { Tips, tipLink, tipText } from '../src/ui/tips';
 
 describe('一言ガイド', () => {
   it('各ガイドは1回だけ', () => {
@@ -24,14 +24,38 @@ describe('一言ガイド', () => {
 });
 
 describe('遊び方', () => {
-  it('ルールの数値は ECONOMY と台の定数から作る', () => {
-    const html = helpHtml('rules', 'jissen');
-    expect(html).toContain(`1/${NORMAL_ODDS}`);
-    expect(html).toContain(`1/${RUSH_ODDS}`);
-    expect(html).toContain(`${ECONOMY.initial.toLocaleString()} yan`);
+  it('数値は ECONOMY と台の定数から作る', () => {
+    const rush = helpHtml('rush', 'jissen');
+    expect(rush).toContain(`1/${NORMAL_ODDS}`);
+    expect(rush).toContain(`1/${RUSH_ODDS}`);
+    const money = helpHtml('money', 'jissen');
+    expect(money).toContain(`${ECONOMY.initial.toLocaleString()} yan`);
     expect(fastWindows()).toBe(
       `早見 ${ECONOMY.fastSeconds.hayami}秒・符計算 ${ECONOMY.fastSeconds.fu}秒・実戦 ${ECONOMY.fastSeconds.jissen}秒`,
     );
+  });
+
+  it('基本タブにゲームの目的とコンボ（電チュー）の説明がある', () => {
+    const html = helpHtml('basic', 'jissen');
+    expect(html).toContain('id="h-goal"');
+    expect(html).toContain('このゲームの目的');
+    expect(html).toContain(`${ECONOMY.denchu.jissen}連`);
+    expect(html).toContain(`${ECONOMY.denchu.hayami}連`);
+  });
+
+  it('BONUS タブに階段・上乗せ・ラウンド上乗せの数値がある', () => {
+    const html = helpHtml('bonus', 'jissen');
+    for (const m of ECONOMY.comboLadder) expect(html).toContain(`×${m}`);
+    expect(html).toContain(`+${ECONOMY.extraRounds.max}R`);
+  });
+
+  it('すべての Tips に文面があり、「詳しく」の行き先のカードがヘルプにある', () => {
+    const ids = ['enter', 'reach', 'jackpot', 'rush', 'miss', 'fast', 'low', 'denchuSoon', 'denchu', 'bonusFu', 'ladder', 'bonusMiss', 'roundUp', 'uwanose', 'rushMiss', 'shop', 'machine', 'mission'] as const;
+    for (const id of ids) {
+      expect(tipText(id, 20).length).toBeGreaterThan(10);
+      const link = tipLink(id);
+      if (link) expect(helpHtml(link.tab, 'jissen')).toContain(`id="h-${link.card}"`);
+    }
   });
 
   it('導入は3ステップで、最後にプラクティスへの導線がある', () => {

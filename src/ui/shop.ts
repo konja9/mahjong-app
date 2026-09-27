@@ -196,7 +196,15 @@ export function machinesHtml(s: ShopState, balance: number, canSwitch: boolean):
 }
 
 /** 交換所：景品（見た目と音だけ。学習には影響しない） */
-export function itemsHtml(s: ShopState, balance: number, canPreview = true): string {
+/** 交換所のタブ */
+export type ItemsTab = 'title' | 'skin' | 'bgm';
+export const ITEMS_TABS: [ItemsTab, string, ItemKind[]][] = [
+  ['title', '称号', ['title']],
+  ['skin', 'スキン', ['back', 'skin']],
+  ['bgm', 'BGM', ['bgm']],
+];
+
+export function itemsHtml(s: ShopState, balance: number, canPreview = true, tab: ItemsTab = 'title'): string {
   const row = (i: ShopItem) => {
     const have = s.owned.includes(i.id);
     const on = s.equip[i.kind] === i.id;
@@ -223,14 +231,23 @@ export function itemsHtml(s: ShopState, balance: number, canPreview = true): str
   const of = (kind: ItemKind) => ITEMS.filter((i) => i.kind === kind);
   const titles = of('title');
   const earnedCount = titles.filter((i) => i.unlock && s.owned.includes(i.id)).length;
-  return (
-    group('牌の背', of('back')) +
-    group('液晶のスキン', of('skin')) +
-    group('BGM（BONUS・RUSH の曲）', of('bgm')) +
-    group('称号', titles.filter((i) => !i.unlock)) +
-    group(`実力の称号 <span class="muted small">${earnedCount}/${titles.filter((i) => i.unlock).length}</span>`, titles.filter((i) => i.unlock)) +
-    '<p class="help-note">称号は装備すると、画面下の計器の「所持」の横にプレートで表示されます（色はレア度）。実力の称号は買えません。ノーマルで条件を満たすと自動で手に入ります。</p>'
-  );
+  // タブ：所持数を小さく出す（「なし」など最初から持っているものも数える）
+  const tabs = ITEMS_TABS.map(([t, label, kinds]) => {
+    const all = ITEMS.filter((i) => kinds.includes(i.kind) && i.value !== '');
+    const have = all.filter((i) => s.owned.includes(i.id)).length;
+    return `<button class="cfg${t === tab ? ' on' : ''}" role="tab" aria-selected="${t === tab}" data-items-tab="${t}">${label}<small>${have}/${all.length}</small></button>`;
+  }).join('');
+  let body: string;
+  if (tab === 'skin') body = group('牌の背', of('back')) + group('液晶のスキン', of('skin'));
+  else if (tab === 'bgm')
+    body = group('BGM（BONUS・RUSH の曲）', of('bgm')) + '<p class="help-note">BONUS と RUSH の間に流れる曲です。試聴は BONUS・RUSH 中以外にできます。</p>';
+  else
+    body =
+      '<p class="help-note top">装備すると、画面下の計器の「所持」の横にプレートで表示されます。色はレア度（コモン・レア・エピック・レジェンド）。</p>' +
+      group('称号', titles.filter((i) => !i.unlock)) +
+      group(`実力の称号 <span class="muted small">${earnedCount}/${titles.filter((i) => i.unlock).length}</span>`, titles.filter((i) => i.unlock)) +
+      '<p class="help-note">実力の称号は買えません。ノーマルで条件を満たすと自動で手に入ります。</p>';
+  return `<div class="cfg-group help-tabs items-tabs" role="tablist">${tabs}</div>${body}`;
 }
 
 /** 今日のミッションの一覧 */
@@ -253,9 +270,10 @@ export function missionsHtml(s: ShopState): string {
 const TITLES: Record<ShopView, string> = { machine: '台選び', items: '交換所', missions: '今日のミッション' };
 
 /** ダイアログの中身 */
-export function shopHtml(s: ShopState, view: ShopView, balance: number, canSwitch: boolean): string {
+export function shopHtml(s: ShopState, view: ShopView, balance: number, canSwitch: boolean, tab: ItemsTab = 'title'): string {
   // canSwitch：台選びでは台を切り替えられるか、交換所では試聴できるか
-  const body = view === 'machine' ? machinesHtml(s, balance, canSwitch) : view === 'items' ? itemsHtml(s, balance, canSwitch) : missionsHtml(s);
+  const body =
+    view === 'machine' ? machinesHtml(s, balance, canSwitch) : view === 'items' ? itemsHtml(s, balance, canSwitch, tab) : missionsHtml(s);
   return `<div class="settings help shop">
     <div class="set-head"><span>${TITLES[view]}</span><span class="shop-wallet">所持 <b>${balance.toLocaleString()}</b> yan</span><button class="icon-btn" data-shop-close aria-label="閉じる">×</button></div>
     <div class="help-body">${body}</div>

@@ -33,9 +33,9 @@ import { introHtml, introSeen, markIntroSeen } from './intro';
 import { SPECS } from './machine/specs';
 import { dateKey, ensureToday, recordAnswer } from './missions';
 import { renderOdometer } from './odometer';
-import { RARITY_LABEL, type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, missionStrip, saveShop, shopHtml, unlockMachine } from './shop';
+import { type ItemsTab, RARITY_LABEL, type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, missionStrip, saveShop, shopHtml, unlockMachine } from './shop';
 import { load, save } from './storage';
-import { type TipId, Tips, tipText } from './tips';
+import { type TipId, Tips, tipLink, tipText } from './tips';
 import { TILE_DEFS, handHtml, tilesInline } from './tileView';
 
 type Phase = 'answering' | 'suspense' | 'result' | 'summary';
@@ -137,18 +137,20 @@ export class App {
   /** 回答を止めている理由（台の発展リーチ・大当り、ダイアログ） */
   private pauses = new Set<string>();
   private tips = new Tips();
-  private tipQueue: string[] = [];
+  private tipQueue: { text: string; link?: { tab: HelpTab; card: string } | null }[] = [];
   private tipTimer = 0;
   private tipShownAt = 0;
   /** まだ大当りしたことがない人向けのチュートリアル当り */
   private tutorialCount = 0;
   private tutorialForced = false;
   private introStep = 0;
-  private helpTab: HelpTab = 'howto';
+  private helpTab: HelpTab = 'basic';
   private tipsReset = false;
   /** 交換所（台・景品・ミッション） */
   private shop = loadShop();
   private shopView: ShopView = 'items';
+  /** 交換所で最後に開いたタブ */
+  private shopItemsTab: ItemsTab = 'title';
 
   constructor(private root: HTMLElement) {
     this.root.innerHTML = SHELL;
@@ -396,6 +398,7 @@ export class App {
     }
     // 大当りの時点で音が使えなかった（未操作・音オフから復帰）場合も、問題ごとに曲を合わせ直す
     this.syncBgm();
+    if (this.isRoundQ && this.round?.n === 1) this.tip('bonusFu');
   }
 
   /** 今の状態に合った曲を流す（BONUS 中は BONUS の曲、RUSH 中は RUSH の曲） */
@@ -449,6 +452,7 @@ export class App {
         }
         this.startBetRing();
         this.renderNet();
+        this.tip('bonusFu');
       }
       this.renderBonus();
       this.renderProgress();
@@ -464,6 +468,7 @@ export class App {
     this.panel.bonus(null);
     if (r.perfect) {
       this.shop.stats.perfectBonus++;
+      this.tip('uwanose');
       this.grantUnlocks();
       saveShop(this.shop);
     }
@@ -554,6 +559,11 @@ export class App {
     const target = this.wallet.balance;
     w.classList.toggle('low', target < ECONOMY.lowWarn);
     if (target < ECONOMY.lowWarn && !this.practice && delta < 0) this.tip('low');
+    // yan の使い道を知らせる（初めて届いたとき）
+    if (!this.practice && delta > 0) {
+      if (target >= 1500) this.tip('shop');
+      if (target >= SPECS.middle.price && !this.shop.machines.includes('middle')) this.tip('machine');
+    }
     // 数字は桁ごとに回る（オドメーター）。動きの速さは CSS で決める
     val.style.setProperty('--odo-ms', `${animate ? rollMs : 0}ms`);
     renderOdometer(val, target.toLocaleString());
@@ -774,8 +784,12 @@ export class App {
         if (add > 0) r.extra += add;
         const ext = add > 0 ? `<span class="round-up">${limit} → +${add}R</span>` : '';
         extra = `<span class="prize">+${prize.toLocaleString()} yan</span>${ext}<span class="muted breakdown">${factors.join(' ')}</span>`;
-        this.renderBonus({ lit: fuScaleKey(h.fu, h.yakuman), up: comboMult(r.combo) > mult });
-        if (add > 0) this.panel.roundUp(add);
+        const up = comboMult(r.combo) > mult;
+        this.renderBonus({ lit: fuScaleKey(h.fu, h.yakuman), up });
+        if (add > 0) {
+          this.panel.roundUp(add);
+          this.tip('roundUp');
+        } else if (up) this.tip('ladder');
         this.fx.roundWin(prize, answerEl, $('#net'), () => this.changeBalance(prize, 900));
       } else if (!this.practice && elapsed <= ECONOMY.fastSeconds[this.s.mode]) {
         this.tip('fast');
@@ -788,9 +802,12 @@ export class App {
         // 正解＝始動口入賞。ラウンド中は台に玉を入れない
         if (!this.isRoundQ) {
           this.tutorialHit();
-          // 連続正解で電チュー開放（玉が2個・3個入る）。段が上がった瞬間だけ告知する
+          // 連続正解で電チュー開放（玉が2個入る）。開いた瞬間だけ告知する
           const balls = ballsFor(this.s.mode, ss.streak);
-          void this.panel.enter(balls, answerEl, balls > ballsFor(this.s.mode, ss.streak - 1));
+          const opened = balls > ballsFor(this.s.mode, ss.streak - 1);
+          void this.panel.enter(balls, answerEl, opened);
+          if (opened) this.tip('denchu');
+          else if (ss.streak === ECONOMY.denchu[this.s.mode] - 2) this.tip('denchuSoon');
         }
         // BONUS の出玉演出は符の高さで決める（難しい手ほど派手）。通常時は打点の役名と火花だけ
         const w = this.isRoundQ ? this.fuTier() : { tier, label };
@@ -803,6 +820,7 @@ export class App {
       if (this.isRoundQ && this.round) {
         this.round.combo = 0;
         this.round.perfect = false;
+        this.tip('bonusMiss');
         const h = handFu(this.q);
         this.renderBonus({ miss: fuScaleKey(h.fu, h.yakuman) });
       }
@@ -814,6 +832,7 @@ export class App {
       if (!this.practice && !this.isRoundQ) {
         this.tip('miss');
         // RUSH 中の不正解は ST を1回転消費する（継続が実力で決まる）
+        if (this.panel.rush) this.tip('rushMiss');
         this.panel.missSpin();
       }
     }
@@ -1298,6 +1317,12 @@ export class App {
     help.addEventListener('close', () => this.pause('help', false));
     $('#tip').addEventListener('click', (e) => {
       e.stopPropagation();
+      // 「詳しく」はヘルプの該当カードへ
+      const more = (e.target as HTMLElement).closest<HTMLElement>('[data-tip-more]');
+      if (more) {
+        const [tab, card] = more.dataset.tipMore!.split(':');
+        this.openHelp(tab as HelpTab, card);
+      }
       this.nextTip();
     });
   }
@@ -1311,21 +1336,30 @@ export class App {
     dlg.querySelector<HTMLElement>('[data-intro="next"]')?.focus();
   }
 
-  private openHelp(): void {
+  /** ヘルプを開く。card を渡すとそのカードまでスクロールして光らせる */
+  private openHelp(tab?: HelpTab, card?: string): void {
     const dlg = $<HTMLDialogElement>('#help-dialog');
+    if (tab) this.helpTab = tab;
     dlg.innerHTML = helpHtml(this.helpTab, this.s.mode);
     this.pause('help', true);
     if (!dlg.open) dlg.showModal();
+    if (card) {
+      const el = dlg.querySelector<HTMLElement>(`#h-${card}`);
+      if (el) {
+        el.scrollIntoView({ block: 'start' });
+        el.classList.add('flash');
+      }
+    }
   }
 
   /** 初めての出来事なら一言ガイドを出す（ノーマルのみ・各1回） */
   private tip(id: Exclude<TipId, 'firstHit'>): void {
     if (this.practice || !this.tips.first(id)) return;
-    this.toast(tipText(id, ECONOMY.fastSeconds[this.s.mode], this.spec));
+    this.toast(tipText(id, ECONOMY.fastSeconds[this.s.mode], this.spec, this.s.mode), tipLink(id));
   }
 
-  private toast(text: string): void {
-    this.tipQueue.push(text);
+  private toast(text: string, link: { tab: HelpTab; card: string } | null = null): void {
+    this.tipQueue.push({ text, link });
     if ($('#tip').hidden) this.nextTip();
     else {
       // 続けて起きたときは、今のガイドを最低限読める時間だけ出して次へ
@@ -1337,12 +1371,13 @@ export class App {
   private nextTip(): void {
     clearTimeout(this.tipTimer);
     const el = $('#tip');
-    const text = this.tipQueue.shift();
-    if (!text) {
+    const item = this.tipQueue.shift();
+    if (!item) {
       el.hidden = true;
       return;
     }
-    el.innerHTML = `<span class="tip-label">TIPS</span><span class="tip-text">${text}</span>`;
+    const more = item.link ? `<button class="tip-more" type="button" data-tip-more="${item.link.tab}:${item.link.card}">詳しく</button>` : '';
+    el.innerHTML = `<span class="tip-label">TIPS</span><span class="tip-text">${item.text}</span>${more}`;
     el.hidden = false;
     el.classList.remove('show');
     void el.offsetWidth;
@@ -1372,6 +1407,11 @@ export class App {
       const b = t.closest<HTMLElement>('button');
       if (!b || b.hasAttribute('disabled')) return;
       const d = b.dataset;
+      if (d.itemsTab) {
+        this.shopItemsTab = d.itemsTab as ItemsTab;
+        this.renderShop();
+        return;
+      }
       if (d.preview) {
         // 試聴：本番の BGM（BONUS・RUSH）が鳴っている間はしない
         unlockAudio();
@@ -1411,7 +1451,7 @@ export class App {
     this.shop.missions = ensureToday(this.shop.missions);
     // 台選びは BONUS 中と台が回っている間はできない。試聴は BONUS・RUSH の曲が鳴っている間はできない
     const ok = this.shopView === 'items' ? !this.round && !this.panel.rush : !this.round && this.panel.idle;
-    $('#shop-dialog').innerHTML = shopHtml(this.shop, this.shopView, this.wallet.balance, ok);
+    $('#shop-dialog').innerHTML = shopHtml(this.shop, this.shopView, this.wallet.balance, ok, this.shopItemsTab);
   }
 
   /** 台の解放・景品の支払い（0 なら何もしない） */
@@ -1465,16 +1505,17 @@ export class App {
     this.grantUnlocks();
     saveShop(this.shop);
     for (const d of done) {
-      this.toast(`ミッション達成：${d.label}　+${d.reward.toLocaleString()} yan`);
+      this.toast(`ミッション達成：${d.label}　+${d.reward.toLocaleString()} yan`, { tab: 'money', card: 'mission' });
       this.changeBalance(d.reward, 900);
     }
     this.renderMissionStrip(done.length > 0);
+    if (done.length) this.tip('mission');
   }
 
   /** 実力の称号の条件を満たしていたら取得して知らせる */
   private grantUnlocks(): void {
     for (const it of checkUnlocks(this.shop)) {
-      this.toast(`称号を獲得：${it.name}（${RARITY_LABEL[it.rarity ?? 'common']}）。交換所で装備すると、計器の所持の横に表示されます`);
+      this.toast(`称号を獲得：${it.name}（${RARITY_LABEL[it.rarity ?? 'common']}）。交換所で装備すると、計器の所持の横に表示されます`, { tab: 'money', card: 'shop' });
     }
   }
 

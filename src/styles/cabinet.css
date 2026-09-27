@@ -1496,13 +1496,13 @@ body.busy .bet-box .bar {
 }
 
 /* 問題数の横：次の正解で入る玉の数（電チュー） */
-#progress .balls {
+.balls {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   margin-left: -4px;
 }
-#progress .balls i {
+.balls i {
   width: 9px;
   height: 9px;
   border-radius: 50%;
@@ -1632,4 +1632,182 @@ body.busy .bet-box .bar {
   .mt-title.flash {
     animation: none;
   }
+}
+
+/* 交換所のタブ（所持数つき） */
+.items-tabs {
+  margin-bottom: 4px;
+}
+.items-tabs .cfg small {
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+.help-note.top {
+  margin-top: 4px;
+}
+
+/* ============================================================ ヘルプ：図解のカード */
+.h-card {
+  margin-top: 10px;
+  padding: 12px 14px 14px;
+  border-radius: 12px;
+  background: var(--sub-bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+  scroll-margin-top: 60px;
+}
+.h-card h4 {
+  margin: 10px 0 6px;
+  font-size: 15px;
+  font-weight: 800;
+}
+.h-card .iv + h4 {
+  margin-top: 12px;
+}
+.h-card > h4:first-child {
+  margin-top: 0;
+}
+.h-card .iv {
+  margin-top: 0;
+  padding: 14px 10px;
+  background: #0b0c10;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 30%, transparent);
+}
+.h-txt p,
+.h-txt li {
+  margin: 4px 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text);
+}
+.h-txt ul {
+  margin: 6px 0 0;
+  padding-left: 1.2em;
+}
+.h-txt .help-flow,
+.h-txt .help-dl,
+.h-txt .help-table {
+  margin-top: 4px;
+}
+.h-card.flash {
+  animation: h-flash 1.6s ease-out;
+}
+@keyframes h-flash {
+  0%,
+  35% {
+    box-shadow: inset 0 0 0 2px var(--main), 0 0 24px rgba(255, 255, 255, 0.25);
+  }
+  100% {
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+}
+.h-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.h-flow .iv-reel b {
+  width: 22px;
+  height: 28px;
+  font-size: 16px;
+}
+.h-chip {
+  padding: 4px 8px;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.2;
+}
+.h-chip small {
+  font-size: 9px;
+  font-weight: 400;
+}
+.h-chip.gold {
+  color: var(--gold-hot);
+  box-shadow: inset 0 0 0 1px var(--gold);
+}
+.h-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  font-weight: 800;
+}
+.h-lcd {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: #f3e3a6;
+}
+.h-rush {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.h-mission {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 10px;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 11px;
+  color: var(--sub);
+}
+.h-mission small {
+  font-weight: 800;
+  color: var(--main);
+}
+.h-plates {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.b-pips i.ext {
+  box-shadow: inset 0 0 0 1px var(--gold-hot), 0 0 6px rgba(255, 216, 74, 0.6);
+}
+.uwa-roll.mini {
+  padding: 8px 20px;
+  animation: none;
+}
+.uwa-roll.mini b {
+  font-size: 34px;
+}
+.uwa-roll.mini small {
+  font-size: 11px;
+}
+.h-card .iv-choices {
+  width: 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .h-card.flash {
+    animation: none;
+  }
+}
+
+/* 一言ガイドの「詳しく」 */
+.tip-more {
+  flex: none;
+  align-self: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px var(--main);
+  color: var(--main);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
 }

@@ -80,3 +80,19 @@ describe('称号と BGM', () => {
     expect(s.equip.bgm).toBe('bgm-euro');
   });
 });
+
+describe('交換所のタブ', () => {
+  it('各タブには該当する景品だけが出る', async () => {
+    const { itemsHtml } = await import('../src/ui/shop');
+    const s = freshShop();
+    const title = itemsHtml(s, 0, true, 'title');
+    expect(title).toContain('連チャン職人');
+    expect(title).not.toContain('ユーロビート');
+    const skin = itemsHtml(s, 0, true, 'skin');
+    expect(skin).toContain('朱漆');
+    expect(skin).not.toContain('連チャン職人');
+    const bgm = itemsHtml(s, 0, true, 'bgm');
+    expect(bgm).toContain('ユーロビート');
+    expect(bgm).not.toContain('朱漆');
+  });
+});
