@@ -1,15 +1,22 @@
 /**
  * 遊び方ダイアログ（？ボタン）。数値は ECONOMY と台の定数から組み立て、調整しても説明がずれないようにする
  */
+import { evaluate } from '../core/evaluate';
 import type { Mode } from '../core/generator';
+import { type Meld, defaultSituation } from '../core/hand';
+import { DEFAULT_RULES } from '../core/rules';
+import { formatAnswer } from '../core/score';
+import { parseTiles, windName } from '../core/tiles';
+import { blocksHtml, fuTable } from './explain';
 import { ECONOMY, costFor, fuScale, uwanoseMean } from './machine/economy';
 import { KAKUHEN_RATE, NORMAL_ODDS, RUSH_ODDS, ST_SPINS } from './machine/machine';
 import { MACHINE_IDS, SPECS } from './machine/specs';
 
-export type HelpTab = 'basic' | 'bonus' | 'rush' | 'money' | 'terms';
+export type HelpTab = 'basic' | 'fu' | 'bonus' | 'rush' | 'money' | 'terms';
 
 const TABS: [HelpTab, string][] = [
   ['basic', '基本'],
+  ['fu', '符の数え方'],
   ['bonus', 'BONUS'],
   ['rush', 'RUSH'],
   ['money', 'お金と景品'],
@@ -101,12 +108,81 @@ function basic(): string {
       '操作',
       '',
       `<dl class="help-dl keys">
-        <dt><kbd>1</kbd>-<kbd>4</kbd></dt><dd>選択肢を選ぶ（タップでも可）</dd>
+        <dt><kbd>1</kbd>-<kbd>4</kbd></dt><dd>選択肢を選ぶ（タップでも可）。符計算は <kbd>1</kbd>-<kbd>7</kbd> で 20符〜70符〜 のボタン</dd>
         <dt><kbd>Tab</kbd></dt><dd>パス / 次へ</dd>
-        <dt><kbd>Esc</kbd></dt><dd>やり直し</dd>
+        <dt><kbd>Esc</kbd></dt><dd>入力を消す（入力で答えるとき）</dd>
         <dt>入力</dt><dd>出題設定で「入力」にすると数字で答えられます。子のツモは「子-親」（例 1000-2000）</dd>
       </dl>`,
     )
+  );
+}
+
+/** 符の例題。数値は点数エンジンで計算するので、説明と正解がずれない */
+export const FU_EXAMPLES: { title: string; concealed: string; win: string; melds?: Meld[]; tsumo?: boolean; round?: string; seat?: string; fu: number; point: string }[] = [
+  { title: '平和のロン', concealed: '234m567p234s88s67s', win: '5s', fu: 30, point: '順子・数牌の雀頭・両面待ちはすべて0符。副底20＋門前ロン10＝30符' },
+  { title: '暗刻と嵌張のツモ', concealed: '777m234p567m99p46s', win: '5s', tsumo: true, fu: 30, point: '中張の暗刻は4符、嵌張待ちは2符、ツモは2符。合計28符を切り上げて30符' },
+  {
+    title: '鳴いた手の么九の暗刻',
+    concealed: '13p345p999p11z',
+    win: '2p',
+    melds: [{ type: 'chi', tile: 15 }],
+    round: '1z',
+    seat: '3z',
+    fu: 40,
+    point: '鳴いているので門前ロンは付かない。么九の暗刻8符、場風の雀頭2符、嵌張2符で32符→40符',
+  },
+];
+
+function fuExample(ex: (typeof FU_EXAMPLES)[number]): string {
+  const hand = { concealed: parseTiles(ex.concealed), winTile: parseTiles(ex.win)[0], melds: ex.melds ?? [], akaTiles: [] };
+  const sit = defaultSituation({
+    tsumo: !!ex.tsumo,
+    ...(ex.round ? { roundWind: parseTiles(ex.round)[0] } : {}),
+    ...(ex.seat ? { seatWind: parseTiles(ex.seat)[0] } : {}),
+  });
+  const ev = evaluate(hand, sit, DEFAULT_RULES);
+  if (!ev) return '';
+  const where = `${windName(sit.roundWind)}場・${windName(sit.seatWind)}家・${ex.tsumo ? 'ツモ' : 'ロン'}・${ex.melds?.length ? '鳴きあり' : '門前'}`;
+  return `<div class="fu-ex"><div class="fu-ex-h"><b>${ex.title}</b><span class="muted small">${where} → ${ev.fu.fu}符（${ev.han}翻 ${formatAnswer(ev.score)}）</span></div>
+    <div class="explain">${blocksHtml(hand, ev)}${fuTable(ev)}</div><p class="small">${ex.point}</p></div>`;
+}
+
+function fu(): string {
+  const tri = (label: string, a: number, b: number) => `<tr><th>${label}</th><td>${a}</td><td>${b}</td></tr>`;
+  return (
+    card(
+      'fu-flow',
+      '符を数える順番',
+      '',
+      `<ol class="help-flow fu-steps">
+        <li><b><span class="n">1</span>決まった形を先に見る</b><p><b>七対子は25符</b>、<b>平和のツモは20符</b>で固定。ここで終わり。</p></li>
+        <li><b><span class="n">2</span>副底 20符</b><p>どの手にも付く土台。</p></li>
+        <li><b><span class="n">3</span>和了り方</b><p><b>門前でロン +10符</b>（鳴いていたら付かない）。<b>ツモ +2符</b>（平和のツモには付かない）。</p></li>
+        <li><b><span class="n">4</span>面子</b><p>順子は0符。刻子・槓子は下の表。</p></li>
+        <li><b><span class="n">5</span>雀頭</b><p>役牌（白發中・場風・自風）なら <b>+2符</b>。場風かつ自風（連風牌）は設定で2符か4符。数牌・客風牌は0符。</p></li>
+        <li><b><span class="n">6</span>待ち</b><p><b>嵌張・辺張・単騎 +2符</b>。両面・双碰は0符。</p></li>
+        <li><b><span class="n">7</span>10符単位に切り上げ</b><p>例 32符 → 40符。鳴いて合計20符のロン（喰い平和形）は30符にする。</p></li>
+      </ol>`,
+    ) +
+    card(
+      'fu-mentsu',
+      '刻子・槓子の符',
+      '',
+      `<table class="help-table fu-grid"><tr><th></th><th>中張<br><small>2〜8</small></th><th>么九<br><small>1・9・字牌</small></th></tr>${tri('明刻', 2, 4)}${tri('暗刻', 4, 8)}${tri('明槓', 8, 16)}${tri('暗槓', 16, 32)}</table>
+      <p>覚え方：<b>明刻2符</b>が基本。<b>暗なら×2</b>、<b>么九なら×2</b>、<b>槓子なら×4</b>。</p>
+      <p>手の内の刻子でも、<b>双碰待ちをロンで完成させた刻子は明刻</b>として数えます（ツモなら暗刻）。</p>`,
+    ) +
+    card(
+      'fu-wait',
+      '待ちの符と分け方',
+      '',
+      `<dl class="help-dl">
+        <dt>+2符</dt><dd>嵌張（4_6 の5）・辺張（12_ の3、_89 の7）・単騎（雀頭を待つ）</dd>
+        <dt>0符</dt><dd>両面（23 で1か4）・双碰（2つの対子のどちらか）</dd>
+      </dl>
+      <p>同じ手でも面子の分け方で待ちが変わることがあります。そのときは<b>点数が高くなる分け方</b>で数えます（高点法）。解説に「別の分け方」が出たら、その手です。</p>`,
+    ) +
+    card('fu-examples', '例題', '', FU_EXAMPLES.map(fuExample).join(''))
   );
 }
 
@@ -234,7 +310,8 @@ function terms(): string {
 }
 
 export function helpHtml(tab: HelpTab, mode: Mode): string {
-  const body = tab === 'basic' ? basic() : tab === 'bonus' ? bonus(mode) : tab === 'rush' ? rush() : tab === 'money' ? money() : terms();
+  const body =
+    tab === 'basic' ? basic() : tab === 'fu' ? fu() : tab === 'bonus' ? bonus(mode) : tab === 'rush' ? rush() : tab === 'money' ? money() : terms();
   return `<div class="settings help">
     <div class="set-head"><span>遊び方</span><button class="icon-btn" data-help-close aria-label="閉じる">×</button></div>
     <div class="cfg-group help-tabs" role="tablist">${TABS.map(

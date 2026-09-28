@@ -206,6 +206,10 @@ export class App {
   }
 
   private update(patch: Partial<Settings>, restart = true): void {
+    if (restart && this.blockedInBonus()) {
+      this.renderConfig();
+      return;
+    }
     this.s = { ...this.s, ...patch };
     saveSettings(this.s);
     this.applyTheme();
@@ -213,6 +217,13 @@ export class App {
     this.renderConfig();
     // モードを切り替えたときは台をリセット（それ以外は台の状態を引き継ぐ）
     if (restart) this.startSession('playMode' in patch);
+  }
+
+  /** BONUS 中は、問題や台が入れ替わる操作（出題設定・ルール・精算など）をさせない */
+  private blockedInBonus(): boolean {
+    if (!this.round) return false;
+    this.toast('BONUS 中は変更できません。BONUS が終わってから切り替えてください');
+    return true;
   }
 
   private renderConfig(): void {
@@ -235,7 +246,7 @@ export class App {
         (['hayami', 'fu', 'jissen'] as Mode[]).map((m) => [m, MODE_NAMES[m], s.mode === m]),
       ),
       group('answer', [
-        ['choice', '4択', s.answerStyle === 'choice'],
+        ['choice', s.mode === 'fu' ? '選択' : '4択', s.answerStyle === 'choice'],
         ['input', '入力', s.answerStyle === 'input'],
       ]),
       this.practice &&
@@ -260,7 +271,9 @@ export class App {
     ]
       .filter(Boolean)
       .join('<span class="cfg-sep"></span>') +
-      (this.practice ? '' : '<button class="cfg-done cashout" type="button" data-cashout>精算</button>') +
+      (this.practice
+        ? '<button class="cfg-done" type="button" data-restart>最初から</button>'
+        : '<button class="cfg-done cashout" type="button" data-cashout>精算</button>') +
       '<button class="cfg-done" type="button" data-close-cfg>閉じる</button>';
     // ミドル以上の台は実戦のみ
     const locked = !this.practice && this.spec.jissenOnly;
@@ -277,7 +290,7 @@ export class App {
       )
       .join('');
     const count = !this.practice ? '∞' : s.count ? `${s.count}問` : '∞';
-    $('#cfg-toggle').innerHTML = `<span class="pill-mode">${MODE_NAMES[s.mode]}<span class="dot-sep">·</span></span><span class="pill-answer">${s.answerStyle === 'choice' ? '4択' : '入力'}<span class="dot-sep">·</span></span>${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+    $('#cfg-toggle').innerHTML = `<span class="pill-mode">${MODE_NAMES[s.mode]}<span class="dot-sep">·</span></span><span class="pill-answer">${s.answerStyle === 'choice' ? (s.mode === 'fu' ? '選択' : '4択') : '入力'}<span class="dot-sep">·</span></span>${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
   }
 
   private setPhase(phase: Phase): void {
@@ -462,6 +475,9 @@ export class App {
   private endRound(): void {
     const r = this.round;
     if (!r) return;
+    // 最後の問題まで答え終えたときだけ全問正解（上乗せ・称号）の対象にする。途中で打ち切られた BONUS は対象外
+    const completed = r.n >= this.roundCount && this.phase !== 'answering' && this.phase !== 'suspense';
+    if (!completed) r.perfect = false;
     this.round = null;
     this.isRoundQ = false;
     document.body.classList.remove('bonus');
@@ -737,7 +753,7 @@ export class App {
     const stage = $('#stage');
     stage.classList.add(correct ? 'correct' : 'wrong');
 
-    const explain = this.q.mode === 'hayami' ? hayamiExplain(this.q) : handExplain(this.q);
+    const explain = this.q.mode === 'hayami' ? hayamiExplain(this.q) : handExplain(this.q, this.s.rules);
     const answerEl = this.answerAnchor();
     const yours = timeout ? '時間切れ' : this.isChoice ? this.choices[this.picked].label : this.input;
 
@@ -930,6 +946,8 @@ export class App {
   private renderChoices(): void {
     const el = $('#choices');
     const done = this.phase === 'result';
+    // 符計算は固定の7つのボタン（昇順）
+    el.classList.toggle('fu-pad', this.q.mode === 'fu');
     el.innerHTML = this.choices
       .map((c, i) => {
         const cls = done ? (c.correct ? ' is-correct' : i === this.picked ? ' is-wrong' : ' is-dim') : '';
@@ -963,9 +981,9 @@ export class App {
 
   private defaultHint(): string {
     if (this.compact) return '';
-    if (this.isChoice) return '<kbd>1</kbd>-<kbd>4</kbd> 選択 · <kbd>Tab</kbd> パス · <kbd>Esc</kbd> やり直し';
+    if (this.isChoice) return `<kbd>1</kbd>-<kbd>${this.choices.length}</kbd> 選択 · <kbd>Tab</kbd> パス`;
     const pair = this.needsPair() ? '<kbd>-</kbd> 区切り · ' : '';
-    return `${pair}<kbd>Enter</kbd> 回答 · <kbd>Tab</kbd> パス · <kbd>Esc</kbd> やり直し`;
+    return `${pair}<kbd>Enter</kbd> 回答 · <kbd>Tab</kbd> パス · <kbd>Esc</kbd> 消す`;
   }
 
   private hint(html: string): void {
@@ -1144,7 +1162,16 @@ export class App {
     });
     $('#config').addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('[data-cashout]')) {
+        if (this.blockedInBonus()) return;
         this.showSummary('settle');
+        return;
+      }
+      if ((e.target as HTMLElement).closest('[data-restart]')) {
+        // プラクティスのやり直し（途中まで答えていたら確認する）
+        if (!this.session.answered || confirm('最初からやり直しますか？ ここまでの成績は消えます')) {
+          this.toggleConfigSheet(false);
+          this.startSession();
+        }
         return;
       }
       if ((e.target as HTMLElement).closest('[data-close-cfg]')) {
@@ -1186,7 +1213,13 @@ export class App {
       this.pick(Number(b.dataset.choice));
     });
     $('#overlay').addEventListener('click', () => this.fx.tap());
-    $('#stage').addEventListener('click', () => {
+    $('#stage').addEventListener('click', (e) => {
+      // 解説の「符の数え方」はヘルプを開く（次の問題へは進まない）
+      const link = (e.target as HTMLElement).closest<HTMLElement>('[data-help-link]');
+      if (link) {
+        this.openHelp(link.dataset.helpLink as HelpTab, 'fu-flow');
+        return;
+      }
       if (this.phase === 'result') this.next();
     });
   }
@@ -1204,8 +1237,13 @@ export class App {
     unlockAudio();
     if (e.key === 'Tab' || e.key === ' ') e.preventDefault();
     if (e.key === 'Escape') {
+      // Esc は入力を消すだけ（問題の入れ替え・セッションのやり直しはしない）
       e.preventDefault();
-      this.startSession();
+      if (this.phase === 'answering' && !this.isChoice && this.input) {
+        this.input = '';
+        this.renderInput();
+        sfx.back();
+      }
       return;
     }
     if (e.key === 'Backspace' && e.altKey) {
@@ -1241,7 +1279,7 @@ export class App {
     }
     document.body.classList.add('typing');
     if (this.isChoice) {
-      if (/^[1-4]$/.test(key)) this.pick(Number(key) - 1);
+      if (/^[1-9]$/.test(key)) this.pick(Number(key) - 1);
       else if (key === 'Tab') void this.submit(true);
       return;
     }
@@ -1587,6 +1625,7 @@ export class App {
         }
         return;
       case 'doubleWindPairFu':
+        if (this.blockedInBonus()) return;
         rules.doubleWindPairFu = Number(v) as 2 | 4;
         break;
       case 'reset':
@@ -1600,6 +1639,7 @@ export class App {
         this.tipsReset = true;
         return;
       case 'wallet':
+        if (this.blockedInBonus()) return;
         if (confirm(`所持金を ${ECONOMY.initial}yan に戻しますか？`)) {
           this.wallet = freshWallet();
           saveWallet(this.wallet);
@@ -1611,6 +1651,7 @@ export class App {
       case 'kiriage':
       case 'kazoe':
       case 'doubleYakuman':
+        if (this.blockedInBonus()) return;
         rules[name] = bool;
         break;
       default:
@@ -1714,7 +1755,7 @@ const SHELL = `
   <button data-key="Enter" class="enter">回答</button>
 </div>
 <footer>
-  <span><kbd>Esc</kbd> やり直し</span>
+  <span class="esc-key"><kbd>Esc</kbd> 入力を消す</span>
   <span><kbd>Tab</kbd> パス / 次へ</span>
   <span class="muted">遊び方は右上の ? から</span>
 </footer>

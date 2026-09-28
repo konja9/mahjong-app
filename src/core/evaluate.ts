@@ -32,11 +32,11 @@ export function countDora(hand: Hand, sit: Situation, rules: Rules, menzen: bool
   return out;
 }
 
-/** 高点法で最も高い解釈を返す。役がなければ null */
-export function evaluate(hand: Hand, sit: Situation, rules: Rules): Evaluation | null {
+/** 役のある解釈をすべて評価し、点数の高い順（高点法の順）に並べる */
+export function evaluateAll(hand: Hand, sit: Situation, rules: Rules): Evaluation[] {
   const menzen = isMenzen(hand);
   const dealer = sit.seatWind === EAST;
-  let best: Evaluation | null = null;
+  const out: Evaluation[] = [];
   for (const interp of decompose(hand, sit.tsumo)) {
     const { yaku, pinfu } = detectYaku(interp, hand, sit, rules);
     if (!yaku.length) continue;
@@ -45,10 +45,15 @@ export function evaluate(hand: Hand, sit: Situation, rules: Rules): Evaluation |
     const han = yaku.reduce((s, y) => s + y.han, 0) + dora.reduce((s, y) => s + y.han, 0);
     const fu = calcFu(interp, sit, rules, menzen, pinfu);
     const score = calcScore(han, fu.fu, dealer, sit.tsumo, rules, yakuman);
-    const ev: Evaluation = { interp, yaku, dora, han, yakuman, fu, score };
-    if (!best || isBetter(ev, best)) best = ev;
+    out.push({ interp, yaku, dora, han, yakuman, fu, score });
   }
-  return best;
+  // 同点なら先に見つかった解釈を優先する（安定ソート）
+  return out.sort((a, b) => (isBetter(a, b) ? -1 : isBetter(b, a) ? 1 : 0));
+}
+
+/** 高点法で最も高い解釈を返す。役がなければ null */
+export function evaluate(hand: Hand, sit: Situation, rules: Rules): Evaluation | null {
+  return evaluateAll(hand, sit, rules)[0] ?? null;
 }
 
 function isBetter(a: Evaluation, b: Evaluation): boolean {
