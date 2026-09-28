@@ -477,6 +477,18 @@ main {
 [data-answer='choice'] #numpad {
   display: none !important;
 }
+/* 符計算：20符〜70符〜 の固定ボタン（昇順） */
+#choices.fu-pad {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+#choices.fu-pad .choice {
+  padding: 16px 4px;
+  font-size: clamp(18px, 2.4vw, 24px);
+}
+[data-answer='choice'] footer .esc-key {
+  display: none;
+}
 
 /* ------------------------------------------------------------ result */
 #result:empty {
@@ -579,6 +591,87 @@ tfoot b {
 tr.yakuman td {
   color: var(--main);
   font-weight: 700;
+}
+
+/* 符の内訳：0符の行は薄く、理由を小さく添える */
+.fu-table tr.zero td {
+  color: var(--sub);
+}
+.fu-note {
+  display: block;
+  font-size: 11px;
+  color: var(--sub);
+  line-height: 1.4;
+}
+.ex-link {
+  float: right;
+  font-size: 12px;
+  color: var(--main);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* 解説：手牌を面子ごとに区切った図 */
+.ex-blocks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 14px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.blk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.blk-tiles {
+  display: flex;
+  gap: 1px;
+  --tile-h: 36px;
+}
+.blk-tiles .tile.win {
+  transform: translateY(-3px);
+}
+.blk-cap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--sub);
+}
+.blk-cap em {
+  font-style: normal;
+  margin-left: 3px;
+}
+.blk-cap b {
+  font-size: 13px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', 'Noto Sans JP', monospace;
+}
+.blk-cap b.zero {
+  color: var(--sub);
+  font-weight: 400;
+}
+.blk-wait {
+  color: var(--main);
+  font-weight: 700;
+}
+.ex-alt {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+.ex-alt ul {
+  margin: 0 0 4px;
+  padding-left: 1.2em;
+}
+.ex-alt p {
+  margin: 0;
 }
 
 /* ------------------------------------------------------------ lamps (保留) */
@@ -1809,6 +1902,21 @@ body.chou::before {
   .choice kbd {
     display: none;
   }
+  #choices.fu-pad {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  #choices.fu-pad .choice {
+    min-height: 56px;
+    padding: 8px 2px;
+    font-size: clamp(17px, 5vw, 22px);
+  }
+  .blk-tiles {
+    --tile-h: 29px;
+  }
+  .ex-blocks {
+    gap: 8px 10px;
+  }
   .choice:not([disabled]):hover {
     border-color: transparent;
   }
@@ -2668,11 +2776,14 @@ body.busy #answer {
   border-radius: 8px;
   background: var(--sub-bg);
 }
-.help-flow b {
+.help-flow > li > b {
   display: flex;
   align-items: center;
   gap: 8px;
   color: var(--main);
+}
+.help-flow p b {
+  color: var(--text);
 }
 .help-flow .n {
   display: inline-grid;
@@ -2702,6 +2813,31 @@ body.busy #answer {
   margin: 0;
   color: color-mix(in srgb, var(--text) 85%, var(--sub));
   font-size: 13px;
+}
+/* 符の数え方：刻子の表と例題 */
+.fu-grid {
+  margin: 4px 0 10px;
+}
+.fu-grid td {
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+}
+.fu-ex {
+  margin: 14px 0 18px;
+}
+.fu-ex-h {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.fu-ex .explain {
+  padding: 12px 14px;
+}
+.fu-ex p {
+  margin: 6px 0 0;
 }
 .help-table {
   width: 100%;
@@ -2942,19 +3078,19 @@ body.busy #answer {
   .help-dl dd {
     margin-bottom: 8px;
   }
-  .help-table,
-  .help-table tbody,
-  .help-table tr,
-  .help-table th,
-  .help-table td {
+  .help-table:not(.fu-grid),
+  .help-table:not(.fu-grid) tbody,
+  .help-table:not(.fu-grid) tr,
+  .help-table:not(.fu-grid) th,
+  .help-table:not(.fu-grid) td {
     display: block;
     width: auto;
   }
-  .help-table th {
+  .help-table:not(.fu-grid) th {
     border-bottom: 0;
     padding: 8px 0 0;
   }
-  .help-table td {
+  .help-table:not(.fu-grid) td {
     padding: 0 0 8px;
   }
   .intro-dialog {

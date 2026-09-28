@@ -24,7 +24,14 @@ export const WAIT_NAMES: Record<WaitType, string> = {
 };
 
 export type Interpretation =
-  | { form: 'standard'; pair: Tile; groups: Group[]; wait: WaitType }
+  | {
+      form: 'standard';
+      pair: Tile;
+      groups: Group[];
+      wait: WaitType;
+      /** 和了牌で完成した面子の groups での位置（-1 は雀頭＝単騎） */
+      winGroup: number;
+    }
   | { form: 'chiitoi'; pairs: Tile[] }
   | { form: 'kokushi'; thirteenWait: boolean };
 
@@ -127,7 +134,7 @@ export function decompose(hand: Hand, tsumo: boolean): Interpretation[] {
           .join(',')}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        results.push({ form: 'standard', pair, groups: all, wait: opt.wait });
+        results.push({ form: 'standard', pair, groups: all, wait: opt.wait, winGroup: opt.idx });
       }
     }
     counts[pair] += 2;

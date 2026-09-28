@@ -299,7 +299,7 @@ export function tileSvg(t: Tile, opts: TileOpts = {}): string {
 }
 
 /** 手牌中の赤5を割り当てるためのカウンタ */
-class AkaAllocator {
+export class AkaAllocator {
   private remaining: Map<Tile, number>;
   constructor(aka: Tile[]) {
     this.remaining = new Map();

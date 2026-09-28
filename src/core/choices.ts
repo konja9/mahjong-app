@@ -8,6 +8,20 @@ export interface Choice {
 }
 
 const FU_LIST = [20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 110];
+
+/**
+ * 符計算の回答ボタン。いつも同じ並び（昇順）にして、選択肢の並びから答えを推測できないようにする。
+ * 70符以上は実戦ではまれなので「70符〜」にまとめる
+ */
+export const FU_BUTTONS = [20, 25, 30, 40, 50, 60, 70] as const;
+
+export function fuButtons(fu: number): Choice[] {
+  const top = FU_BUTTONS[FU_BUTTONS.length - 1];
+  return FU_BUTTONS.map((f) => ({
+    label: f === top ? `${f}符〜` : `${f}符`,
+    correct: f === top ? fu >= top : f === fu,
+  }));
+}
 const LIMIT_TIER = (han: number) => (han >= 13 ? 4 : han >= 11 ? 3 : han >= 8 ? 2 : han >= 6 ? 1 : 0);
 
 interface Candidate {
@@ -72,17 +86,15 @@ function shuffle<T>(arr: T[], rng: Rng): T[] {
 }
 
 /**
- * 正解1つと紛らわしい誤答3つの4択を作る。
+ * 正解1つと紛らわしい誤答3つの4択を作る（符計算は固定の7つのボタン）。
  * fuFocus（BONUS・RUSH）では、4翻以下の手の誤答を「同じ翻で符だけ違う点数」にして、符が分からないと当てられないようにする
  */
 export function makeChoices(q: Question, rules: Rules, rng: Rng = Math.random, fuFocus = false): Choice[] {
+  // 符計算は固定のボタン（誤答を正解の近くから選ぶと、真ん中を選ぶだけで当たってしまう）
+  if (q.mode === 'fu') return fuButtons(q.ev.fu.fu);
   let correct: string;
   let cands: Candidate[];
-  if (q.mode === 'fu') {
-    const fu0 = q.ev.fu.fu;
-    correct = `${fu0}符`;
-    cands = FU_LIST.filter((f) => fu0 > 50 || f < 70).map((f) => ({ label: `${f}符`, dist: Math.abs(f - fu0) / 10 }));
-  } else if (q.mode === 'hayami') {
+  if (q.mode === 'hayami') {
     correct = formatAnswer(q.score);
     cands = pointCandidates(q.han, q.fu, 0, q.dealer, q.tsumo, rules, fuFocus);
   } else {
