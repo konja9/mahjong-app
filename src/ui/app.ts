@@ -1730,7 +1730,6 @@ const SHELL = `
     <div id="progress"></div>
     <div id="question"></div>
     <div id="dock">
-      <div id="tip" role="status" aria-live="polite" hidden></div>
       <button id="mission-strip" type="button" aria-label="今日のミッション"></button>
       <div id="meter">
         <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><div class="mt-top"><small>所持</small><span class="mt-title" hidden></span></div><b>0</b></div>
@@ -1747,6 +1746,7 @@ const SHELL = `
   </section>
   <section id="summary" hidden></section>
 </main>
+<div id="tip" role="status" aria-live="polite" hidden></div>
 <div id="combo" aria-live="polite"></div>
 <div id="numpad">
   ${['1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '0', 'Backspace']
