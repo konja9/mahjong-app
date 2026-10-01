@@ -1,7 +1,8 @@
 /** Android アプリ版（Capacitor）だけで使う処理。Web 版では何もしない */
 import { Capacitor } from '@capacitor/core';
 import { App as NativeApp } from '@capacitor/app';
-import { startAds } from './ads';
+import { startAds, stopAds } from './ads';
+import { initPurchases, onPurchaseChange } from './purchase';
 
 interface BackHandler {
   /** 開いているダイアログやシートを1つ閉じる。閉じるものがなければ false */
@@ -15,5 +16,11 @@ export function setupNative(app: BackHandler): void {
   void NativeApp.addListener('backButton', () => {
     if (!app.back()) void NativeApp.minimizeApp();
   });
-  void startAds();
+  // 広告削除を買ってあれば広告を出さない。買った瞬間に消す（返金で戻るのは次の起動から）
+  onPurchaseChange((p) => {
+    if (p.owned) void stopAds();
+  });
+  void initPurchases().then((owned) => {
+    if (!owned) void startAds();
+  });
 }
