@@ -167,6 +167,12 @@ npm run android:open   # Android Studio で開く（実機・エミュレータ�
 - アプリの中身は APK に同梱し、通信なしで動きます。フォントも `@fontsource/*` で同梱しています（Web 版も同じ。woff2 だけを使うよう `vite.config.ts` で絞っています）。
 - 戻るボタン：開いているダイアログか出題設定シートを閉じ、何も開いていなければアプリを背面に回します（`src/ui/native.ts`、`App.back()`）。
 - 画面が隠れたら音を止め、戻ると再開します。画面は縦固定です。
+- **上部バナー広告（AdMob）**：Android 版だけに出します（`src/ui/ads.ts`）。起動時に EEA・英国などでは同意フォームを出し、必要な地域では設定に「広告 › プライバシー設定」を出します。広告の高さ＋8px（液晶帯の誤タップ防止）を CSS 変数 `--ad-h` に入れて、画面全体を下げます。
+  - `npm run android` の開発ビルドは**常に Google のテスト広告**です。開発中は本番広告を表示・タップしないでください（アカウント停止の対象）。
+  - 本番の ID は2か所に書きます。AdMob の管理画面でアプリと広告ユニット（アダプティブ バナー）を作って発行します。
+    - アプリ ID：`android/gradle.properties` の `ADMOB_APP_ID=ca-app-pub-…~…`（未設定ならテスト用 ID）
+    - 広告ユニット ID：リポジトリ直下の `.env.release` に `VITE_ADMOB_BANNER_ID=ca-app-pub-…/…`
+  - Play に出すビルドは `npm run android:release` で作ります（`.env.release` を読む）。
 - バージョンは `package.json` の `version` から作ります（`1.2.3` → versionName `1.2.3`、versionCode `10203`）。Play に上げるたびに上げてください。
 
 ### 公開（GitHub Pages）

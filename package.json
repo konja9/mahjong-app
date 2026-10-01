@@ -10,6 +10,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "android": "npm run build && cap sync android",
+    "android:release": "tsc --noEmit && vite build --mode release && cap sync android",
     "android:open": "cap open android"
   },
   "devDependencies": {
@@ -19,6 +20,7 @@
     "vitest": "^5.0.1"
   },
   "dependencies": {
+    "@capacitor-community/admob": "^8.1.0",
     "@capacitor/android": "^8.5.2",
     "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.5.2",

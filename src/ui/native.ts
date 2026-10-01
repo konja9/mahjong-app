@@ -1,6 +1,7 @@
 /** Android アプリ版（Capacitor）だけで使う処理。Web 版では何もしない */
 import { Capacitor } from '@capacitor/core';
 import { App as NativeApp } from '@capacitor/app';
+import { startAds } from './ads';
 
 interface BackHandler {
   /** 開いているダイアログやシートを1つ閉じる。閉じるものがなければ false */
@@ -14,4 +15,5 @@ export function setupNative(app: BackHandler): void {
   void NativeApp.addListener('backButton', () => {
     if (!app.back()) void NativeApp.minimizeApp();
   });
+  void startAds();
 }

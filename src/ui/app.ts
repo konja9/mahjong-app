@@ -2,6 +2,7 @@ import { type Choice, makeChoices } from '../core/choices';
 import { type HandQuestion, type Mode, type Question, generateQuestion } from '../core/generator';
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
 import { EAST } from '../core/tiles';
+import { adPrivacyRequired, showAdPrivacyOptions } from './ads';
 import { type BgmTrack, bgm, configureAudio, sfx, suspendAudio, unlockAudio } from './audio';
 import { Fx, type WinTier } from './effects/pachinko';
 import type { EffectLevel } from './effects/performance';
@@ -1652,6 +1653,9 @@ export class App {
           save(BEST_KEY, {});
         }
         return;
+      case 'adPrivacy':
+        showAdPrivacyOptions();
+        return;
       case 'tips':
         this.tips.reset();
         this.tipsReset = true;
@@ -1717,6 +1721,12 @@ export class App {
       <div class="set-row"><div><div class="set-label">所持金 ${this.wallet.balance.toLocaleString()} yan</div><div class="set-desc">ノーマルの所持金を ${ECONOMY.initial}yan に戻す（破産 ${this.wallet.bankrupts}回）</div></div><div class="cfg-group"><button class="cfg danger" data-set="wallet" data-v="1">リセット</button></div></div>
       <div class="set-row"><div><div class="set-label">一言ガイド</div><div class="set-desc">初めての人向けのヒントをもう一度表示する</div></div><div class="cfg-group"><button class="cfg${this.tipsReset ? ' on' : ''}" data-set="tips" data-v="1">${this.tipsReset ? '表示します' : 'もう一度'}</button></div></div>
       <div class="set-row"><div><div class="set-label">自己ベスト</div><div class="set-desc">モード・問題数ごとの記録を消去</div></div><div class="cfg-group"><button class="cfg danger" data-set="reset" data-v="1">リセット</button></div></div>
+      ${
+        adPrivacyRequired()
+          ? `<div class="set-sec">広告</div>
+      <div class="set-row"><div><div class="set-label">プライバシー設定</div><div class="set-desc">広告のためのデータ利用への同意を見直す</div></div><div class="cfg-group"><button class="cfg" data-set="adPrivacy" data-v="1">変更</button></div></div>`
+          : ''
+      }
     </div>`;
     const el = dlg.querySelector('.settings');
     if (el) el.scrollTop = scroll;
