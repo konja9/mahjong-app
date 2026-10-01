@@ -4,14 +4,17 @@
  *
  * 使い方：npx -p playwright node scripts/icons.mjs
  *   public/ に SVG と PNG（180・192・512・maskable 512・32）を書き出す。
+ *   assets/ には Android アプリ用の元画像（アイコン・アダプティブアイコンの前景・スプラッシュ）を書き出す。
+ *   そのあと npx @capacitor/assets generate --android で android/ のアイコンとスプラッシュを作る。
  *   Playwright が無い環境では SVG だけを書き出す。
  */
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
+const ASSETS = join(OUT, '..', 'assets');
 
 const C = {
   bg: '#0c0d11',
@@ -111,16 +114,23 @@ try {
 }
 const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 const page = await browser.newPage();
-const png = async (svg, size, name) => {
+const png = async (svg, size, name, dir = OUT) => {
   await page.setViewportSize({ width: size, height: size });
   await page.setContent(`<style>*{margin:0}img{display:block;width:${size}px;height:${size}px}</style><img src="data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}">`);
   await page.waitForLoadState('load');
-  await page.screenshot({ path: join(OUT, name), clip: { x: 0, y: 0, width: size, height: size } });
+  await page.screenshot({ path: join(dir, name), clip: { x: 0, y: 0, width: size, height: size } });
 };
 await png(iconSvg(), 180, 'apple-touch-icon.png');
 await png(iconSvg(), 192, 'icon-192.png');
 await png(iconSvg(), 512, 'icon-512.png');
 await png(iconSvg(0.78), 512, 'icon-maskable-512.png');
 await png(faviconSvg(), 32, 'favicon-32.png');
+// Android：アダプティブアイコンは外周が切られるので、絵柄を安全域（中央 66%）に収める
+mkdirSync(ASSETS, { recursive: true });
+await png(iconSvg(), 1024, 'icon-only.png', ASSETS);
+await png(iconSvg(0.6), 1024, 'icon-foreground.png', ASSETS);
+await png(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8" fill="${C.bg}"/></svg>`, 1024, 'icon-background.png', ASSETS);
+// スプラッシュ：背景色の中央に小さくアイコン
+await png(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2732 2732"><rect width="2732" height="2732" fill="${C.bg}"/><g transform="translate(1066 1066) scale(1.17)">${iconSvg().replace('<svg ', '<svg width="512" height="512" ')}</g></svg>`, 2732, 'splash.png', ASSETS);
 await browser.close();
 console.log('アイコンを書き出しました');

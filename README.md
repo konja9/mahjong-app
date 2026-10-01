@@ -152,7 +152,22 @@ npm run build    # 型チェックと本番ビルド（dist/）
 
 - ホーム画面・タブのアイコンは `public/` にあります（絵柄：黒金の液晶の枠で赤五筒が3枚そろった大当り）。
 - スマホのホーム画面に追加すると「パチふと」の名前とアイコンで、全画面のアプリとして開きます（`public/manifest.webmanifest`）。
-- 絵柄を変えたら `npx -p playwright node scripts/icons.mjs` で SVG と PNG を作り直します。
+- 絵柄を変えたら `npx -p playwright node scripts/icons.mjs` で SVG と PNG を作り直します。Android 用の元画像（`assets/`）も一緒に書き出されるので、続けて `npx @capacitor/assets generate --android --iconBackgroundColor '#0c0d11' --splashBackgroundColor '#0c0d11'` を実行します。
+
+### Android アプリ（Capacitor）
+
+Google Play 向けに、同じ `src/` を [Capacitor](https://capacitorjs.com/) で Android アプリにしています（アプリID `io.github.konja9.pachifuto`）。`android/` が Android Studio のプロジェクトです。
+
+```bash
+npm run android        # Web をビルドして android/ に反映（cap sync）
+npm run android:open   # Android Studio で開く（実機・エミュレータで実行、AAB の作成）
+```
+
+- 必要なもの：Android Studio（JDK 21・Android SDK を含む）。
+- アプリの中身は APK に同梱し、通信なしで動きます。フォントも `@fontsource/*` で同梱しています（Web 版も同じ。woff2 だけを使うよう `vite.config.ts` で絞っています）。
+- 戻るボタン：開いているダイアログか出題設定シートを閉じ、何も開いていなければアプリを背面に回します（`src/ui/native.ts`、`App.back()`）。
+- 画面が隠れたら音を止め、戻ると再開します。画面は縦固定です。
+- バージョンは `package.json` の `version` から作ります（`1.2.3` → versionName `1.2.3`、versionCode `10203`）。Play に上げるたびに上げてください。
 
 ### 公開（GitHub Pages）
 

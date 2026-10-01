@@ -2,7 +2,7 @@ import { type Choice, makeChoices } from '../core/choices';
 import { type HandQuestion, type Mode, type Question, generateQuestion } from '../core/generator';
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
 import { EAST } from '../core/tiles';
-import { type BgmTrack, bgm, configureAudio, sfx, unlockAudio } from './audio';
+import { type BgmTrack, bgm, configureAudio, sfx, suspendAudio, unlockAudio } from './audio';
 import { Fx, type WinTier } from './effects/pachinko';
 import type { EffectLevel } from './effects/performance';
 import {
@@ -300,6 +300,21 @@ export class App {
 
   private get compact(): boolean {
     return typeof matchMedia === 'function' && matchMedia('(max-width: 640px)').matches;
+  }
+
+  /** Android の戻るボタン：開いているダイアログ（いちばん手前）か出題設定シートを閉じる。閉じるものがなければ false */
+  back(): boolean {
+    const open = [...document.querySelectorAll<HTMLDialogElement>('dialog[open]')];
+    const top = open[open.length - 1];
+    if (top) {
+      top.close();
+      return true;
+    }
+    if (document.body.classList.contains('cfg-open')) {
+      this.toggleConfigSheet(false);
+      return true;
+    }
+    return false;
   }
 
   private toggleConfigSheet(open = !document.body.classList.contains('cfg-open')): void {
@@ -1192,9 +1207,12 @@ export class App {
     this.bindShop();
     this.bindGuide();
     this.bindSettings();
-    // 画面ロックや別アプリから戻ったら音を起こし直す（iOS は止まったままになる）
+    // 隠れたら音を止め、画面ロックや別アプリから戻ったら起こし直す（iOS は止まったままになる）
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState !== 'visible') return;
+      if (document.visibilityState !== 'visible') {
+        suspendAudio();
+        return;
+      }
       unlockAudio();
       this.syncBgm();
     });
