@@ -3029,12 +3029,12 @@ body.busy #answer {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* ---- 一言ガイド（ドックのすぐ上に出す） */
+/* ---- 一言ガイド（画面の上端に出す。問題・手牌・選択肢には重ねない） */
 #tip {
-  position: absolute;
+  position: fixed;
   z-index: 80;
   left: 50%;
-  bottom: calc(100% + 6px);
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
   transform: translateX(-50%);
   width: max-content;
   max-width: min(520px, calc(100vw - 32px));
@@ -3067,7 +3067,7 @@ body.busy #answer {
 @keyframes tip-in {
   from {
     opacity: 0;
-    transform: translate(-50%, 8px);
+    transform: translate(-50%, -8px);
   }
 }
 @media (max-width: 640px) {
