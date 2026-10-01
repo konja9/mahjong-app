@@ -27,20 +27,66 @@ function setBannerHeight(h: number): void {
   document.body.classList.toggle('has-ad', h > 0);
 }
 
-/** 同意の確認（EEA・英国など）をしてからバナーを出す。失敗しても遊べるよう、エラーは握りつぶす */
+/** 開発ビルド（テスト広告）だけ、広告の状態を画面の下端に文字で出す。実機で広告が出ない原因を見るため */
+function debug(msg: string): void {
+  if (BANNER_ID) return;
+  console.info('[ads]', msg);
+  let el = document.getElementById('ad-debug');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'ad-debug';
+    el.style.cssText =
+      'position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);z-index:9999;padding:4px 8px;border-radius:6px;background:rgba(0,0,0,.8);color:#9ef;font:11px/1.4 monospace;pointer-events:none;white-space:pre-wrap';
+    document.body.appendChild(el);
+  }
+  el.textContent = `広告: ${msg}`;
+}
+
+function errText(e: unknown): string {
+  if (e && typeof e === 'object') {
+    const { code, message } = e as { code?: unknown; message?: unknown };
+    return [code, message].filter((v) => v !== undefined).join(' ') || JSON.stringify(e);
+  }
+  return String(e);
+}
+
+/**
+ * 同意の確認（EEA・英国など）をしてからバナーを出す。
+ * 同意の確認が失敗しても（登録したばかりの AdMob アプリでは失敗することがある）バナーは出す。
+ * どこで失敗してもゲームは遊べるよう、エラーは画面を止めない
+ */
 export async function startAds(): Promise<void> {
   if (started) return;
   started = true;
   try {
+    debug('初期化中…');
     await AdMob.initialize({ maxAdContentRating: MaxAdContentRating.ParentalGuidance });
+  } catch (e) {
+    debug(`初期化に失敗：${errText(e)}`);
+    return;
+  }
+  try {
     let consent = await AdMob.requestConsentInfo();
     if (consent.status === AdmobConsentStatus.REQUIRED && consent.isConsentFormAvailable) {
       consent = await AdMob.showConsentForm();
     }
     // PrivacyOptionsRequirementStatus はパッケージの入口から export されていないので文字列で比べる
     privacyRequired = String(consent.privacyOptionsRequirementStatus) === 'REQUIRED';
-    if (!consent.canRequestAds) return;
+    if (!consent.canRequestAds) {
+      debug(`同意が得られていないため表示しません（${consent.status}）`);
+      return;
+    }
+  } catch (e) {
+    debug(`同意の確認に失敗（バナーは出します）：${errText(e)}`);
+  }
+  try {
     await AdMob.addListener(BannerAdPluginEvents.SizeChanged, ({ height }) => setBannerHeight(height));
+    await AdMob.addListener(BannerAdPluginEvents.Loaded, () => {
+      debug('表示しました');
+      setTimeout(() => document.getElementById('ad-debug')?.remove(), 5000);
+    });
+    await AdMob.addListener(BannerAdPluginEvents.FailedToLoad, (e) => debug(`読み込みに失敗：${errText(e)}`));
+    debug('読み込み中…');
     await AdMob.showBanner({
       adId: BANNER_ID || TEST_BANNER_ID,
       isTesting: !BANNER_ID,
@@ -49,7 +95,7 @@ export async function startAds(): Promise<void> {
       margin: 0,
     });
   } catch (e) {
-    console.warn('広告を表示できませんでした', e);
+    debug(`バナーを出せませんでした：${errText(e)}`);
   }
 }
 
