@@ -1014,7 +1014,14 @@ export class App {
     $('#progress').innerHTML = `<span>${ss.answered + (this.phase === 'answering' || this.phase === 'suspense' ? 1 : 0)}${total}</span>
       <span class="muted">正答率 ${acc}%</span>
       <span class="streak${ss.streak >= 20 ? ' holo' : ss.streak >= 10 ? ' ten' : ss.streak >= 5 ? ' mid' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>${this.ballsTag()}
-      ${this.practice && this.s.count ? `<span class="score">SCORE <b>${ss.score.toLocaleString()}</b></span>` : ''}`;
+      ${this.practice && this.s.count ? `<span class="score">SCORE <b>${ss.score.toLocaleString()}</b></span>` : ''}${this.adFreeTag()}`;
+  }
+
+  /** Android 版：広告が出ている間だけ、問題数の行の右端に「広告を消す」（押すと購入画面） */
+  private adFreeTag(): string {
+    const p = purchaseState();
+    if (!p.available || p.owned || p.busy || !document.body.classList.contains('has-ad')) return '';
+    return `<button class="adfree-btn" type="button" data-adfree>広告を消す${p.price ? `<small>${p.price}</small>` : ''}</button>`;
   }
 
   /** 問題数の横に出す「次の正解で入る玉の数」（ノーマルで2個以上のときだけ） */
@@ -1209,9 +1216,16 @@ export class App {
     this.bindShop();
     this.bindGuide();
     this.bindSettings();
-    onPurchaseChange(() => {
+    let lastMessage = '';
+    onPurchaseChange((p) => {
+      this.renderProgress();
       if ($<HTMLDialogElement>('#settings-dialog').open) this.renderSettings();
+      // 問題数の行のボタンから買ったときは、結果を一言ガイドで知らせる（設定からのときは設定の中に出る）
+      else if (p.message && p.message !== lastMessage) this.toast(p.message);
+      lastMessage = p.message;
     });
+    // 広告が出た・消えたら「広告を消す」を出し直す
+    document.addEventListener('ads:change', () => this.renderProgress());
     // 隠れたら音を止め、画面ロックや別アプリから戻ったら起こし直す（iOS は止まったままになる）
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'visible') {
@@ -1237,6 +1251,11 @@ export class App {
     });
     $('#overlay').addEventListener('click', () => this.fx.tap());
     $('#stage').addEventListener('click', (e) => {
+      // 「広告を消す」は購入画面を開く（次の問題へは進まない）
+      if ((e.target as HTMLElement).closest('[data-adfree]')) {
+        void buyRemoveAds();
+        return;
+      }
       // 解説の「符の数え方」はヘルプを開く（次の問題へは進まない）
       const link = (e.target as HTMLElement).closest<HTMLElement>('[data-help-link]');
       if (link) {

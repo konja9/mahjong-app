@@ -25,6 +25,7 @@ let started = false;
 function setBannerHeight(h: number): void {
   document.documentElement.style.setProperty('--ad-h', h > 0 ? `${h + GAP}px` : '0px');
   document.body.classList.toggle('has-ad', h > 0);
+  document.dispatchEvent(new Event('ads:change'));
 }
 
 /** 開発ビルド（テスト広告）だけ、広告の状態を画面の下端に文字で出す。実機で広告が出ない原因を見るため */
