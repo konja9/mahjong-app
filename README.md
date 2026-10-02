@@ -179,6 +179,7 @@ npm run android:open   # Android Studio で開く（実機・エミュレータ�
   - 起動のたびに Google Play に購入を問い合わせ、買ってあれば広告を出しません。返金されると次の起動から広告に戻ります。通信できないときは前回の結果を使います。
   - コンビニ払いなどの支払い待ちは購入済みにせず、支払いが済んでアプリに戻ったときに反映します。
   - 実機で試すには、AAB を Play Console の内部テストに一度アップロードし、自分の Google アカウントを**ライセンス テスター**に登録します（テスト用のカードで、実際には請求されません）。
+- **ストア掲載情報**：`store/listing.md`（アプリ名・説明文・分類）と、`store/` の画像（アイコン、フィーチャー グラフィック、スクリーンショット6枚）。画像は `npx -p playwright node scripts/store.mjs` で作り直します（元の画面は `store/raw/`）。
 - バージョンは `package.json` の `version` から作ります（`1.2.3` → versionName `1.2.3`、versionCode `10203`）。Play に上げるたびに上げてください。
 
 ### 公開（GitHub Pages）
