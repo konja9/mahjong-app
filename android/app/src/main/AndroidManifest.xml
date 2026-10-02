@@ -38,4 +38,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 広告削除（Google Play の課金）。課金ライブラリも自動で付けるが、Play Console の判定に確実に通るよう明記する -->
+    <uses-permission android:name="com.android.vending.BILLING" />
 </manifest>
