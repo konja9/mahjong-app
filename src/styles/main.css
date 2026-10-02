@@ -3133,6 +3133,7 @@ body.busy #answer {
     width: 100vw;
   }
   .intro {
-    padding: 18px 16px 18px;
+    /* 下から出るシートなので、端末のナビゲーションバー（3ボタン・ジェスチャーバー）の分を空ける */
+    padding: 18px 16px calc(24px + env(safe-area-inset-bottom, 0px));
   }
 }
