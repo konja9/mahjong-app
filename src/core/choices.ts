@@ -7,20 +7,16 @@ export interface Choice {
   correct: boolean;
 }
 
-const FU_LIST = [20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 110];
+const FU_LIST = [20, 25, 30, 40, 50, 60];
 
 /**
  * 符計算の回答ボタン。いつも同じ並び（昇順）にして、選択肢の並びから答えを推測できないようにする。
- * 70符以上は実戦ではまれなので「70符〜」にまとめる
+ * 70符以上は実戦ではまれなので出題しない（generator の MAX_FU）
  */
-export const FU_BUTTONS = [20, 25, 30, 40, 50, 60, 70] as const;
+export const FU_BUTTONS = [20, 25, 30, 40, 50, 60] as const;
 
 export function fuButtons(fu: number): Choice[] {
-  const top = FU_BUTTONS[FU_BUTTONS.length - 1];
-  return FU_BUTTONS.map((f) => ({
-    label: f === top ? `${f}符〜` : `${f}符`,
-    correct: f === top ? fu >= top : f === fu,
-  }));
+  return FU_BUTTONS.map((f) => ({ label: `${f}符`, correct: f === fu }));
 }
 const LIMIT_TIER = (han: number) => (han >= 13 ? 4 : han >= 11 ? 3 : han >= 8 ? 2 : han >= 6 ? 1 : 0);
 
@@ -56,8 +52,6 @@ function pointCandidates(
   const limit0 = yakuman0 > 0 || han0 >= 5;
   for (let han = 1; han <= 13; han++) {
     for (const fu of han >= 5 ? [30] : FU_LIST) {
-      // 正解が50符以下なら、実戦でまず出ない70符以上は誤答にしない
-      if (fu0 && fu0 <= 50 && fu >= 70) continue;
       if (!isValidHanFu(han, fu, tsumo)) continue;
       const label = formatAnswer(calcScore(han, fu, dealer, tsumo, rules));
       let dist: number;

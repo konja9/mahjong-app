@@ -57,7 +57,10 @@ function rollTsumo(rng: Rng, f: Filters): boolean {
 
 // ------------------------------------------------------------ 早見モード
 
-/** 実戦の分布に寄せた符の出題比率（60符以上はまれ） */
+/** 70符以上は実戦でまれなので、どのモードでも出題しない */
+export const MAX_FU = 60;
+
+/** 実戦の分布に寄せた符の出題比率（60符はまれ。70符以上は出さない） */
 const FU_WEIGHTS = [
   [20, 7],
   [25, 8],
@@ -65,11 +68,6 @@ const FU_WEIGHTS = [
   [40, 30],
   [50, 8],
   [60, 3],
-  [70, 1],
-  [80, 0.4],
-  [90, 0.3],
-  [100, 0.2],
-  [110, 0.1],
 ] as const;
 
 /** 超大当り（PREMIUM）の BONUS で役満を出す割合。ほかの BONUS・RUSH は通常時と同じ分布 */
@@ -77,7 +75,6 @@ export const PREMIUM_YAKUMAN_RATE = 0.3;
 
 /** 生成した手の符に応じた採用率（高い符は実戦ではまれなので間引く） */
 function fuAcceptRate(fu: number): number {
-  if (fu >= 70) return 0.05;
   if (fu >= 60) return 0.15;
   if (fu >= 50) return 0.5;
   return 1;
@@ -119,7 +116,7 @@ export function generateHayami(
 
 export type CallFilter = 'any' | 'menzen' | 'open';
 export type ShapeFilter = 'any' | 'chiitoi' | 'pinfu' | 'kuipinfu' | 'kantsu' | 'tanki' | 'shanpon';
-/** real：実戦寄り（高い符は間引く） / even：符の値（20・25・30・40・50・60・70〜）ごとに均等 */
+/** real：実戦寄り（高い符は間引く） / even：符の値（20・25・30・40・50・60）ごとに均等 */
 export type FuDist = 'real' | 'even';
 
 export interface HandConstraints {
@@ -147,9 +144,7 @@ export function shapeCall(shape: ShapeFilter): CallFilter | null {
   return null;
 }
 
-export const FU_BUCKETS = [20, 25, 30, 40, 50, 60, 70] as const;
-/** 符を均等に出すときの区分（70符以上は1つにまとめる） */
-export const fuBucket = (fu: number): number => (fu >= 70 ? 70 : fu);
+export const FU_BUCKETS = [20, 25, 30, 40, 50, 60] as const;
 
 export function matchesShape(q: HandQuestion, shape: ShapeFilter): boolean {
   const { ev } = q;
@@ -195,7 +190,7 @@ export function feasibleBuckets(c: HandConstraints, f: Filters): number[] {
       // 20符は平和ツモ、25符は七対子だけ
       if (c.shape === 'any' && call !== 'open' && tsumoOk) out.push(20);
       if (c.shape === 'any' && call !== 'open') out.push(25);
-      out.push(30, 40, 50, 60, 70);
+      out.push(30, 40, 50, 60);
       return out;
     }
   }
@@ -549,9 +544,11 @@ export function generateHandQuestion({
     if (constraints) {
       const q: HandQuestion = { mode, hand, sit, ev };
       if (!matchesConstraints(q, constraints)) continue;
-      if (target !== null && fuBucket(ev.fu.fu) !== target) continue;
+      if (target !== null && ev.fu.fu !== target) continue;
     }
     // 符の分布を実戦に寄せる（役満は符と無関係なので対象外）
+    // 70符以上は出題しない（満貫以上の手も含む。役満は符と無関係なので対象外）
+    if (!ev.yakuman && ev.fu.fu > MAX_FU) continue;
     if (constraints?.dist !== 'even' && !ev.yakuman && rng() >= fuAcceptRate(ev.fu.fu)) continue;
     // 役満は出すぎないように間引く（超大当りの BONUS は間引かない）
     if (ev.yakuman && !premium && rng() < 0.5) continue;

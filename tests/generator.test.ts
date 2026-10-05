@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { decompose } from '../src/core/decompose';
-import { FU_BUCKETS, feasibleBuckets, fuBucket, generateHandQuestion, generateHayami, matchesConstraints } from '../src/core/generator';
+import { FU_BUCKETS, MAX_FU, feasibleBuckets, generateHandQuestion, generateHayami, matchesConstraints } from '../src/core/generator';
 import { allTiles, isMenzen } from '../src/core/hand';
 import { DEFAULT_RULES } from '../src/core/rules';
 import { isValidHanFu } from '../src/core/score';
@@ -75,6 +75,24 @@ describe('超大当りの BONUS', () => {
     expect(big).toBeGreaterThan(250);
     expect(big).toBeLessThan(380);
   });
+});
+
+describe('70符以上は出題しない', () => {
+  it('早見', () => {
+    const rng = mulberry32(21);
+    for (let i = 0; i < 2000; i++) expect(generateHayami(DEFAULT_RULES, anyFilter, rng).fu).toBeLessThanOrEqual(MAX_FU);
+  });
+  for (const mode of ['fu', 'jissen'] as const) {
+    it(`${mode}（通常・超大当り・稽古の均等）`, () => {
+      const rng = mulberry32(mode.length + 22);
+      for (let i = 0; i < 2000; i++) {
+        const premium = i % 4 === 0;
+        const constraints = i % 3 === 0 ? ({ call: 'any', shape: 'any', dist: 'even' } as const) : undefined;
+        const q = generateHandQuestion({ mode, rules: DEFAULT_RULES, filters: anyFilter, rng, premium, constraints });
+        if (!q.ev.yakuman) expect(q.ev.fu.fu).toBeLessThanOrEqual(MAX_FU);
+      }
+    });
+  }
 });
 
 describe('符の分布', () => {
@@ -162,7 +180,7 @@ describe('稽古の絞り込み', () => {
     const N = 700;
     for (let i = 0; i < N; i++) {
       const q = generateHandQuestion({ mode: 'fu', rules: DEFAULT_RULES, filters: anyFilter, rng, constraints: { call: 'any', shape: 'any', dist: 'even' } });
-      const b = fuBucket(q.ev.fu.fu);
+      const b = q.ev.fu.fu;
       n[b] = (n[b] ?? 0) + 1;
     }
     for (const b of FU_BUCKETS) {
@@ -171,6 +189,6 @@ describe('稽古の絞り込み', () => {
   });
   it('均等：形で出せない符は狙わない', () => {
     expect(feasibleBuckets({ call: 'any', shape: 'pinfu', dist: 'even' }, { seat: 'any', win: 'ron' })).toEqual([30]);
-    expect(feasibleBuckets({ call: 'open', shape: 'any', dist: 'even' }, anyFilter)).toEqual([30, 40, 50, 60, 70]);
+    expect(feasibleBuckets({ call: 'open', shape: 'any', dist: 'even' }, anyFilter)).toEqual([30, 40, 50, 60]);
   });
 });

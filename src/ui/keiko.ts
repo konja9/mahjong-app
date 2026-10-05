@@ -1,6 +1,6 @@
 import { type Diagnosis, type FuElement, ELEMENT_NAMES } from '../core/diagnose';
 import { evaluate } from '../core/evaluate';
-import { type Filters, type HandConstraints, type HandQuestion, type Mode, type Question, shapeCall } from '../core/generator';
+import { type Filters, type HandConstraints, type HandQuestion, MAX_FU, type Mode, type Question, shapeCall } from '../core/generator';
 import { type Hand, type Situation, isMenzen } from '../core/hand';
 import type { Rules } from '../core/rules';
 import { calcScore } from '../core/score';
@@ -86,7 +86,8 @@ export function nextReview(d: KeikoData, mode: Mode, rules: Rules): { key: strin
       return { key: item.key, q: { ...s, score: calcScore(s.han, s.fu, s.dealer, s.tsumo, rules) } };
     }
     const ev = evaluate(s.hand, s.sit, rules);
-    if (ev) return { key: item.key, q: { mode: s.mode, hand: s.hand, sit: s.sit, ev } };
+    // 以前に保存した70符以上の手は、いまは出題しないので外す
+    if (ev && (ev.yakuman || ev.fu.fu <= MAX_FU)) return { key: item.key, q: { mode: s.mode, hand: s.hand, sit: s.sit, ev } };
     d.reviews = d.reviews.filter((r) => r !== item);
   }
   return null;

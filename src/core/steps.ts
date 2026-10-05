@@ -28,11 +28,7 @@ const sum = (xs: { fu: number }[]) => xs.reduce((s, x) => s + x.fu, 0);
 const detail = (rows: { label: string; fu: number; note?: string }[]) =>
   rows.map((r) => `${r.label} ${r.fu}符${r.note ? `（${r.note}）` : ''}`).join('・');
 
-const fuButtons = () =>
-  FU_BUTTONS.map((f, i) => ({ label: i === FU_BUTTONS.length - 1 ? `${f}符〜` : `${f}符`, value: f as number }));
-
-/** 切り上げの段階の正解（70符以上は「70符〜」のボタン） */
-const roundAnswer = (fu: number) => Math.min(fu, FU_BUTTONS[FU_BUTTONS.length - 1]);
+const fuButtons = () => FU_BUTTONS.map((f) => ({ label: `${f}符`, value: f as number }));
 
 export function fuSteps(q: HandQuestion, rules: Rules): FuStep[] {
   const { ev } = q;
@@ -120,7 +116,7 @@ export function fuSteps(q: HandQuestion, rules: Rules): FuStep[] {
       prompt: '切り上げると何符？',
       kind: 'buttons',
       options: fuButtons(),
-      answer: roundAnswer(ev.fu.fu),
+      answer: ev.fu.fu,
       note: ev.fu.raw === ev.fu.fu ? `${ev.fu.fu}符（端数なし）` : `${ev.fu.raw} → 10符単位に切り上げて ${ev.fu.fu}符`,
     },
   ];

@@ -172,10 +172,10 @@ export function applyDelta(w: Wallet, delta: number): Wallet {
 export const isBankrupt = (w: Wallet): boolean => w.balance <= 0;
 
 /** BONUS 中に液晶帯へ出す符の目盛り */
-export const FU_SCALE = [30, 40, 50, 60, 70, 80] as const;
+export const FU_SCALE = [30, 40, 50, 60] as const;
 
 export interface FuScaleCell {
-  /** 30〜70 は符、80 は「80〜」、yakuman は役満 */
+  /** 30〜60 は符（70符以上は出題しない）、yakuman は役満 */
   key: number | 'yakuman';
   label: string;
   prize: number;
@@ -185,7 +185,7 @@ export interface FuScaleCell {
 export function fuScale(mode: Mode, premium: boolean, spec: MachineSpec = SPECS.ama): FuScaleCell[] {
   const cell = (fu: number, yakuman: boolean) =>
     roundPrize({ mode, fu, yakuman, fast: false, combo: 1, premium, spec });
-  const cells: FuScaleCell[] = FU_SCALE.map((fu) => ({ key: fu, label: fu === 80 ? '80〜' : fu === 30 ? '〜30' : `${fu}`, prize: cell(fu, false) }));
+  const cells: FuScaleCell[] = FU_SCALE.map((fu) => ({ key: fu, label: fu === 30 ? '〜30' : `${fu}`, prize: cell(fu, false) }));
   if (premium) cells.push({ key: 'yakuman', label: '役満', prize: cell(0, true) });
   return cells;
 }
@@ -194,6 +194,5 @@ export function fuScale(mode: Mode, premium: boolean, spec: MachineSpec = SPECS.
 export function fuScaleKey(fu: number, yakuman: boolean): FuScaleCell['key'] {
   if (yakuman) return 'yakuman';
   const f = prizeFu(fu, false);
-  if (f >= 80) return 80;
-  return Math.max(30, Math.floor(f / 10) * 10);
+  return Math.min(60, Math.max(30, Math.floor(f / 10) * 10));
 }

@@ -64,3 +64,12 @@ describe('遊び方', () => {
     expect(introHtml(2)).toContain('data-intro="start"');
   });
 });
+
+describe('出題する符の範囲', () => {
+  it('ヘルプの「符の数え方」に、70符以上を出題しない説明がある', async () => {
+    const { helpHtml } = await import('../src/ui/help');
+    const html = helpHtml('fu', 'fu');
+    expect(html).toContain('出題する符は20〜60符');
+    expect(html).toContain('70符以上は出題しません');
+  });
+});

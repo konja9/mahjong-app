@@ -164,7 +164,8 @@ describe('BONUS の符の目盛り', () => {
     expect(fuScaleKey(25, false)).toBe(30);
     expect(fuScaleKey(0, false)).toBe(30);
     expect(fuScaleKey(40, false)).toBe(40);
-    expect(fuScaleKey(110, false)).toBe(80);
+    expect(fuScaleKey(60, false)).toBe(60);
+    expect(fuScaleKey(110, false)).toBe(60);
     expect(fuScaleKey(0, true)).toBe('yakuman');
   });
   it('連続正解の倍率は階段状で、上限で止まる', () => {

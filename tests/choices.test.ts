@@ -17,18 +17,18 @@ function mulberry32(seed: number) {
 const pattern = (label: string) => label.replace(/\d+/g, 'N');
 
 describe('makeChoices', () => {
-  it('符計算：いつも同じ昇順の7つのボタンで、正解は1つ', () => {
+  it('符計算：いつも同じ昇順の6つのボタンで、正解は1つ', () => {
     const rng = mulberry32(99);
     for (let i = 0; i < 1000; i++) {
       const q = generateQuestion('fu', DEFAULT_RULES, { seat: 'any', win: 'any' }, rng);
       if (q.mode !== 'fu') throw new Error('mode');
       for (const fuFocus of [false, true]) {
         const choices = makeChoices(q, DEFAULT_RULES, rng, fuFocus);
-        expect(choices.map((c) => c.label)).toEqual(['20符', '25符', '30符', '40符', '50符', '60符', '70符〜']);
+        expect(choices.map((c) => c.label)).toEqual(['20符', '25符', '30符', '40符', '50符', '60符']);
         const correct = choices.filter((c) => c.correct);
         expect(correct).toHaveLength(1);
         const fu = q.ev.fu.fu;
-        expect(correct[0].label).toBe(fu >= 70 ? '70符〜' : `${fu}符`);
+        expect(correct[0].label).toBe(`${fu}符`);
       }
     }
     expect([...FU_BUTTONS]).toEqual([...FU_BUTTONS].sort((a, b) => a - b));

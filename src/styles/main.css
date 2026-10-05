@@ -513,9 +513,9 @@ main {
 [data-answer='choice'] #numpad {
   display: none !important;
 }
-/* 符計算：20符〜70符〜 の固定ボタン（昇順） */
+/* 符計算：20符〜60符 の固定ボタン（昇順） */
 #choices.fu-pad {
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
 }
 #choices.fu-pad .choice {
@@ -1941,14 +1941,15 @@ body.chou::before {
   .choice kbd {
     display: none;
   }
+  /* 2列3段（20 25 / 30 40 / 50 60）。段が増える分、1段を低くして問題・手牌に重ならないようにする */
   #choices.fu-pad {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }
   #choices.fu-pad .choice {
-    min-height: 56px;
-    padding: 8px 2px;
-    font-size: clamp(17px, 5vw, 22px);
+    min-height: 46px;
+    padding: 6px 2px;
+    font-size: clamp(18px, 5vw, 22px);
   }
   .blk-tiles {
     --tile-h: 29px;

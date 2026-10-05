@@ -87,7 +87,7 @@ function handFu(q: Question): { fu: number; yakuman: boolean } {
 function fuNotice(fu: number, yakuman: boolean, rng: () => number = Math.random): number {
   const r = rng();
   if (yakuman) return 4;
-  if (fu >= 70) return r < 0.6 ? 4 : 3;
+  if (fu >= 60) return r < 0.6 ? 4 : 3;
   if (fu >= 50) return r < 0.5 ? 3 : 2;
   if (fu >= 40) return r < 0.3 ? 2 : 0;
   return r < 0.12 ? 2 : 0;
@@ -891,8 +891,7 @@ export class App {
     const label = this.isChoice ? this.choices[this.picked]?.label ?? '' : '';
     if (q.mode === 'fu') {
       const n = this.isChoice ? parseInt(label, 10) : Number(this.input);
-      const orMore = this.isChoice && label.endsWith('〜');
-      return diagnose(q, this.s.rules, (fu) => (orMore ? fu >= n : fu === n));
+      return diagnose(q, this.s.rules, (fu) => fu === n);
     }
     return diagnose(q, this.s.rules, (_, score) =>
       this.isChoice ? formatAnswer(score) === label : checkPointsAnswer(this.input, score),
@@ -1077,7 +1076,7 @@ export class App {
   private fuTier(): { tier: WinTier; label: string } {
     const h = handFu(this.q);
     if (h.yakuman) return { tier: 3, label: '役満' };
-    if (h.fu >= 70) return { tier: 2, label: `${h.fu}符` };
+    if (h.fu >= 60) return { tier: 2, label: `${h.fu}符` };
     if (h.fu >= 50) return { tier: 1, label: `${h.fu}符` };
     // 40符以下は出玉のコインだけ（テンポを保つ）
     return { tier: 0, label: '' };
