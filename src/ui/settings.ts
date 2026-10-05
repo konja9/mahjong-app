@@ -1,5 +1,6 @@
 import type { Filters, HandConstraints, Mode } from '../core/generator';
 import { DEFAULT_RULES, type Rules } from '../core/rules';
+import type { KeikoSource } from './keiko';
 import { load, save } from './storage';
 
 export type EffectLevel = 'off' | 'lite' | 'max';
@@ -17,6 +18,8 @@ export interface Settings {
   filters: Filters;
   /** 稽古の出題の絞り込み（符計算・実戦のみ） */
   keikoFilters: Omit<HandConstraints, 'want'>;
+  /** 稽古の出題：通常／復習（間違えた手）／苦手（正答率の低い要素） */
+  keikoSource: KeikoSource;
   effects: EffectLevel;
   sound: boolean;
   volume: number; // 0..1
@@ -34,6 +37,7 @@ export const DEFAULT_SETTINGS: Settings = {
   timeLimit: 0,
   filters: { seat: 'any', win: 'any' },
   keikoFilters: { call: 'any', shape: 'any', dist: 'real' },
+  keikoSource: 'normal',
   effects: reducedMotion ? 'lite' : 'max',
   sound: true,
   volume: 0.5,

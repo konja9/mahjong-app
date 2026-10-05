@@ -3086,3 +3086,14 @@ body.busy #answer {
     padding: 18px 16px 18px;
   }
 }
+
+/* 稽古：出題の種類（復習・苦手ドリル） */
+#progress .src-tag {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--sub);
+  color: var(--text);
+}

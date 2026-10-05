@@ -1,5 +1,5 @@
 import { type Choice, makeChoices } from '../core/choices';
-import { type Diagnosis, diagnose, diagnosisText } from '../core/diagnose';
+import { type Diagnosis, ELEMENT_NAMES, type FuElement, diagnose, diagnosisText } from '../core/diagnose';
 import { type HandConstraints, type HandQuestion, type Mode, type Question, SHAPE_NAMES, type ShapeFilter, generateQuestion, shapeCall } from '../core/generator';
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
 import { EAST } from '../core/tiles';
@@ -36,6 +36,7 @@ import { renderOdometer } from './odometer';
 import { type ItemsTab, RARITY_LABEL, type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, missionStrip, saveShop, shopHtml, unlockMachine } from './shop';
 import { type TipId, Tips, tipLink, tipText } from './tips';
 import { TILE_DEFS, handHtml, tilesInline } from './tileView';
+import { ELEMENTS, WEAK_MIN, type KeikoSource, accuracy, addReview, loadKeiko, markReview, nextReview, pickWeak, recordFuAnswer, reviewCount, saveKeiko, weakAllowed, weakWant } from './keiko';
 
 type Phase = 'answering' | 'suspense' | 'result' | 'summary';
 
@@ -54,6 +55,8 @@ interface Session {
   startBalance: number;
   byCat: Record<string, { c: number; n: number }>;
   misses: Miss[];
+  /** このセッションで復習に入った手の数 */
+  reviewAdded: number;
 }
 
 const MODE_NAMES: Record<Mode, string> = { hayami: '早見', fu: '符計算', jissen: '実戦' };
@@ -62,7 +65,7 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = 
   root.querySelector(sel) as T;
 
 function newSession(): Session {
-  return { answered: 0, correct: 0, streak: 0, maxStreak: 0, times: [], startBalance: 0, byCat: {}, misses: [] };
+  return { answered: 0, correct: 0, streak: 0, maxStreak: 0, times: [], startBalance: 0, byCat: {}, misses: [], reviewAdded: 0 };
 }
 
 function questionMeta(q: Question): { dealer: boolean; tsumo: boolean } {
@@ -104,6 +107,14 @@ export class App {
   private busy = false;
   private pausedAt = 0;
   private wallet: Wallet = loadWallet();
+  /** 稽古の記録（復習と要素別の正答率） */
+  private kd = loadKeiko();
+  /** 出題中の問題が復習の手なら、その key */
+  private reviewKey: string | null = null;
+  /** 苦手ドリルで狙っている要素 */
+  private weakEl: FuElement | null = null;
+  /** 苦手ドリルの記録不足を知らせたか（セッションに1回） */
+  private weakNoted = false;
   private betRaf = 0;
   /** 大当りのラウンド（賞金タイム）。null なら通常時 */
   private round: {
@@ -226,6 +237,7 @@ export class App {
       call: '鳴き',
       shape: '形',
       dist: '分布',
+      source: '出題',
     };
     const group = (name: string, items: [string, string, boolean][]) =>
       `<div class="cfg-group" data-group="${name}"><span class="cfg-label">${LABELS[name]}</span>${items
@@ -260,6 +272,12 @@ export class App {
       group('answer', [
         ['choice', s.mode === 'fu' ? '選択' : '4択', s.answerStyle === 'choice'],
         ['input', '入力', s.answerStyle === 'input'],
+      ]),
+      this.keiko &&
+      group('source', [
+        ['normal', '通常', s.keikoSource === 'normal'],
+        ['review', `復習 ${reviewCount(this.kd, s.mode)}`, s.keikoSource === 'review'],
+        ['weak', '苦手', s.keikoSource === 'weak'],
       ]),
       this.keiko &&
       group(
@@ -366,6 +384,10 @@ export class App {
       case 'dist':
         this.update({ keikoFilters: { ...this.s.keikoFilters, dist: v as HandConstraints['dist'] } });
         break;
+      case 'source':
+        this.weakNoted = false;
+        this.update({ keikoSource: v as KeikoSource });
+        break;
     }
   }
 
@@ -413,7 +435,7 @@ export class App {
     this.renderBonus();
     // BONUS・RUSH の出題は通常時と同じ分布。超大当りの BONUS だけ役満が出やすい
     const premium = this.isRoundQ && !!this.round?.premium;
-    this.q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, premium, this.constraints());
+    this.q = this.pickQuestion(premium);
     this.input = '';
     this.picked = -1;
     // BONUS・RUSH の4択は、誤答を同じ翻で符だけ違う点数にして符を試す
@@ -442,6 +464,58 @@ export class App {
     // 大当りの時点で音が使えなかった（未操作・音オフから復帰）場合も、問題ごとに曲を合わせ直す
     this.syncBgm();
     if (this.isRoundQ && this.round?.n === 1) this.tip('bonusFu');
+  }
+
+  /** 次の問題。稽古では出題（通常・復習・苦手）に従う */
+  private pickQuestion(premium: boolean): Question {
+    this.reviewKey = null;
+    this.weakEl = null;
+    const src = this.keiko ? this.s.keikoSource : 'normal';
+    if (src === 'review') {
+      const r = nextReview(this.kd, this.s.mode, this.s.rules);
+      if (r) {
+        this.reviewKey = r.key;
+        return r.q;
+      }
+      this.toast('復習する問題がなくなりました。通常の出題に戻します');
+      this.update({ keikoSource: 'normal' }, false);
+    }
+    const c = this.constraints();
+    if (src === 'weak' && c) {
+      const el = pickWeak(this.kd, Math.random, weakAllowed(c.shape));
+      if (el) {
+        try {
+          const q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, premium, { ...c, want: weakWant(el) });
+          this.weakEl = el;
+          return q;
+        } catch {
+          // 絞り込みと両立しない要素なら、通常の出題にする
+        }
+      } else if (!this.weakNoted) {
+        this.weakNoted = true;
+        this.toast(
+          weakAllowed(c.shape).length
+            ? `苦手を選ぶには、要素ごとに${WEAK_MIN}問以上の記録が必要です。それまでは通常の出題です`
+            : 'この形では苦手ドリルを使えません。通常の出題にします',
+        );
+      }
+    } else if (src === 'weak' && !this.weakNoted) {
+      this.weakNoted = true;
+      this.toast('苦手ドリルは符計算・実戦で使えます。早見は通常の出題です');
+    }
+    return generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, premium, c);
+  }
+
+  /** 回答を稽古の記録に入れる（パチンコでも記録し、間違えた手は稽古の復習で出す） */
+  private recordKeiko(correct: boolean, diag: Diagnosis[]): void {
+    const q = this.q;
+    if (this.reviewKey) markReview(this.kd, this.reviewKey, correct);
+    else if (!correct) {
+      addReview(this.kd, q);
+      this.session.reviewAdded++;
+    }
+    if (q.mode !== 'hayami') recordFuAnswer(this.kd, q, correct, diag);
+    saveKeiko(this.kd);
   }
 
   /** 稽古の絞り込み（パチンコと早見では使わない） */
@@ -807,6 +881,8 @@ export class App {
     const explain = this.q.mode === 'hayami' ? hayamiExplain(this.q) : handExplain(this.q, this.s.rules);
     const answerEl = this.answerAnchor();
     const yours = timeout ? '時間切れ' : this.isChoice ? this.choices[this.picked].label : this.input;
+    const diag = correct || timeout ? [] : this.diagnose();
+    this.recordKeiko(correct, diag);
 
     if (correct) {
       ss.correct++;
@@ -888,7 +964,6 @@ export class App {
         this.renderBonus({ miss: fuScaleKey(h.fu, h.yakuman) });
       }
       ss.misses.push({ q: this.q, input: yours });
-      const diag = timeout ? [] : this.diagnose();
       const diagHtml = diag.length ? `<div class="diagnosis">${diagnosisText(diag)}</div>` : '';
       // 通常時のお金は計器だけで見せる。BONUS の外れはパンク
       const penalty = this.isRoundQ ? '<span class="punk">パンク（賞金なし）</span>' : '';
@@ -1045,7 +1120,15 @@ export class App {
     const acc = ss.answered ? Math.round((ss.correct / ss.answered) * 100) : 100;
     $('#progress').innerHTML = `<span>${ss.answered + (this.phase === 'answering' || this.phase === 'suspense' ? 1 : 0)}${total}</span>
       <span class="muted">正答率 ${acc}%</span>
-      <span class="streak${ss.streak >= 20 ? ' holo' : ss.streak >= 10 ? ' ten' : ss.streak >= 5 ? ' mid' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>${this.ballsTag()}`;
+      <span class="streak${ss.streak >= 20 ? ' holo' : ss.streak >= 10 ? ' ten' : ss.streak >= 5 ? ' mid' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>${this.ballsTag()}${this.sourceTag()}`;
+  }
+
+  /** 稽古の出題の種類（復習・苦手ドリル）を問題数の横に出す */
+  private sourceTag(): string {
+    if (!this.keiko) return '';
+    if (this.reviewKey) return '<span class="src-tag">復習</span>';
+    if (this.weakEl) return `<span class="src-tag">苦手：${ELEMENT_NAMES[this.weakEl]}</span>`;
+    return '';
   }
 
   /** 問題数の横に出す「次の正解で入る玉の数」（パチンコで2個以上のときだけ） */
@@ -1054,6 +1137,20 @@ export class App {
     const n = ballsFor(this.s.mode, this.session.streak + 1);
     if (n < 2) return '';
     return `<span class="balls b${n}" title="次の正解で玉が${n}個入る（電チュー）">${'<i></i>'.repeat(n)}</span>`;
+  }
+
+  /** 稽古の結果：符の要素別の正答率（これまでの累計）と、復習に入った手の数 */
+  private elementsHtml(): string {
+    const rows = ELEMENTS.map((el) => {
+      const st = this.kd.elements[el];
+      const a = accuracy(st);
+      const p = a === null ? 0 : Math.round(a * 100);
+      return `<div class="cat"><span>${ELEMENT_NAMES[el]}</span><span class="bar"><i style="width:${p}%"></i></span><span>${st && st.n ? `${p}%` : '—'}</span></div>`;
+    }).join('');
+    const added = this.session.reviewAdded
+      ? `<div class="muted small">間違えた ${this.session.reviewAdded}問を復習に入れました（出題の「復習」で解き直せます）</div>`
+      : '';
+    return `<div><div class="ex-h">符の要素別 <span class="muted">これまでの累計</span></div>${rows}${added}</div>`;
   }
 
   /** end: 規定問題数の終了 / settle: パチンコの精算 / bankrupt: 破産 */
@@ -1133,6 +1230,7 @@ export class App {
       <div class="sum-cols">
         <div><div class="ex-h">状況別 <span class="muted">${weakText}</span></div>${cats}</div>
         ${misses ? `<div><div class="ex-h">間違えた問題</div><ul class="misses">${misses}</ul></div>` : ''}
+        ${this.keiko ? this.elementsHtml() : ''}
       </div>
       <button class="again-btn" type="button" data-again>${again}</button>
       ${this.compact ? '' : `<div class="hint"><kbd>Tab</kbd> / <kbd>Enter</kbd> ${again}</div>`}`;
@@ -1661,6 +1759,13 @@ export class App {
         this.tips.reset();
         this.tipsReset = true;
         return;
+      case 'keiko':
+        if (confirm('稽古の記録（復習の手と、要素別の正答率）を消去しますか？')) {
+          this.kd = { reviews: [], elements: {} };
+          saveKeiko(this.kd);
+          this.renderConfig();
+        }
+        return;
       case 'wallet':
         if (this.blockedInBonus()) return;
         if (confirm(`所持金を ${ECONOMY.initial}yan に戻しますか？`)) {
@@ -1720,6 +1825,7 @@ export class App {
       ${row('連風牌の雀頭', '場風かつ自風の雀頭', 'doubleWindPairFu', [['2', '2符'], ['4', '4符']], String(r.doubleWindPairFu))}
       <div class="set-sec">記録</div>
       <div class="set-row"><div><div class="set-label">所持金 ${this.wallet.balance.toLocaleString()} yan</div><div class="set-desc">パチンコの所持金を ${ECONOMY.initial}yan に戻す（破産 ${this.wallet.bankrupts}回）</div></div><div class="cfg-group"><button class="cfg danger" data-set="wallet" data-v="1">リセット</button></div></div>
+      <div class="set-row"><div><div class="set-label">稽古の記録</div><div class="set-desc">復習の手 ${this.kd.reviews.length}問と、要素別の正答率を消去</div></div><div class="cfg-group"><button class="cfg danger" data-set="keiko" data-v="1">リセット</button></div></div>
       <div class="set-row"><div><div class="set-label">一言ガイド</div><div class="set-desc">初めての人向けのヒントをもう一度表示する</div></div><div class="cfg-group"><button class="cfg${this.tipsReset ? ' on' : ''}" data-set="tips" data-v="1">${this.tipsReset ? '表示します' : 'もう一度'}</button></div></div>
     </div>`;
     const el = dlg.querySelector('.settings');
