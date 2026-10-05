@@ -18,15 +18,16 @@ export const ECONOMY = {
   /** 大当り 1 回のラウンド数（ラウンド問題の数） */
   rounds: 6,
   /**
-   * BONUS の賞金は「符 × レート」。翻・ドラ・親子の運では増えず、計算した符そのものが賞金になる。
-   * 早見の満貫以上（符が出ない）は 30符ぶん、役満（超大当りで出る）は 300符ぶん
+   * BONUS の賞金は、正解した手の符のマス（20・25・30・40・50・60）の額。30符のマスを1とした倍率で、
+   * 出にくく数えるのが難しい高い符ほど大きい。翻・ドラ・親子の運では増えない。
+   * 早見の満貫以上（符が出ない）は30符のマス、役満（超大当りで出る）は30符の yakumanUnits 倍
    */
-  limitFu: 30,
-  yakumanFu: 300,
-  /** 速答なら 1.2 倍 */
-  fastMult: 1.2,
-  /** ラウンド内の連続正解の倍率の階段（1問目 ×1、2問連続 ×1.5 …）。1問ミスで最初に戻る */
-  comboLadder: [1, 1.2, 1.5, 2],
+  fuPrize: { 20: 0.7, 25: 0.9, 30: 1, 40: 1.5, 50: 2.3, 60: 3.3 } as Record<number, number>,
+  yakumanUnits: 10,
+  /** 速答の賞金の倍率（速答は BET 半額で得をするので、賞金には上乗せしない） */
+  fastMult: 1,
+  /** ラウンド内の連続正解の倍率の階段（1問目 ×1、2問連続 ×1.05、3問以上 ×1.1）。1問ミスで最初に戻る */
+  comboLadder: [1, 1.05, 1.1],
   /**
    * 電チュー開放：この連続正解数から、正解1回で玉が2個入る。
    * 早見は連続正解しやすいので、必要な連続数を多くする
@@ -36,24 +37,23 @@ export const ECONOMY = {
   extraRounds: { mangan: 1, baiman: 2, yakuman: 3, max: 3 },
   /** PREMIUM（赤5筒）大当りのラウンドは 2 倍 */
   premiumMult: 2,
-  /** 全問正解の上乗せ抽選：ラウンドで得た賞金に掛ける倍率と重み（PREMIUM は最低 ×3） */
+  /** 全問正解の上乗せ抽選：ラウンドで得た賞金に掛ける倍率と重み（PREMIUM は最低 ×1.3） */
   uwanose: [
-    [1.5, 50],
-    [2, 30],
-    [3, 15],
-    [5, 5],
+    [1.1, 70],
+    [1.3, 25],
+    [1.5, 5],
   ] as [number, number][],
   uwanosePremium: [
-    [2, 50],
-    [3, 35],
-    [5, 15],
+    [1.3, 60],
+    [1.5, 30],
+    [2, 10],
   ] as [number, number][],
   /**
-   * モード別のレート（1符あたりの yan）。
-   * 正解率85%・速答5割のプレイヤーの回収率がどのモードでもほぼ100%になるよう
-   * tests/economy.test.ts のシミュレーションで決めた値
+   * モード別のレート（30符のマス1つあたりの yan）。
+   * 正解率85%・速答5割のプレイヤーの回収率が約115%になるよう
+   * tests/economy.test.ts のシミュレーションで決めた値。上級者（正解95%・速答8割）は約250〜300%
    */
-  modeScale: { hayami: 0.625, fu: 0.77, jissen: 0.375 } as Record<Mode, number>,
+  modeScale: { hayami: 36.6, fu: 43.2, jissen: 22.2 } as Record<Mode, number>,
   /** 残りがこれ未満で警告表示 */
   lowWarn: 200,
 };
@@ -76,13 +76,13 @@ export interface RoundPrizeInput {
   spec?: MachineSpec;
 }
 
-/** 賞金の計算に使う符（役満・符なしの手の換算込み） */
-export function prizeFu(fu: number, yakuman: boolean): number {
-  if (yakuman) return ECONOMY.yakumanFu;
-  return fu > 0 ? fu : ECONOMY.limitFu;
+/** 賞金のマスの倍率（30符＝1。役満・符なしの手の換算込み） */
+export function prizeUnits(fu: number, yakuman: boolean): number {
+  if (yakuman) return ECONOMY.yakumanUnits;
+  return ECONOMY.fuPrize[fuScaleKey(fu, false) as number] ?? 1;
 }
 
-/** 1符あたりの yan（PREMIUM・台を込み、速答と連続は別） */
+/** 30符のマス1つあたりの yan（PREMIUM・台を込み、速答と連続は別） */
 export function fuRate(mode: Mode, premium: boolean, spec: MachineSpec = SPECS.ama): number {
   let v = ECONOMY.modeScale[mode] * spec.prizeMult;
   if (premium) v *= ECONOMY.premiumMult;
@@ -97,7 +97,7 @@ export function comboMult(combo: number): number {
 
 /** ラウンド問題の賞金 */
 export function roundPrize(p: RoundPrizeInput): number {
-  let v = prizeFu(p.fu, p.yakuman) * fuRate(p.mode, p.premium, p.spec);
+  let v = prizeUnits(p.fu, p.yakuman) * fuRate(p.mode, p.premium, p.spec);
   if (p.fast) v *= ECONOMY.fastMult;
   v *= comboMult(p.combo - 1);
   return Math.max(1, Math.round(v));
@@ -172,10 +172,10 @@ export function applyDelta(w: Wallet, delta: number): Wallet {
 export const isBankrupt = (w: Wallet): boolean => w.balance <= 0;
 
 /** BONUS 中に液晶帯へ出す符の目盛り */
-export const FU_SCALE = [30, 40, 50, 60] as const;
+export const FU_SCALE = [20, 25, 30, 40, 50, 60] as const;
 
 export interface FuScaleCell {
-  /** 30〜60 は符（70符以上は出題しない）、yakuman は役満 */
+  /** 20〜60 は符（70符以上は出題しない）、yakuman は役満 */
   key: number | 'yakuman';
   label: string;
   prize: number;
@@ -185,7 +185,7 @@ export interface FuScaleCell {
 export function fuScale(mode: Mode, premium: boolean, spec: MachineSpec = SPECS.ama): FuScaleCell[] {
   const cell = (fu: number, yakuman: boolean) =>
     roundPrize({ mode, fu, yakuman, fast: false, combo: 1, premium, spec });
-  const cells: FuScaleCell[] = FU_SCALE.map((fu) => ({ key: fu, label: fu === 30 ? '〜30' : `${fu}`, prize: cell(fu, false) }));
+  const cells: FuScaleCell[] = FU_SCALE.map((fu) => ({ key: fu, label: `${fu}`, prize: cell(fu, false) }));
   if (premium) cells.push({ key: 'yakuman', label: '役満', prize: cell(0, true) });
   return cells;
 }
@@ -193,6 +193,9 @@ export function fuScale(mode: Mode, premium: boolean, spec: MachineSpec = SPECS.
 /** 手の符が目盛りのどのマスに入るか */
 export function fuScaleKey(fu: number, yakuman: boolean): FuScaleCell['key'] {
   if (yakuman) return 'yakuman';
-  const f = prizeFu(fu, false);
-  return Math.min(60, Math.max(30, Math.floor(f / 10) * 10));
+  // 符なし（早見の満貫以上）は30符のマス
+  if (!fu) return 30;
+  if (fu <= 20) return 20;
+  if (fu <= 25) return 25;
+  return Math.min(60, Math.ceil(fu / 10) * 10);
 }

@@ -115,11 +115,10 @@ export class MachinePanel {
         return `<div class="b-cell${cls}${c.key === 'yakuman' ? ' ym' : ''}"><small>${c.label}${typeof c.key === 'number' ? '<u>符</u>' : ''}</small><b>${value}</b></div>`;
       })
       .join('');
-    const rate = v.rate.toFixed(2).replace(/\.?0+$/, '');
     el.innerHTML = `<div class="b-head"><span class="b-title">${v.n ? `ROUND ${v.n}/${v.rounds}` : `次の問題から ROUND 1/${v.rounds}`}</span><span class="b-pips">${pips}</span></div>
       <div class="b-ladder${v.up ? ' up' : ''}"><small>連続</small>${ladder}</div>
       <div class="b-table">${cells}</div>
-      <div class="b-note">賞金 ＝ 符 × ${rate}・速答 ×${ECONOMY.fastMult}・全問正解で上乗せ</div>`;
+      <div class="b-note">正解した手の符のマスの額${ECONOMY.fastMult > 1 ? `・速答 ×${ECONOMY.fastMult}` : ''}・連続正解と全問正解で上乗せ</div>`;
     if (v.up && this.level() !== 'off') sfx.lampUp();
     el.hidden = false;
     this.premium = v.premium;

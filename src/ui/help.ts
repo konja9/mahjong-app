@@ -204,8 +204,8 @@ function bonus(mode: Mode): string {
       'bonus-fu',
       '賞金は「符」で決まる',
       table,
-      `<p>大当りすると、そのとき出ている問題から ${ECONOMY.rounds} 問が BONUS（BET なし）。正解した手の<b>符 × レート</b>が賞金です（${MODE_LABELS[mode]}・1問目の例）。翻・ドラ・親子では増えません。早見の満貫以上は30符ぶん。</p>
-      <p>速答なら ×${ECONOMY.fastMult}。4択の誤答は「同じ翻で符だけ違う点数」なので、符が分からないと当たりません。</p>`,
+      `<p>大当りすると、そのとき出ている問題から ${ECONOMY.rounds} 問が BONUS（BET なし）。正解した手の<b>符のマスの額</b>が賞金です（${MODE_LABELS[mode]}・1問目の例）。出にくく数えるのが難しい<b>高い符ほど大きく</b>、60符は30符の約${ECONOMY.fuPrize[60] / ECONOMY.fuPrize[30]}倍。翻・ドラ・親子では増えません。早見の満貫以上は30符のマス。</p>
+      <p>${ECONOMY.fastMult > 1 ? `速答なら ×${ECONOMY.fastMult}。` : '速答の得は BET の割引（BONUS 中は BET なし）。'}4択の誤答は「同じ翻で符だけ違う点数」なので、符が分からないと当たりません。</p>`,
     ) +
     card(
       'ladder',

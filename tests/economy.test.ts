@@ -36,15 +36,19 @@ describe('yan', () => {
     expect(costFor(false, false)).toBe(60);
     expect(costFor(false, true)).toBe(60);
   });
-  it('ラウンド賞金：符・速答・連続・PREMIUM（翻と親子では変わらない）', () => {
+  it('ラウンド賞金：符のマス・連続・PREMIUM（翻と親子では変わらない）', () => {
     const base = { mode: 'jissen' as Mode, fu: 40, yakuman: false, fast: false, combo: 1, premium: false };
     const v = roundPrize(base);
-    expect(roundPrize({ ...base, fu: 70 })).toBeGreaterThan(v);
-    expect(roundPrize({ ...base, fu: 30 })).toBeLessThan(v);
+    const v30 = roundPrize({ ...base, fu: 30 });
+    // 高い符ほど大きい（30符を1として 20 ×0.7 … 60 ×3.3）
+    expect(roundPrize({ ...base, fu: 60 }) / v30).toBeCloseTo(3.3, 1);
+    expect(roundPrize({ ...base, fu: 20 }) / v30).toBeCloseTo(0.7, 1);
+    expect(v30).toBeLessThan(v);
     expect(roundPrize({ ...base, fu: 0, yakuman: true })).toBeGreaterThan(v * 5);
-    expect(roundPrize({ ...base, fast: true })).toBeGreaterThan(v);
+    // 速答は BET の割引で得をするので、賞金は変わらない
+    expect(roundPrize({ ...base, fast: true })).toBe(Math.round(v * ECONOMY.fastMult));
     expect(roundPrize({ ...base, combo: 20 })).toBe(roundPrize({ ...base, combo: 5 }));
-    expect(roundPrize({ ...base, combo: 5 })).toBeGreaterThanOrEqual(v * 1.8);
+    expect(roundPrize({ ...base, combo: 5 })).toBeGreaterThanOrEqual(Math.floor(v * ECONOMY.comboLadder.at(-1)!));
     expect(roundPrize({ ...base, premium: true })).toBeGreaterThanOrEqual(v * 1.9);
     // 早見の満貫以上（符なし）は30符ぶん
     expect(roundPrize({ ...base, mode: 'hayami', fu: 0 })).toBe(roundPrize({ ...base, mode: 'hayami', fu: 30 }));
@@ -121,23 +125,28 @@ export function simulate(
 
 describe('経済バランス（シミュレーション）', () => {
   for (const mode of ['hayami', 'fu', 'jissen'] as Mode[]) {
-    // 速答の BET を半額（20）にしてから、中級者は約110〜125%（少し勝てる）
-    it(`${mode}：中級はやや勝ち越し、上級は大きくプラス、初心者は大きくマイナス`, () => {
-      const mid = simulate(mode, 0.85, 0.5);
-      expect(mid).toBeGreaterThan(0.95);
-      expect(mid).toBeLessThan(1.35);
-      expect(simulate(mode, 0.95, 0.8, 2)).toBeGreaterThan(1.6);
-      expect(simulate(mode, 0.6, 0.2, 3)).toBeLessThan(0.5);
+    // 中級者（正解85%・速答5割）は約115%、上級者（95%・8割）は約250〜300%、初心者（60%・2割）は大きく負ける
+    it(`${mode}：中級は約115%、上級は約250%、初心者は大きくマイナス`, () => {
+      const mid = (simulate(mode, 0.85, 0.5, 1, 30000) + simulate(mode, 0.85, 0.5, 7, 30000)) / 2;
+      expect(mid).toBeGreaterThan(1.07);
+      expect(mid).toBeLessThan(1.24);
+      const pro = simulate(mode, 0.95, 0.8, 2, 30000);
+      expect(pro).toBeGreaterThan(2.0);
+      expect(pro).toBeLessThan(3.4);
+      expect(simulate(mode, 0.6, 0.2, 3)).toBeLessThan(0.45);
     });
   }
-  it('ミドル・MAX（実戦のみ）：中級はやや勝ち越し、上級は大きくプラス', () => {
+  // 大当りが重い台は1回の試行のばらつきが大きいので、長めにまわして平均をとる
+  it('ミドル・MAX（実戦のみ）：中級は約115%、上級は約250%', () => {
     for (const id of ['middle', 'max'] as const) {
-      const mid = simulate('jissen', 0.85, 0.5, 11, 40000, SPECS[id]);
-      expect(mid).toBeGreaterThan(0.95);
-      expect(mid).toBeLessThan(1.35);
-      expect(simulate('jissen', 0.95, 0.8, 12, 40000, SPECS[id])).toBeGreaterThan(1.6);
+      const mid = [11, 21, 31].map((sd) => simulate('jissen', 0.85, 0.5, sd, 100000, SPECS[id])).reduce((a, b) => a + b) / 3;
+      expect(mid).toBeGreaterThan(1.05);
+      expect(mid).toBeLessThan(1.27);
+      const pro = simulate('jissen', 0.95, 0.8, 12, 100000, SPECS[id]);
+      expect(pro).toBeGreaterThan(2.0);
+      expect(pro).toBeLessThan(3.4);
     }
-  });
+  }, 120000);
   it('上の台ほど1セッション（300問）の振れ幅が大きい', () => {
     const spread = (spec: MachineSpec) => {
       const xs = Array.from({ length: 120 }, (_, i) => simulate('jissen', 0.85, 0.5, 500 + i, 300, spec));
@@ -163,8 +172,8 @@ describe('BONUS の符の目盛り', () => {
     }
   });
   it('手の符からマスを引く', () => {
-    expect(fuScaleKey(20, false)).toBe(30);
-    expect(fuScaleKey(25, false)).toBe(30);
+    expect(fuScaleKey(20, false)).toBe(20);
+    expect(fuScaleKey(25, false)).toBe(25);
     expect(fuScaleKey(0, false)).toBe(30);
     expect(fuScaleKey(40, false)).toBe(40);
     expect(fuScaleKey(60, false)).toBe(60);
@@ -184,10 +193,10 @@ describe('BONUS の符の目盛り', () => {
     expect(extraRoundsFor('役満')).toBe(3);
     expect(extraRoundsFor('数え役満')).toBe(3);
   });
-  it('上乗せは超大当りのほうが期待値が高く、最低 ×2', () => {
+  it('上乗せは超大当りのほうが期待値が高く、最低でも通常の最低より上', () => {
     expect(uwanoseMean(true)).toBeGreaterThan(uwanoseMean(false));
     const rng = mulberry32(3);
-    for (let i = 0; i < 200; i++) expect(drawUwanose(rng, true)).toBeGreaterThanOrEqual(2);
+    for (let i = 0; i < 200; i++) expect(drawUwanose(rng, true)).toBeGreaterThan(ECONOMY.uwanose[0][0]);
   });
 });
 

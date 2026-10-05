@@ -23,7 +23,7 @@ import {
   fuScaleKey,
   isBankrupt,
   loadWallet,
-  prizeFu,
+  prizeUnits,
   roundPrize,
   saveWallet,
 } from './machine/economy';
@@ -873,13 +873,11 @@ export class App {
           spec: this.spec,
         });
         r.total += prize;
-        // 賞金の内訳：符 × レート × 速答 × 連続
-        const pf = prizeFu(h.fu, h.yakuman);
-        const rate = fuRate(this.s.mode, r.premium, this.spec);
+        // 賞金の内訳：マスの額（30符のマス × マスの倍率）× 速答 × 連続
+        const cell = Math.round(prizeUnits(h.fu, h.yakuman) * fuRate(this.s.mode, r.premium, this.spec));
         const factors = [
-          h.yakuman ? `役満(${pf}符)` : h.fu ? `${h.fu}符` : `満貫以上(${pf}符)`,
-          `×${rate.toFixed(2).replace(/\.?0+$/, '')}`,
-          fast ? `速答×${ECONOMY.fastMult}` : '',
+          `${h.yakuman ? '役満' : h.fu ? `${h.fu}符` : '満貫以上(30符)'}のマス ${cell}`,
+          fast && ECONOMY.fastMult > 1 ? `速答×${ECONOMY.fastMult}` : '',
           mult > 1 ? `連続×${mult}` : '',
         ].filter(Boolean);
         // 満貫以上はラウンド上乗せ（1回の BONUS で上限あり）
