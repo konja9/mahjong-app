@@ -537,6 +537,16 @@ main {
   font-size: 14px;
   font-weight: 400;
 }
+/* 誤答の診断：どの典型ミスをしたときの値か */
+.diagnosis {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 8px 12px;
+  border-left: 3px solid var(--error);
+  border-radius: 4px;
+  background: var(--sub-bg);
+}
 .explain {
   background: var(--sub-bg);
   border-radius: 10px;

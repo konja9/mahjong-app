@@ -1,4 +1,5 @@
 import { type Choice, makeChoices } from '../core/choices';
+import { type Diagnosis, diagnose, diagnosisText } from '../core/diagnose';
 import { type HandQuestion, type Mode, type Question, generateQuestion } from '../core/generator';
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
 import { EAST } from '../core/tiles';
@@ -707,6 +708,21 @@ export class App {
     return s.dealer ? String(s.payment.fromDealer) : `${s.payment.fromChild}-${s.payment.fromDealer}`;
   }
 
+  /** 不正解の答えが、どの典型ミスの値と一致するか（早見は対象外） */
+  private diagnose(): Diagnosis[] {
+    const q = this.q;
+    if (q.mode === 'hayami') return [];
+    const label = this.isChoice ? this.choices[this.picked]?.label ?? '' : '';
+    if (q.mode === 'fu') {
+      const n = this.isChoice ? parseInt(label, 10) : Number(this.input);
+      const orMore = this.isChoice && label.endsWith('〜');
+      return diagnose(q, this.s.rules, (fu) => (orMore ? fu >= n : fu === n));
+    }
+    return diagnose(q, this.s.rules, (_, score) =>
+      this.isChoice ? formatAnswer(score) === label : checkPointsAnswer(this.input, score),
+    );
+  }
+
   private correctText(): string {
     if (this.q.mode === 'fu') return `${this.q.ev.fu.fu}符`;
     return formatAnswer(scoreOf(this.q));
@@ -826,9 +842,11 @@ export class App {
         this.renderBonus({ miss: fuScaleKey(h.fu, h.yakuman) });
       }
       ss.misses.push({ q: this.q, input: yours });
+      const diag = timeout ? [] : this.diagnose();
+      const diagHtml = diag.length ? `<div class="diagnosis">${diagnosisText(diag)}</div>` : '';
       // 通常時のお金は計器だけで見せる。BONUS の外れはパンク
       const penalty = this.isRoundQ ? '<span class="punk">パンク（賞金なし）</span>' : '';
-      $('#result').innerHTML = `<div class="verdict ng"><span class="mark">不正解</span><span class="yours">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${explain}`;
+      $('#result').innerHTML = `<div class="verdict ng"><span class="mark">不正解</span><span class="yours">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${diagHtml}${explain}`;
       this.fx.lose(this.isChoice ? $('#choices') : answerEl, false);
       if (!this.keiko && !this.isRoundQ) {
         this.tip('miss');
