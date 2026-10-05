@@ -67,8 +67,14 @@ function groupTiles(g: Group): Tile[] {
 }
 
 /** 1つのブロック（面子・雀頭・対子）：牌と、その下の符 */
-function block(tiles: Tile[], opts: { win: boolean; winTile: Tile; aka: AkaAllocator; back?: boolean; kind: string; fu?: number; tag?: string; wait?: string; hl?: boolean }): string {
+function block(tiles: Tile[], opts: { win: boolean; winTile: Tile; aka: AkaAllocator; back?: boolean; kind: string; fu?: number; tag?: string; wait?: string; hl?: boolean; omitWin?: boolean }): string {
   let marked = false;
+  // 出題用：和了牌は面子から抜いて一番右に置くので、ここでは1枚除く
+  if (opts.win && opts.omitWin) {
+    const k = tiles.indexOf(opts.winTile);
+    if (k >= 0) tiles = tiles.filter((_, i) => i !== k);
+    opts = { ...opts, win: false };
+  }
   const html = tiles
     .map((t, i) => {
       const win = opts.win && !marked && t === opts.winTile;
@@ -90,6 +96,14 @@ function block(tiles: Tile[], opts: { win: boolean; winTile: Tile; aka: AkaAlloc
 export interface BlockQuiz {
   /** 光らせるブロック（groups での位置。雀頭は -1。なしは null） */
   highlight: number | null;
+  /** 和了の仕方（一番右に置いた和了牌の下に出す） */
+  tsumo: boolean;
+}
+
+/** 出題用：面子から抜いた和了牌を、一番右に「ツモ／ロン」の札つきで置く */
+function winBlock(hand: Hand, aka: AkaAllocator, tsumo: boolean): string {
+  const tile = tileSvg(hand.winTile, { red: aka.take(hand.winTile), cls: 'win' });
+  return `<div class="blk win-blk"><div class="blk-tiles">${tile}</div><div class="blk-cap"><span class="win-label">${tsumo ? 'ツモ' : 'ロン'}</span></div></div>`;
 }
 
 /**
@@ -101,7 +115,8 @@ export function blocksHtml(hand: Hand, ev: Evaluation, quiz?: BlockQuiz): string
   const aka = new AkaAllocator(hand.akaTiles);
   const it = ev.interp;
   if (it.form === 'chiitoi') {
-    const blocks = it.pairs.map((p) => block([p, p], { win: p === hand.winTile, winTile: hand.winTile, aka, kind: quiz ? '' : '対子' }));
+    const blocks = it.pairs.map((p) => block([p, p], { win: p === hand.winTile, winTile: hand.winTile, aka, kind: quiz ? '' : '対子', omitWin: !!quiz }));
+    if (quiz) blocks.push(winBlock(hand, aka, quiz.tsumo));
     return `<div class="ex-blocks${quiz ? ' quiz' : ''}">${blocks.join('')}</div>`;
   }
   if (it.form !== 'standard') return '';
@@ -122,6 +137,7 @@ export function blocksHtml(hand: Hand, ev: Evaluation, quiz?: BlockQuiz): string
       fu: quiz ? undefined : fuOf(i),
       wait: !quiz && i === it.winGroup ? waitLabel : '',
       hl: quiz?.highlight === i,
+      omitWin: !!quiz,
     });
   };
   const closed = it.groups.slice(0, firstMeld).map((g, i) => groupBlock(g, i));
@@ -133,9 +149,11 @@ export function blocksHtml(hand: Hand, ev: Evaluation, quiz?: BlockQuiz): string
     fu: quiz ? undefined : fuOf(-1),
     wait: !quiz && it.winGroup === -1 ? waitLabel : '',
     hl: quiz?.highlight === -1,
+    omitWin: !!quiz,
   });
   const melds = it.groups.slice(firstMeld).map((g, i) => groupBlock(g, firstMeld + i));
-  return `<div class="ex-blocks${quiz ? ' quiz' : ''}">${[...closed, pair, ...melds].join('')}</div>`;
+  const win = quiz ? [winBlock(hand, aka, quiz.tsumo)] : [];
+  return `<div class="ex-blocks${quiz ? ' quiz' : ''}">${[...closed, pair, ...melds, ...win].join('')}</div>`;
 }
 
 /** 分け方の短い説明（例 両面待ち・平和／七対子） */

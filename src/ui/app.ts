@@ -2,7 +2,7 @@ import { type Choice, FU_BUTTONS, makeChoices } from '../core/choices';
 import { type Diagnosis, ELEMENT_NAMES, type FuElement, diagnose, diagnosisText } from '../core/diagnose';
 import { type CallFilter, type HandConstraints, type HandQuestion, type Mode, type Question, generateQuestion } from '../core/generator';
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
-import { EAST, tileName } from '../core/tiles';
+import { EAST } from '../core/tiles';
 import { adPrivacyRequired, showAdPrivacyOptions } from './ads';
 import { buyRemoveAds, onPurchaseChange, purchaseState, restoreRemoveAds } from './purchase';
 import { type BgmTrack, bgm, configureAudio, sfx, suspendAudio, unlockAudio } from './audio';
@@ -1023,8 +1023,8 @@ export class App {
   private handView(q: HandQuestion): string {
     if (this.keiko && this.s.keikoStudy === 'focus' && this.steps && !q.ev.yakuman) {
       const st = this.steps.current;
-      const blocks = blocksHtml(q.hand, q.ev, { highlight: st?.block ?? null });
-      if (blocks) return `${blocks}<div class="q-win muted small">${q.sit.tsumo ? 'ツモ' : 'ロン'}：${tileName(q.hand.winTile)}（少し上がっている牌）</div>`;
+      const blocks = blocksHtml(q.hand, q.ev, { highlight: st?.block ?? null, tsumo: q.sit.tsumo });
+      if (blocks) return blocks;
     }
     return handHtml(q.hand, q.sit.tsumo);
   }

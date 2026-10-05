@@ -3359,8 +3359,17 @@ body.busy #answer {
   background: color-mix(in srgb, var(--main) 14%, transparent);
   box-shadow: 0 0 0 2px var(--main);
 }
-.q-win {
-  margin-top: 2px;
+/* 和了牌は面子から抜いて一番右に置く。少し離して、下に「ツモ／ロン」 */
+.ex-blocks.quiz .win-blk {
+  margin-left: 10px;
+}
+.ex-blocks.quiz .win-blk .tile.win {
+  transform: none;
+}
+.ex-blocks.quiz .win-blk .win-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--main);
 }
 @media (max-width: 640px) {
   .ex-blocks.quiz .blk-tiles {
