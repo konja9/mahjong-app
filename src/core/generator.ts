@@ -1,5 +1,5 @@
 import { type Evaluation, evaluate } from './evaluate';
-import { type Hand, type Meld, type Situation, allTiles } from './hand';
+import { type Hand, type Meld, type Situation, allTiles, isMenzen } from './hand';
 import type { Rules } from './rules';
 import { type ScoreResult, calcScore, isValidHanFu } from './score';
 import { EAST, NORTH, SOUTH, type Tile, WEST, YAOCHU, isFive, isSimple, suitOf, toCounts } from './tiles';
@@ -115,6 +115,137 @@ export function generateHayami(
 
 // ------------------------------------------------------------ 手牌モード
 
+// ------------------------------------------------------------ 稽古の絞り込み
+
+export type CallFilter = 'any' | 'menzen' | 'open';
+export type ShapeFilter = 'any' | 'chiitoi' | 'pinfu' | 'kuipinfu' | 'kantsu' | 'tanki' | 'shanpon';
+/** real：実戦寄り（高い符は間引く） / even：符の値（20・25・30・40・50・60・70〜）ごとに均等 */
+export type FuDist = 'real' | 'even';
+
+export interface HandConstraints {
+  call: CallFilter;
+  shape: ShapeFilter;
+  dist: FuDist;
+  /** 苦手ドリル：この条件を満たす手だけを出す */
+  want?: (q: HandQuestion) => boolean;
+}
+
+export const SHAPE_NAMES: Record<ShapeFilter, string> = {
+  any: 'すべて',
+  chiitoi: '七対子',
+  pinfu: '平和',
+  kuipinfu: '喰い平和',
+  kantsu: '槓子',
+  tanki: '単騎',
+  shanpon: 'シャンポン',
+};
+
+/** 形が決める鳴きの有無（七対子・平和は門前、喰い平和は副露）。決めない形は null */
+export function shapeCall(shape: ShapeFilter): CallFilter | null {
+  if (shape === 'chiitoi' || shape === 'pinfu') return 'menzen';
+  if (shape === 'kuipinfu') return 'open';
+  return null;
+}
+
+export const FU_BUCKETS = [20, 25, 30, 40, 50, 60, 70] as const;
+/** 符を均等に出すときの区分（70符以上は1つにまとめる） */
+export const fuBucket = (fu: number): number => (fu >= 70 ? 70 : fu);
+
+export function matchesShape(q: HandQuestion, shape: ShapeFilter): boolean {
+  const { ev } = q;
+  switch (shape) {
+    case 'any':
+      return true;
+    case 'chiitoi':
+      return ev.interp.form === 'chiitoi';
+    case 'pinfu':
+      return ev.yaku.some((y) => y.name === '平和');
+    case 'kuipinfu':
+      return ev.fu.items.some((i) => i.label.startsWith('喰い平和'));
+    case 'kantsu':
+      return ev.interp.form === 'standard' && ev.interp.groups.some((g) => g.kind === 'kantsu');
+    case 'tanki':
+      return ev.interp.form === 'standard' && ev.interp.wait === 'tanki';
+    case 'shanpon':
+      return ev.interp.form === 'standard' && ev.interp.wait === 'shanpon';
+  }
+}
+
+export function matchesConstraints(q: HandQuestion, c: HandConstraints): boolean {
+  const call = shapeCall(c.shape) ?? c.call;
+  if (call !== 'any' && isMenzen(q.hand) !== (call === 'menzen')) return false;
+  if (!matchesShape(q, c.shape)) return false;
+  return !c.want || c.want(q);
+}
+
+/** 均等のとき、この絞り込みで出せる符の区分 */
+export function feasibleBuckets(c: HandConstraints, f: Filters): number[] {
+  const call = shapeCall(c.shape) ?? c.call;
+  const tsumoOk = f.win !== 'ron';
+  const ronOk = f.win !== 'tsumo';
+  switch (c.shape) {
+    case 'chiitoi':
+      return [25];
+    case 'pinfu':
+      return [...(tsumoOk ? [20] : []), ...(ronOk ? [30] : [])];
+    case 'kuipinfu':
+      return [30];
+    default: {
+      const out: number[] = [];
+      // 20符は平和ツモ、25符は七対子だけ
+      if (c.shape === 'any' && call !== 'open' && tsumoOk) out.push(20);
+      if (c.shape === 'any' && call !== 'open') out.push(25);
+      out.push(30, 40, 50, 60, 70);
+      return out;
+    }
+  }
+}
+
+/** 生成の確率を絞り込みに寄せる（最後は matchesConstraints で判定する） */
+interface Bias {
+  flavor?: Flavor;
+  openRate?: number;
+  koutsuRate?: number;
+  kanRate?: number;
+  winOn?: 'pair' | 'koutsu';
+}
+
+function biasFor(c: HandConstraints, target: number | null): Bias {
+  const call = shapeCall(c.shape) ?? c.call;
+  const b: Bias = {};
+  if (call === 'menzen') b.openRate = 0;
+  if (call === 'open') b.openRate = 1;
+  switch (c.shape) {
+    case 'chiitoi':
+      b.flavor = 'chiitoi';
+      break;
+    case 'pinfu':
+    case 'kuipinfu':
+      b.koutsuRate = 0;
+      break;
+    case 'kantsu':
+      b.koutsuRate = 0.5;
+      b.kanRate = 0.7;
+      break;
+    case 'tanki':
+      b.winOn = 'pair';
+      break;
+    case 'shanpon':
+      b.koutsuRate = 0.6;
+      b.winOn = 'koutsu';
+      break;
+  }
+  if (target === 25) b.flavor = 'chiitoi';
+  if (target === 20) {
+    b.koutsuRate = 0;
+    b.openRate = 0;
+  }
+  // 高い符は刻子（とくに么九）が多いほど出やすい
+  if (target !== null && target >= 50 && b.koutsuRate === undefined) b.koutsuRate = target >= 60 ? 0.7 : 0.55;
+  if (target !== null && target >= 30 && b.flavor === undefined && c.shape !== 'chiitoi') b.flavor = 'free';
+  return b;
+}
+
 type Flavor = 'free' | 'tanyao' | 'honitsu' | 'chinitsu' | 'yakuhai' | 'toitoi' | 'chiitoi' | 'kokushi';
 
 interface Plan {
@@ -136,12 +267,12 @@ function allowedTiles(flavor: Flavor, suit: number): Tile[] {
   }
 }
 
-function buildPlan(rng: Rng, flavor: Flavor, used: number[]): Plan | null {
+function buildPlan(rng: Rng, flavor: Flavor, used: number[], koutsuOverride?: number): Plan | null {
   const suit = Math.floor(rng() * 3);
   const allowed = allowedTiles(flavor, suit);
   const groups: Plan['groups'] = [];
   const honorKoutsuRate = flavor === 'yakuhai' ? 0.6 : flavor === 'honitsu' ? 0.45 : 0.18;
-  const koutsuRate = flavor === 'toitoi' ? 1 : 0.32;
+  const koutsuRate = koutsuOverride ?? (flavor === 'toitoi' ? 1 : 0.32);
 
   for (let i = 0; i < 4; i++) {
     let ok = false;
@@ -191,9 +322,9 @@ interface Built {
   kans: number;
 }
 
-function buildStandard(rng: Rng, flavor: Flavor, openRate: number): Built | null {
+function buildStandard(rng: Rng, flavor: Flavor, openRate: number, bias: Bias = {}): Built | null {
   const used = new Array<number>(34).fill(0);
-  const plan = buildPlan(rng, flavor, used);
+  const plan = buildPlan(rng, flavor, used, bias.koutsuRate);
   if (!plan) return null;
 
   const melds: Meld[] = [];
@@ -212,22 +343,32 @@ function buildStandard(rng: Rng, flavor: Flavor, openRate: number): Built | null
     }
     const canKan = used[g.tile] === 3 && kans < 2;
     if (openIdx.has(i)) {
-      if (canKan && rng() < 0.06) {
+      if (canKan && rng() < (bias.kanRate ?? 0.06)) {
         used[g.tile]++;
         kans++;
         melds.push({ type: 'minkan', tile: g.tile });
       } else melds.push({ type: 'pon', tile: g.tile });
-    } else if (canKan && rng() < 0.04) {
+    } else if (canKan && rng() < (bias.kanRate ?? 0.04)) {
       used[g.tile]++;
       kans++;
       melds.push({ type: 'ankan', tile: g.tile });
     } else closedTiles.push(g.tile, g.tile, g.tile);
   });
 
-  const winIdx = Math.floor(rng() * closedTiles.length);
+  const winIdx = pickWin(rng, closedTiles, plan.pair, bias.winOn);
   const winTile = closedTiles[winIdx];
   const concealed = closedTiles.filter((_, i) => i !== winIdx).sort((a, b) => a - b);
   return { hand: { concealed, melds, winTile, akaTiles: [] }, kans };
+}
+
+/** 和了牌の位置。winOn の指定があれば雀頭（単騎）か手の内の刻子（シャンポン）から選ぶ */
+function pickWin(rng: Rng, closed: Tile[], pair: Tile, winOn?: Bias['winOn']): number {
+  if (winOn) {
+    const counts = toCounts(closed);
+    const idx = closed.flatMap((t, i) => ((winOn === 'pair' ? t === pair : t !== pair && counts[t] >= 3) ? [i] : []));
+    if (idx.length) return pick(rng, idx);
+  }
+  return Math.floor(rng() * closed.length);
 }
 
 function buildChiitoi(rng: Rng): Built {
@@ -316,6 +457,8 @@ export interface HandGenOptions {
   rng?: Rng;
   /** 超大当りの BONUS：実戦は役満が出やすい */
   premium?: boolean;
+  /** 稽古の絞り込み。指定がなければ実戦寄りの分布 */
+  constraints?: HandConstraints;
 }
 
 export function generateHandQuestion({
@@ -324,9 +467,20 @@ export function generateHandQuestion({
   filters,
   rng = Math.random,
   premium = false,
+  constraints,
 }: HandGenOptions): HandQuestion {
-  for (let attempt = 0; attempt < 5000; attempt++) {
-    const flavor: Flavor = weighted(rng, [
+  // 均等：出せる符の区分から目標を1つ選ぶ。見つからなければ目標を外す
+  const buckets = constraints?.dist === 'even' ? feasibleBuckets(constraints, filters) : [];
+  let target: number | null = buckets.length ? pick(rng, buckets) : null;
+  const TARGET_TRIES = 3000;
+  let bias = constraints ? biasFor(constraints, target) : {};
+  for (let attempt = 0; attempt < 8000; attempt++) {
+    if (target !== null && attempt === TARGET_TRIES) {
+      target = null;
+      bias = biasFor(constraints!, null);
+    }
+    if (!constraints && attempt >= 5000) break;
+    const flavor: Flavor = bias.flavor ?? weighted(rng, [
       ['free', 40],
       ['tanyao', 14],
       ['yakuhai', 14],
@@ -344,7 +498,7 @@ export function generateHandQuestion({
         ? buildChiitoi(rng)
         : flavor === 'kokushi'
           ? buildKokushi(rng)
-          : buildStandard(rng, flavor, mode === 'fu' ? 0.4 : 0.45);
+          : buildStandard(rng, flavor, bias.openRate ?? (mode === 'fu' ? 0.4 : 0.45), bias);
     if (!built) continue;
     const { hand, kans } = built;
 
@@ -392,8 +546,13 @@ export function generateHandQuestion({
     // 符モードでは符が意味を持つ（満貫未満）問題を中心にする
     if (mode === 'fu' && (ev.yakuman || ev.fu.fu === 0)) continue;
     if (mode === 'fu' && ev.han >= 5 && rng() < 0.8) continue;
+    if (constraints) {
+      const q: HandQuestion = { mode, hand, sit, ev };
+      if (!matchesConstraints(q, constraints)) continue;
+      if (target !== null && fuBucket(ev.fu.fu) !== target) continue;
+    }
     // 符の分布を実戦に寄せる（役満は符と無関係なので対象外）
-    if (!ev.yakuman && rng() >= fuAcceptRate(ev.fu.fu)) continue;
+    if (constraints?.dist !== 'even' && !ev.yakuman && rng() >= fuAcceptRate(ev.fu.fu)) continue;
     // 役満は出すぎないように間引く（超大当りの BONUS は間引かない）
     if (ev.yakuman && !premium && rng() < 0.5) continue;
     // ドラ過多の問題は間引く
@@ -409,7 +568,8 @@ export function generateQuestion(
   filters: Filters,
   rng: Rng = Math.random,
   premium = false,
+  constraints?: HandConstraints,
 ): Question {
   if (mode === 'hayami') return generateHayami(rules, filters, rng, premium);
-  return generateHandQuestion({ mode, rules, filters, rng, premium });
+  return generateHandQuestion({ mode, rules, filters, rng, premium, constraints });
 }

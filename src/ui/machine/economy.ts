@@ -1,4 +1,4 @@
-/** ノーマルモードの通貨 yan。パラメータはここに集約する */
+/** パチンコモードの通貨 yan。パラメータはここに集約する */
 import type { Mode } from '../../core/generator';
 import type { LimitName } from '../../core/score';
 import { load, save } from '../storage';

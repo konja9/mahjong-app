@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { decompose } from '../src/core/decompose';
-import { generateHandQuestion, generateHayami } from '../src/core/generator';
-import { allTiles } from '../src/core/hand';
+import { FU_BUCKETS, feasibleBuckets, fuBucket, generateHandQuestion, generateHayami, matchesConstraints } from '../src/core/generator';
+import { allTiles, isMenzen } from '../src/core/hand';
 import { DEFAULT_RULES } from '../src/core/rules';
 import { isValidHanFu } from '../src/core/score';
 import { EAST, toCounts } from '../src/core/tiles';
@@ -129,5 +129,48 @@ describe('通常時の分布', () => {
     let big = 0;
     for (let i = 0; i < 2000; i++) if (generateHayami(DEFAULT_RULES, anyFilter, rng).han === 13) big++;
     expect(big / 2000).toBeLessThan(0.03);
+  });
+});
+
+describe('稽古の絞り込み', () => {
+  const shapes = ['any', 'chiitoi', 'pinfu', 'kuipinfu', 'kantsu', 'tanki', 'shanpon'] as const;
+  for (const mode of ['fu', 'jissen'] as const) {
+    for (const shape of shapes) {
+      it(`${mode}: ${shape} の手だけを出す`, () => {
+        const rng = mulberry32(shape.length * 31 + (mode === 'fu' ? 1 : 2));
+        const c = { call: 'any', shape, dist: 'real' } as const;
+        for (let i = 0; i < 100; i++) {
+          const q = generateHandQuestion({ mode, rules: DEFAULT_RULES, filters: anyFilter, rng, constraints: c });
+          expect(matchesConstraints(q, c)).toBe(true);
+          expect(decompose(q.hand, q.sit.tsumo).length).toBeGreaterThan(0);
+        }
+      });
+    }
+  }
+  it('門前・副露を守る', () => {
+    const rng = mulberry32(77);
+    for (const call of ['menzen', 'open'] as const) {
+      for (let i = 0; i < 100; i++) {
+        const q = generateHandQuestion({ mode: 'fu', rules: DEFAULT_RULES, filters: anyFilter, rng, constraints: { call, shape: 'any', dist: 'real' } });
+        expect(isMenzen(q.hand)).toBe(call === 'menzen');
+      }
+    }
+  });
+  it('均等：符の区分ごとにおおむね同じ数を出す', () => {
+    const rng = mulberry32(8);
+    const n: Record<number, number> = {};
+    const N = 700;
+    for (let i = 0; i < N; i++) {
+      const q = generateHandQuestion({ mode: 'fu', rules: DEFAULT_RULES, filters: anyFilter, rng, constraints: { call: 'any', shape: 'any', dist: 'even' } });
+      const b = fuBucket(q.ev.fu.fu);
+      n[b] = (n[b] ?? 0) + 1;
+    }
+    for (const b of FU_BUCKETS) {
+      expect(n[b] ?? 0).toBeGreaterThan(N / FU_BUCKETS.length / 2);
+    }
+  });
+  it('均等：形で出せない符は狙わない', () => {
+    expect(feasibleBuckets({ call: 'any', shape: 'pinfu', dist: 'even' }, { seat: 'any', win: 'ron' })).toEqual([30]);
+    expect(feasibleBuckets({ call: 'open', shape: 'any', dist: 'even' }, anyFilter)).toEqual([30, 40, 50, 60, 70]);
   });
 });

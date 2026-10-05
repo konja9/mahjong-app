@@ -36,10 +36,10 @@ export function introHtml(step: number): string {
   const last = step === FLOW.length - 1;
   const dots = FLOW.map((_, i) => `<i class="${i === step ? 'on' : ''}"></i>`).join('');
   const note = last
-    ? '<p class="intro-note">点数計算に自信がなければ、yan を使わないプラクティスで練習できます。遊び方はいつでも右上の <b>？</b> から。</p>'
+    ? '<p class="intro-note">点数計算に自信がなければ、yan を使わない稽古で、数え方を練習できます。遊び方はいつでも右上の <b>？</b> から。</p>'
     : '';
   const actions = last
-    ? '<button class="cfg" data-intro="practice">プラクティスで練習</button><button class="cfg on" data-intro="start">はじめる</button>'
+    ? '<button class="cfg" data-intro="keiko">稽古で練習</button><button class="cfg on" data-intro="start">はじめる</button>'
     : '<button class="cfg ghost" data-intro="skip">スキップ</button><button class="cfg on" data-intro="next">次へ</button>';
   return `<div class="intro">
     <div class="intro-head"><span class="intro-step">STEP ${step + 1}/${FLOW.length}</span><span class="intro-dots">${dots}</span></div>

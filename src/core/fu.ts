@@ -15,6 +15,15 @@ export interface FuRow extends FuItem {
   group?: number;
 }
 
+/**
+ * 符計算の典型的なミス。calcFu に渡すと、そのミスをしたときの符を同じ計算で再現する（誤答の診断用）
+ * - tsumo：ツモ符を付け忘れる / pinfuTsumo：平和ツモにツモ符を付ける
+ * - menzenRon：門前ロンの10符を付け忘れる / kuiPinfu：喰い平和形を30符にしない
+ * - yaochu：么九牌の刻子を2倍にし忘れる / ronKoutsu：ロンで完成した刻子を暗刻で数える
+ * - wait：待ちの2符を付け忘れる / roundUp：切り上げを忘れる
+ */
+export type Slip = 'tsumo' | 'pinfuTsumo' | 'menzenRon' | 'kuiPinfu' | 'yaochu' | 'ronKoutsu' | 'wait' | 'roundUp';
+
 export interface FuResult {
   /** 切り上げ後の符 */
   fu: number;
@@ -118,6 +127,7 @@ export function calcFu(
   rules: Rules,
   menzen: boolean,
   pinfu: boolean,
+  slip?: Slip,
 ): FuResult {
   if (interp.form === 'chiitoi') {
     const items = [{ label: '七対子', fu: 25 }];
@@ -127,7 +137,7 @@ export function calcFu(
     return { fu: 0, raw: 0, items: [], rows: [] };
   }
 
-  if (pinfu && sit.tsumo) {
+  if (pinfu && sit.tsumo && slip !== 'pinfuTsumo') {
     return {
       fu: 20,
       raw: 20,
@@ -137,28 +147,33 @@ export function calcFu(
   }
 
   const items: FuItem[] = [{ label: '副底', fu: 20 }];
-  if (menzen && !sit.tsumo) items.push({ label: '門前ロン', fu: 10 });
-  if (sit.tsumo) items.push({ label: 'ツモ', fu: 2 });
+  if (menzen && !sit.tsumo && slip !== 'menzenRon') items.push({ label: '門前ロン', fu: 10 });
+  if (sit.tsumo && slip !== 'tsumo') items.push({ label: 'ツモ', fu: 2 });
 
-  for (const g of interp.groups) {
-    if (g.kind === 'shuntsu') continue;
-    items.push({ label: `${tripletKind(g)} ${tileName(g.tile)}${isYaochu(g.tile) ? '（么九）' : ''}`, fu: groupFu(g) });
-  }
+  interp.groups.forEach((g, i) => {
+    if (g.kind === 'shuntsu') return;
+    let fu = groupFu(g);
+    if (slip === 'yaochu' && isYaochu(g.tile)) fu /= 2;
+    if (slip === 'ronKoutsu' && i === interp.winGroup && !g.called && !g.concealed) fu *= 2;
+    items.push({ label: `${tripletKind(g)} ${tileName(g.tile)}${isYaochu(g.tile) ? '（么九）' : ''}`, fu });
+  });
 
   items.push(...pairFu(interp.pair, sit, rules));
 
-  if (interp.wait === 'kanchan') items.push({ label: '嵌張待ち', fu: 2 });
-  if (interp.wait === 'penchan') items.push({ label: '辺張待ち', fu: 2 });
-  if (interp.wait === 'tanki') items.push({ label: '単騎待ち', fu: 2 });
+  if (slip !== 'wait') {
+    if (interp.wait === 'kanchan') items.push({ label: '嵌張待ち', fu: 2 });
+    if (interp.wait === 'penchan') items.push({ label: '辺張待ち', fu: 2 });
+    if (interp.wait === 'tanki') items.push({ label: '単騎待ち', fu: 2 });
+  }
 
   const rows = fuRows(interp, sit, rules, menzen, false);
   let raw = items.reduce((s, i) => s + i.fu, 0);
-  if (!menzen && raw === 20) {
+  if (!menzen && raw === 20 && slip !== 'kuiPinfu') {
     // 喰い平和形のロンは 30 符に
     const kui = { label: '喰い平和形（30符に）', fu: 10 };
     items.push(kui);
     rows.push({ ...kui, note: '鳴いて20符のロンは30符にする' });
     raw = 30;
   }
-  return { fu: Math.ceil(raw / 10) * 10, raw, items, rows };
+  return { fu: slip === 'roundUp' ? raw : Math.ceil(raw / 10) * 10, raw, items, rows };
 }

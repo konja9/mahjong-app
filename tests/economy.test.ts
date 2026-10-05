@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { practiceScore, speedMultiplier } from '../src/core/practiceScore';
 import { generateQuestion, type Mode } from '../src/core/generator';
 import { DEFAULT_RULES } from '../src/core/rules';
 import {
@@ -56,17 +55,6 @@ describe('yan', () => {
     w = applyDelta(w, -1000);
     expect(isBankrupt(w)).toBe(true);
     expect(w.history).toEqual([1000, 0]);
-  });
-});
-
-describe('プラクティスのスコア', () => {
-  it('即答で3倍、目安時間以上で1倍、不正解は0点', () => {
-    expect(speedMultiplier('hayami', 0)).toBe(3);
-    expect(practiceScore('hayami', true, 0)).toBe(300);
-    expect(practiceScore('hayami', true, 8)).toBe(100);
-    expect(practiceScore('hayami', true, 30)).toBe(100);
-    expect(practiceScore('jissen', true, 12.5)).toBe(400);
-    expect(practiceScore('fu', false, 1)).toBe(0);
   });
 });
 
