@@ -1,4 +1,4 @@
-import { type Choice, makeChoices } from '../core/choices';
+import { type Choice, FU_BUTTONS, makeChoices } from '../core/choices';
 import { type Diagnosis, ELEMENT_NAMES, type FuElement, diagnose, diagnosisText } from '../core/diagnose';
 import { type HandConstraints, type HandQuestion, type Mode, type Question, SHAPE_NAMES, type ShapeFilter, generateQuestion, shapeCall } from '../core/generator';
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
@@ -36,7 +36,9 @@ import { renderOdometer } from './odometer';
 import { type ItemsTab, RARITY_LABEL, type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, missionStrip, saveShop, shopHtml, unlockMachine } from './shop';
 import { type TipId, Tips, tipLink, tipText } from './tips';
 import { TILE_DEFS, handHtml, tilesInline } from './tileView';
-import { ELEMENTS, WEAK_MIN, type KeikoSource, accuracy, addReview, loadKeiko, markReview, nextReview, pickWeak, recordFuAnswer, reviewCount, saveKeiko, weakAllowed, weakWant } from './keiko';
+import { ELEMENTS, WEAK_MIN, type KeikoSource, accuracy, addReview, loadKeiko, markReview, nextReview, pickWeak, recordElement, recordFuAnswer, reviewCount, saveKeiko, weakAllowed, weakWant } from './keiko';
+import { fuSteps } from '../core/steps';
+import { StepRun } from './steps';
 
 type Phase = 'answering' | 'suspense' | 'result' | 'summary';
 
@@ -133,6 +135,8 @@ export class App {
   private awaitingBankrupt = false;
   private choices: Choice[] = [];
   private picked = -1;
+  /** 段階回答の進行（段階回答でなければ null） */
+  private steps: StepRun | null = null;
   /** 回答を止めている理由（台の発展リーチ・大当り、ダイアログ） */
   private pauses = new Set<string>();
   private tips = new Tips();
@@ -201,7 +205,33 @@ export class App {
   private applyTheme(): void {
     document.documentElement.dataset.play = this.s.playMode;
     document.documentElement.dataset.effects = this.s.effects;
-    document.documentElement.dataset.answer = this.s.answerStyle;
+    this.syncAnswerAttr();
+  }
+
+  /** 実際の回答方式（段階回答では段階ごとに選択と入力が切り替わる） */
+  private syncAnswerAttr(): void {
+    document.documentElement.dataset.answer = this.isChoice ? 'choice' : 'input';
+  }
+
+  /** 段階回答が使えるか（稽古の符計算で、回答方式が段階） */
+  private get stepMode(): boolean {
+    return this.keiko && this.s.mode === 'fu' && this.s.answerStyle === 'steps';
+  }
+
+  /** 段階回答の今の段階の選択肢 */
+  private stepChoices(): Choice[] {
+    const st = this.steps!.shown;
+    return st.kind === 'buttons' ? st.options.map((o) => ({ label: o.label, correct: o.value === st.answer })) : [];
+  }
+
+  private renderSteps(): void {
+    const el = $('#steps');
+    el.hidden = !this.steps;
+    el.innerHTML = this.steps ? this.steps.html() : '';
+    // スマホでは下の入力欄に隠れないよう、今の段階を画面の中ほどに出す
+    if (this.compact && this.steps && !this.steps.done && this.steps.results.length) {
+      el.querySelector('li.now')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
   }
 
   private update(patch: Partial<Settings>, restart = true): void {
@@ -270,8 +300,9 @@ export class App {
         (['hayami', 'fu', 'jissen'] as Mode[]).map((m) => [m, MODE_NAMES[m], s.mode === m]),
       ),
       group('answer', [
-        ['choice', s.mode === 'fu' ? '選択' : '4択', s.answerStyle === 'choice'],
+        ['choice', s.mode === 'fu' ? '選択' : '4択', s.answerStyle === 'choice' || (s.answerStyle === 'steps' && !this.stepMode)],
         ['input', '入力', s.answerStyle === 'input'],
+        ...(this.keiko && s.mode === 'fu' ? [['steps', '段階', s.answerStyle === 'steps'] as [string, string, boolean]] : []),
       ]),
       this.keiko &&
       group('source', [
@@ -323,8 +354,8 @@ export class App {
       )
       .join('');
     const count = !this.keiko ? '∞' : s.count ? `${s.count}問` : '∞';
-    const shape = this.keiko && s.mode !== 'hayami' && s.keikoFilters.shape !== 'any' ? `${SHAPE_NAMES[s.keikoFilters.shape]}<span class="dot-sep">·</span>` : '';
-    $('#cfg-toggle').innerHTML = `<span class="pill-mode">${MODE_NAMES[s.mode]}<span class="dot-sep">·</span></span><span class="pill-answer">${s.answerStyle === 'choice' ? (s.mode === 'fu' ? '選択' : '4択') : '入力'}<span class="dot-sep">·</span></span>${shape}${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+    const shape = this.keiko && s.mode !== 'hayami' && s.keikoFilters.shape !== 'any' ? `<span class="pill-shape">${SHAPE_NAMES[s.keikoFilters.shape]}<span class="dot-sep">·</span></span>` : '';
+    $('#cfg-toggle').innerHTML = `<span class="pill-mode">${MODE_NAMES[s.mode]}<span class="dot-sep">·</span></span><span class="pill-answer">${this.stepMode ? '段階' : s.answerStyle !== 'input' ? (s.mode === 'fu' ? '選択' : '4択') : '入力'}<span class="dot-sep">·</span></span>${shape}${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
   }
 
   private setPhase(phase: Phase): void {
@@ -440,7 +471,11 @@ export class App {
     this.picked = -1;
     // BONUS・RUSH の4択は、誤答を同じ翻で符だけ違う点数にして符を試す
     const fuFocus = !this.keiko && (this.isRoundQ || this.panel.rush);
-    this.choices = this.isChoice ? makeChoices(this.q, this.s.rules, Math.random, fuFocus) : [];
+    const steps = this.stepMode && this.q.mode !== 'hayami' ? fuSteps(this.q, this.s.rules) : [];
+    this.steps = steps.length ? new StepRun(steps) : null;
+    this.choices = this.steps ? this.stepChoices() : this.isChoice ? makeChoices(this.q, this.s.rules, Math.random, fuFocus) : [];
+    this.syncAnswerAttr();
+    this.renderSteps();
     this.setPhase('answering');
     this.startedAt = performance.now();
     this.renderQuestion();
@@ -482,7 +517,7 @@ export class App {
     }
     const c = this.constraints();
     if (src === 'weak' && c) {
-      const el = pickWeak(this.kd, Math.random, weakAllowed(c.shape));
+      const el = pickWeak(this.kd, Math.random, weakAllowed(c, this.s.filters));
       if (el) {
         try {
           const q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, premium, { ...c, want: weakWant(el) });
@@ -494,7 +529,7 @@ export class App {
       } else if (!this.weakNoted) {
         this.weakNoted = true;
         this.toast(
-          weakAllowed(c.shape).length
+          weakAllowed(c, this.s.filters).length
             ? `苦手を選ぶには、要素ごとに${WEAK_MIN}問以上の記録が必要です。それまでは通常の出題です`
             : 'この形では苦手ドリルを使えません。通常の出題にします',
         );
@@ -514,7 +549,8 @@ export class App {
       addReview(this.kd, q);
       this.session.reviewAdded++;
     }
-    if (q.mode !== 'hayami') recordFuAnswer(this.kd, q, correct, diag);
+    if (this.steps) for (const r of this.steps.results) recordElement(this.kd, r.step.element, r.ok);
+    else if (q.mode !== 'hayami') recordFuAnswer(this.kd, q, correct, diag);
     saveKeiko(this.kd);
   }
 
@@ -804,7 +840,8 @@ export class App {
   }
 
   private get isChoice(): boolean {
-    return this.s.answerStyle === 'choice';
+    if (this.steps) return this.steps.shown.kind === 'buttons';
+    return this.s.answerStyle !== 'input';
   }
 
   private needsPair(): boolean {
@@ -821,6 +858,8 @@ export class App {
 
   /** 動作確認用：現在の問題の正解入力 */
   debugAnswer(): string {
+    if (this.steps && this.isChoice) return String(this.steps.shown.options.findIndex((o) => o.value === this.steps!.shown.answer) + 1);
+    if (this.steps) return String(this.steps.shown.answer);
     if (this.isChoice) return String(this.choices.findIndex((c) => c.correct) + 1);
     if (this.q.mode === 'fu') return String(this.q.ev.fu.fu);
     const s = scoreOf(this.q);
@@ -858,12 +897,29 @@ export class App {
         return;
       }
     }
+    if (this.steps && !timeout && this.answerStep()) return;
     cancelAnimationFrame(this.timerRaf);
     this.setPhase('suspense');
     const elapsed = this.activeElapsed();
     cancelAnimationFrame(this.betRaf);
-    const correct = !timeout && this.isCorrect(this.input);
+    const correct = !timeout && (this.steps ? this.steps.allCorrect : this.isCorrect(this.input));
     this.reveal(correct, elapsed, timeout);
+  }
+
+  /** 段階回答の1段階に答える。まだ段階が残っていれば true（判定に進まない） */
+  private answerStep(): boolean {
+    const run = this.steps!;
+    const st = run.current!;
+    run.answer(this.isChoice ? st.options[this.picked].value : Number(this.input));
+    this.renderSteps();
+    if (run.done) return false;
+    this.input = '';
+    this.picked = -1;
+    this.choices = this.stepChoices();
+    this.syncAnswerAttr();
+    this.renderInput();
+    this.renderProgress();
+    return true;
   }
 
   private reveal(correct: boolean, elapsed: number, timeout: boolean): void {
@@ -880,8 +936,14 @@ export class App {
 
     const explain = this.q.mode === 'hayami' ? hayamiExplain(this.q) : handExplain(this.q, this.s.rules);
     const answerEl = this.answerAnchor();
-    const yours = timeout ? '時間切れ' : this.isChoice ? this.choices[this.picked].label : this.input;
-    const diag = correct || timeout ? [] : this.diagnose();
+    const yours = this.steps
+      ? `段階 ${this.steps.okCount}/${this.steps.steps.length}`
+      : timeout
+        ? '時間切れ'
+        : this.isChoice
+          ? this.choices[this.picked].label
+          : this.input;
+    const diag = correct || timeout || this.steps ? [] : this.diagnose();
     this.recordKeiko(correct, diag);
 
     if (correct) {
@@ -967,7 +1029,7 @@ export class App {
       const diagHtml = diag.length ? `<div class="diagnosis">${diagnosisText(diag)}</div>` : '';
       // 通常時のお金は計器だけで見せる。BONUS の外れはパンク
       const penalty = this.isRoundQ ? '<span class="punk">パンク（賞金なし）</span>' : '';
-      $('#result').innerHTML = `<div class="verdict ng"><span class="mark">不正解</span><span class="yours">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${diagHtml}${explain}`;
+      $('#result').innerHTML = `<div class="verdict ng"><span class="mark">不正解</span><span class="${this.steps ? 'muted' : 'yours'}">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${diagHtml}${explain}`;
       this.fx.lose(this.isChoice ? $('#choices') : answerEl, false);
       if (!this.keiko && !this.isRoundQ) {
         this.tip('miss');
@@ -1052,6 +1114,7 @@ export class App {
   }
 
   private promptUnit(): { unit: string; ghost: string } {
+    if (this.steps) return { unit: '符', ghost: `${ELEMENT_NAMES[this.steps.shown.element]}を入力` };
     if (this.q.mode === 'fu') return { unit: '符', ghost: '符を入力' };
     const { dealer, tsumo } = questionMeta(this.q);
     if (!tsumo) return { unit: '点', ghost: '点数を入力' };
@@ -1071,7 +1134,7 @@ export class App {
     const el = $('#choices');
     const done = this.phase === 'result';
     // 符計算は固定の7つのボタン（昇順）
-    el.classList.toggle('fu-pad', this.q.mode === 'fu');
+    el.classList.toggle('fu-pad', this.q.mode === 'fu' && this.choices.length === FU_BUTTONS.length);
     el.innerHTML = this.choices
       .map((c, i) => {
         const cls = done ? (c.correct ? ' is-correct' : i === this.picked ? ' is-wrong' : ' is-dim') : '';
@@ -1145,7 +1208,7 @@ export class App {
       const st = this.kd.elements[el];
       const a = accuracy(st);
       const p = a === null ? 0 : Math.round(a * 100);
-      return `<div class="cat"><span>${ELEMENT_NAMES[el]}</span><span class="bar"><i style="width:${p}%"></i></span><span>${st && st.n ? `${p}%` : '—'}</span></div>`;
+      return `<div class="cat"><span>${ELEMENT_NAMES[el]}</span><span class="bar"><i style="width:${p}%"></i></span><span>${st && st.n ? `${st.c}/${st.n}` : '—'}</span></div>`;
     }).join('');
     const added = this.session.reviewAdded
       ? `<div class="muted small">間違えた ${this.session.reviewAdded}問を復習に入れました（出題の「復習」で解き直せます）</div>`
@@ -1412,7 +1475,9 @@ export class App {
     }
     if (/^\d$/.test(key)) {
       if (this.input.replace('-', '').length >= 10) return;
-      if (this.input === '' && key === '0') return;
+      // 段階回答は0符も答えになる（先頭の0は次の数字で置き換える）
+      if (this.input === '' && key === '0' && !this.steps) return;
+      if (this.steps && this.input === '0') this.input = '';
       if (this.input.endsWith('-') && key === '0') return;
       this.input += key;
       sfx.key();
@@ -1857,6 +1922,7 @@ const SHELL = `
   <section id="stage">
     <div id="progress"></div>
     <div id="question"></div>
+    <div id="steps" hidden></div>
     <div id="dock">
       <button id="mission-strip" type="button" aria-label="今日のミッション"></button>
       <div id="meter">

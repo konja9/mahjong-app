@@ -1,6 +1,6 @@
 import { type Diagnosis, type FuElement, ELEMENT_NAMES } from '../core/diagnose';
 import { evaluate } from '../core/evaluate';
-import type { HandQuestion, Mode, Question, ShapeFilter } from '../core/generator';
+import { type Filters, type HandConstraints, type HandQuestion, type Mode, type Question, shapeCall } from '../core/generator';
 import { type Hand, type Situation, isMenzen } from '../core/hand';
 import type { Rules } from '../core/rules';
 import { calcScore } from '../core/score';
@@ -122,9 +122,14 @@ export function recordFuAnswer(d: KeikoData, q: HandQuestion, correct: boolean, 
 
 export const accuracy = (st: ElementStat | undefined): number | null => (st && st.n ? st.c / st.n : null);
 
-/** 形の絞り込みと両立する苦手ドリルの要素（七対子・平和・喰い平和は符の数え方がほぼ決まっているので使わない） */
-export function weakAllowed(shape: ShapeFilter): FuElement[] {
-  return shape === 'chiitoi' || shape === 'pinfu' || shape === 'kuipinfu' ? [] : ELEMENTS;
+/**
+ * 絞り込みと両立する苦手ドリルの要素。七対子・平和・喰い平和は符の数え方がほぼ決まっているので使わない。
+ * 副露のロンだけなら加符（門前ロン・ツモ）は出てこない
+ */
+export function weakAllowed(c: Pick<HandConstraints, 'call' | 'shape'>, f: Filters): FuElement[] {
+  if (c.shape === 'chiitoi' || c.shape === 'pinfu' || c.shape === 'kuipinfu') return [];
+  const call = shapeCall(c.shape) ?? c.call;
+  return call === 'open' && f.win === 'ron' ? ELEMENTS.filter((el) => el !== 'kafu') : ELEMENTS;
 }
 
 /** 苦手な要素を1つ選ぶ。正答率が低いほど選ばれやすい。記録が足りなければ null */

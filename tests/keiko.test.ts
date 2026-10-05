@@ -88,7 +88,8 @@ describe('要素別の正答率', () => {
     const rng = () => ((i = (i * 9301 + 49297) % 233280), i / 233280);
     for (let k = 0; k < 500; k++) if (pickWeak(d, rng) === 'wait') wait++;
     expect(wait).toBeGreaterThan(400);
-    expect(weakAllowed('pinfu')).toEqual([]);
+    expect(weakAllowed({ call: 'any', shape: 'pinfu' }, { seat: 'any', win: 'any' })).toEqual([]);
+    expect(weakAllowed({ call: 'open', shape: 'any' }, { seat: 'any', win: 'ron' })).not.toContain('kafu');
   });
   it('苦手ドリルの条件', () => {
     expect(weakWant('mentsu')(q)).toBe(true);
@@ -96,5 +97,15 @@ describe('要素別の正答率', () => {
     const pinfu = fuQ('234m567p345s78s55p', '9s', { riichi: true });
     expect(weakWant('wait')(pinfu)).toBe(false);
     expect(weakWant('roundup')(pinfu)).toBe(false);
+  });
+});
+
+describe('タブの移行', () => {
+  it('旧バージョンのノーマル・プラクティスを、パチンコ・稽古に読み替える', async () => {
+    const { migratePlayMode } = await import('../src/ui/settings');
+    expect(migratePlayMode('normal')).toBe('pachinko');
+    expect(migratePlayMode('practice')).toBe('keiko');
+    expect(migratePlayMode('keiko')).toBe('keiko');
+    expect(migratePlayMode(undefined)).toBe('pachinko');
   });
 });

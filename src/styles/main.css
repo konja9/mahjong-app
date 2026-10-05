@@ -3097,3 +3097,83 @@ body.busy #answer {
   border: 1px solid var(--sub);
   color: var(--text);
 }
+
+/* 稽古：段階回答（待ち → 面子 → 雀頭 → 加符 → 合計 → 切り上げ） */
+#steps {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 14px;
+  background: var(--sub-bg);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+#steps .st-head {
+  font-size: 12px;
+  color: var(--sub);
+  margin-bottom: 6px;
+}
+#steps .st-head b {
+  color: var(--text);
+}
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  column-gap: 8px;
+  align-items: baseline;
+}
+.steps li.todo {
+  color: var(--sub);
+  opacity: 0.55;
+}
+.steps li.now .st-q {
+  font-weight: 700;
+  color: var(--text);
+}
+.steps li.now .st-n {
+  background: var(--main);
+  color: var(--bg);
+}
+.steps .st-n {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--bg);
+  color: var(--sub);
+}
+.steps li.ok .st-a {
+  color: var(--main);
+}
+.steps li.ng .st-a {
+  color: var(--error);
+}
+.steps .st-a {
+  font-family: 'JetBrains Mono', 'Noto Sans JP', monospace;
+  white-space: nowrap;
+}
+.steps .st-yours {
+  text-decoration: line-through;
+}
+.steps .st-arrow {
+  margin: 0 4px;
+  color: var(--sub);
+}
+.steps .st-ans {
+  color: var(--main);
+}
+.steps .st-note {
+  grid-column: 2 / -1;
+  color: var(--sub);
+  font-size: 12px;
+  line-height: 1.5;
+}

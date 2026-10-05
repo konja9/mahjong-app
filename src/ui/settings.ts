@@ -4,14 +4,15 @@ import type { KeikoSource } from './keiko';
 import { load, save } from './storage';
 
 export type EffectLevel = 'off' | 'lite' | 'max';
-export type AnswerStyle = 'choice' | 'input';
+/** steps（段階）は稽古の符計算だけ。ほかでは選択として扱う */
+export type AnswerStyle = 'choice' | 'input' | 'steps';
 export type PlayMode = 'pachinko' | 'keiko';
 
 export interface Settings {
   /** 最上位タブ：パチンコ（台・yan あり）か稽古（演出なし・数え方の練習） */
   playMode: PlayMode;
   mode: Mode;
-  /** 回答方式：4択か数値入力か */
+  /** 回答方式：4択・数値入力・段階（稽古の符計算のみ） */
   answerStyle: AnswerStyle;
   count: number; // 0 = 無制限
   timeLimit: number; // 秒、0 = なし
@@ -60,7 +61,7 @@ export function loadSettings(): Settings {
 }
 
 /** 旧バージョンのタブ（ノーマル・プラクティス）を今のタブに読み替える */
-function migratePlayMode(v: unknown): PlayMode {
+export function migratePlayMode(v: unknown): PlayMode {
   if (v === 'keiko' || v === 'practice') return 'keiko';
   return 'pachinko';
 }

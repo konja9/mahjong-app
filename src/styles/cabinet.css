@@ -64,7 +64,8 @@
 }
 @media (max-width: 440px) {
   /* アイコンが4つ並ぶので、出題設定ボタンは短い表記にする */
-  .cfg-pill .pill-answer {
+  .cfg-pill .pill-answer,
+  .cfg-pill .pill-shape {
     display: none;
   }
   .play-tab {
