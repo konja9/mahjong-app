@@ -19,7 +19,7 @@ export interface PlayStats {
   maxStreak: number;
   /** BONUS の全問正解の回数 */
   perfectBonus: number;
-  /** 1回の遊び（精算まで）で100問以上・正解率95%以上を達成した */
+  /** 1回の遊び（「成績を見る」まで）で100問以上・正解率95%以上を達成した */
   precise: number;
 }
 

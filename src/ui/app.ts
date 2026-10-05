@@ -1,6 +1,6 @@
 import { type Choice, FU_BUTTONS, makeChoices } from '../core/choices';
 import { type Diagnosis, ELEMENT_NAMES, type FuElement, diagnose, diagnosisText } from '../core/diagnose';
-import { type HandConstraints, type HandQuestion, type Mode, type Question, SHAPE_NAMES, type ShapeFilter, generateQuestion, shapeCall } from '../core/generator';
+import { type HandConstraints, type HandQuestion, type Mode, type Question, type ShapeFilter, generateQuestion, shapeCall } from '../core/generator';
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
 import { EAST } from '../core/tiles';
 import { adPrivacyRequired, showAdPrivacyOptions } from './ads';
@@ -30,6 +30,7 @@ import {
 import { type JackpotResult, MachinePanel } from './machine/panel';
 import { doraLabel, handExplain, hayamiExplain, situationChips, situationLabel } from './explain';
 import { type Settings, loadSettings, saveSettings } from './settings';
+import { type ConfigView, configPanelHtml, configSummaryHtml } from './configPanel';
 import { type HelpTab, helpHtml } from './help';
 import { introHtml, introSeen, markIntroSeen } from './intro';
 import { SPECS } from './machine/specs';
@@ -250,7 +251,7 @@ export class App {
     if (restart) this.startSession('playMode' in patch);
   }
 
-  /** BONUS 中は、問題や台が入れ替わる操作（出題設定・ルール・精算など）をさせない */
+  /** BONUS 中は、問題や台が入れ替わる操作（出題設定・ルール・成績を見るなど）をさせない */
   private blockedInBonus(): boolean {
     if (!this.round) return false;
     this.toast('BONUS 中は変更できません。BONUS が終わってから切り替えてください');
@@ -259,105 +260,21 @@ export class App {
 
   private renderConfig(): void {
     const s = this.s;
-    const LABELS: Record<string, string> = {
-      mode: 'モード',
-      answer: '回答',
-      count: '問題数',
-      time: '制限時間',
-      seat: '親子',
-      win: '和了',
-      call: '鳴き',
-      shape: '形',
-      dist: '分布',
-      source: '出題',
-    };
-    const group = (name: string, items: [string, string, boolean][]) =>
-      `<div class="cfg-group" data-group="${name}"><span class="cfg-label">${LABELS[name]}</span>${items
-        .map(([v, label, on]) => `<button class="cfg${on ? ' on' : ''}" data-cfg="${name}" data-v="${v}">${label}</button>`)
-        .join('')}</div>`;
-    const kf = s.keikoFilters;
-    const forcedCall = shapeCall(kf.shape);
-    // 稽古の絞り込み（手牌の出る符計算・実戦のみ）
-    const keikoFilter =
-      this.keiko && s.mode !== 'hayami'
-        ? [
-            group('call', [
-              ['any', 'すべて', (forcedCall ?? kf.call) === 'any'],
-              ['menzen', '門前', (forcedCall ?? kf.call) === 'menzen'],
-              ['open', '副露', (forcedCall ?? kf.call) === 'open'],
-            ]),
-            group(
-              'shape',
-              (Object.keys(SHAPE_NAMES) as ShapeFilter[]).map((k) => [k, SHAPE_NAMES[k], kf.shape === k]),
-            ),
-            group('dist', [
-              ['real', '実戦寄り', kf.dist === 'real'],
-              ['even', '均等', kf.dist === 'even'],
-            ]),
-          ]
-        : [];
-    $('#config').innerHTML = [
-      group(
-        'mode',
-        (['hayami', 'fu', 'jissen'] as Mode[]).map((m) => [m, MODE_NAMES[m], s.mode === m]),
-      ),
-      group('answer', [
-        ['choice', s.mode === 'fu' ? '選択' : '4択', s.answerStyle === 'choice' || (s.answerStyle === 'steps' && !this.stepMode)],
-        ['input', '入力', s.answerStyle === 'input'],
-        ...(this.keiko && s.mode === 'fu' ? [['steps', '段階', s.answerStyle === 'steps'] as [string, string, boolean]] : []),
-      ]),
-      this.keiko &&
-      group('source', [
-        ['normal', '通常', s.keikoSource === 'normal'],
-        ['review', `復習 ${reviewCount(this.kd, s.mode)}`, s.keikoSource === 'review'],
-        ['weak', '苦手', s.keikoSource === 'weak'],
-      ]),
-      this.keiko &&
-      group(
-        'count',
-        [10, 25, 50, 0].map((n) => [String(n), n ? String(n) : '∞', s.count === n]),
-      ),
-      // 稽古は時間を気にせず数え方を身につける場なので、制限時間を出さない
-      !this.keiko &&
-      group(
-        'time',
-        [0, 15, 30].map((n) => [String(n), n ? `${n}s` : '無制限', s.timeLimit === n]),
-      ),
-      group('seat', [
-        ['any', '親子', s.filters.seat === 'any'],
-        ['child', '子', s.filters.seat === 'child'],
-        ['dealer', '親', s.filters.seat === 'dealer'],
-      ]),
-      group('win', [
-        ['any', 'ロンツモ', s.filters.win === 'any'],
-        ['ron', 'ロン', s.filters.win === 'ron'],
-        ['tsumo', 'ツモ', s.filters.win === 'tsumo'],
-      ]),
-      ...keikoFilter,
-    ]
-      .filter(Boolean)
-      .join('<span class="cfg-sep"></span>') +
-      (this.keiko
-        ? '<button class="cfg-done" type="button" data-restart>最初から</button>'
-        : '<button class="cfg-done cashout" type="button" data-cashout>精算</button>') +
-      '<button class="cfg-done" type="button" data-close-cfg>閉じる</button>';
-    // ミドル以上の台は実戦のみ
-    const locked = !this.keiko && this.spec.jissenOnly;
-    document.querySelectorAll<HTMLElement>('#config [data-cfg="mode"]').forEach((b) => b.classList.toggle('locked', locked && b.dataset.v !== 'jissen'));
+    const view: ConfigView = { s, keiko: this.keiko, reviewCount: reviewCount(this.kd, s.mode) };
+    $('#config').innerHTML = configPanelHtml(view);
     document.querySelectorAll<HTMLElement>('[data-play]').forEach((b) => {
       const on = b.dataset.play === s.playMode;
       b.classList.toggle('on', on);
       b.setAttribute('aria-selected', String(on));
     });
+    // ミドル以上の台は実戦のみ
     $('#mode-tabs').innerHTML = (['hayami', 'fu', 'jissen'] as Mode[])
       .map(
         (m) =>
           `<button class="mode-tab${s.mode === m ? ' on' : ''}${!this.keiko && this.spec.jissenOnly && m !== 'jissen' ? ' locked' : ''}" role="tab" aria-selected="${s.mode === m}" data-mode="${m}">${MODE_NAMES[m]}</button>`,
       )
       .join('');
-    const count = !this.keiko ? '∞' : s.count ? `${s.count}問` : '∞';
-    const shape = this.keiko && s.mode !== 'hayami' && s.keikoFilters.shape !== 'any' ? `<span class="pill-shape">${SHAPE_NAMES[s.keikoFilters.shape]}<span class="dot-sep">·</span></span>` : '';
-    $('#cfg-toggle').innerHTML = `<span class="pill-mode">${MODE_NAMES[s.mode]}<span class="dot-sep">·</span></span><span class="pill-answer">${this.stepMode ? '段階' : s.answerStyle !== 'input' ? (s.mode === 'fu' ? '選択' : '4択') : '入力'}<span class="dot-sep">·</span></span>${shape}${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+    $('#cfg-toggle').innerHTML = configSummaryHtml(view);
   }
 
   private setPhase(phase: Phase): void {
@@ -387,6 +304,9 @@ export class App {
   private toggleConfigSheet(open = !document.body.classList.contains('cfg-open')): void {
     document.body.classList.toggle('cfg-open', open);
     $('#cfg-toggle').setAttribute('aria-expanded', String(open));
+    // 開いたら選ばれている最初の選択肢へ、閉じたら開いたボタンへフォーカスを戻す
+    if (open) document.querySelector<HTMLElement>('#config .cfg.on:not([disabled])')?.focus({ preventScroll: true });
+    else if (document.activeElement && $('#config').contains(document.activeElement)) $('#cfg-toggle').focus({ preventScroll: true });
   }
 
   /** 出題モードの切り替え。ミドル以上の台は実戦のみ */
@@ -1239,8 +1159,8 @@ export class App {
     return `<div><div class="ex-h">符の要素別 <span class="muted">これまでの累計</span></div>${rows}${added}</div>`;
   }
 
-  /** end: 規定問題数の終了 / settle: パチンコの精算 / bankrupt: 破産 */
-  private showSummary(kind: 'end' | 'settle' | 'bankrupt' = 'end'): void {
+  /** end: 規定問題数の終了 / summary: パチンコで「成績を見る」 / bankrupt: 破産 */
+  private showSummary(kind: 'end' | 'summary' | 'bankrupt' = 'end'): void {
     this.setPhase('summary');
     cancelAnimationFrame(this.timerRaf);
     cancelAnimationFrame(this.betRaf);
@@ -1289,8 +1209,8 @@ export class App {
         head = `<div class="bankrupt"><span>破産</span><small>所持金が尽きました</small></div>`;
         again = `${ECONOMY.initial.toLocaleString()}yan で再起`;
       } else {
-        head = `<div class="muted small">所持金 ${this.wallet.balance.toLocaleString()} yan</div>`;
-        again = '続ける';
+        head = `<div class="sum-title">ここまでの成績</div><div class="muted small">所持金 ${this.wallet.balance.toLocaleString()} yan（台と所持金はそのまま続きから）</div>`;
+        again = '続ける（成績は新しく数え直し）';
       }
     }
 
@@ -1319,7 +1239,7 @@ export class App {
         ${this.keiko ? this.elementsHtml() : ''}
       </div>
       <button class="again-btn" type="button" data-again>${again}</button>
-      ${this.compact ? '' : `<div class="hint"><kbd>Tab</kbd> / <kbd>Enter</kbd> ${again}</div>`}`;
+      ${this.compact ? '' : `<div class="hint"><kbd>Tab</kbd> / <kbd>Enter</kbd> ${again.replace(/（.*）$/, '')}</div>`}`;
     const slump = sum.querySelector<HTMLElement>('.sum-slump');
     if (slump) this.renderSlump(slump, this.wallet.history, 600, 120);
     sum.querySelector('[data-again]')?.addEventListener('click', () => this.restartFromSummary(kind));
@@ -1328,9 +1248,9 @@ export class App {
     this.fx.sessionEnd(kind !== 'bankrupt' && acc >= 80);
   }
 
-  private summaryKind: 'end' | 'settle' | 'bankrupt' = 'end';
+  private summaryKind: 'end' | 'summary' | 'bankrupt' = 'end';
 
-  private restartFromSummary(kind: 'end' | 'settle' | 'bankrupt' = this.summaryKind): void {
+  private restartFromSummary(kind: 'end' | 'summary' | 'bankrupt' = this.summaryKind): void {
     if (kind === 'bankrupt') {
       this.wallet = freshWallet(this.wallet.bankrupts + 1);
       saveWallet(this.wallet);
@@ -1374,9 +1294,9 @@ export class App {
       } else if (this.phase === 'summary') this.restartFromSummary();
     });
     $('#config').addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).closest('[data-cashout]')) {
+      if ((e.target as HTMLElement).closest('[data-summary]')) {
         if (this.blockedInBonus()) return;
-        this.showSummary('settle');
+        this.showSummary('summary');
         return;
       }
       if ((e.target as HTMLElement).closest('[data-restart]')) {
@@ -1457,6 +1377,14 @@ export class App {
 
   private onKey(e: KeyboardEvent): void {
     if (document.querySelector('dialog[open]')) return;
+    // 出題設定を開いている間は回答しない（Esc で閉じる。Tab などのフォーカス移動はそのまま）
+    if (document.body.classList.contains('cfg-open')) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.toggleConfigSheet(false);
+      }
+      return;
+    }
     if (e.metaKey || e.ctrlKey) {
       if (e.key === 'Backspace' && this.phase === 'answering') {
         this.input = '';
@@ -1990,7 +1918,7 @@ const SHELL = `
   </div>
 </header>
 <nav id="mode-tabs" class="mode-tabs" role="tablist" aria-label="出題モード"></nav>
-<nav id="config" aria-label="出題設定"></nav>
+<div id="config" role="dialog" aria-label="出題設定"></div>
 <div id="cfg-backdrop"></div>
 <main>
   <aside id="machine" data-skin="gold" aria-label="パチンコ台"></aside>

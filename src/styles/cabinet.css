@@ -65,8 +65,12 @@
 @media (max-width: 440px) {
   /* アイコンが4つ並ぶので、出題設定ボタンは短い表記にする */
   .cfg-pill .pill-answer,
-  .cfg-pill .pill-shape {
+  .cfg-pill .pill-shape,
+  .cfg-pill .pill-wide {
     display: none;
+  }
+  .cfg-pill .pill-narrow {
+    display: inline;
   }
   .play-tab {
     white-space: nowrap;
@@ -165,20 +169,6 @@
     padding: 14px 0 12px;
     background: linear-gradient(to bottom, transparent, var(--bg) 16px);
   }
-  :root[data-play='pachinko'] .cfg-done.cashout {
-    display: inline-block;
-    margin-left: 6px;
-    padding: 4px 12px;
-    border-radius: 6px;
-    box-shadow: inset 0 0 0 1px var(--line);
-    color: var(--text);
-    font-family: 'Noto Sans JP', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-  }
-}
-.cfg-done.cashout:hover {
-  color: var(--main);
 }
 
 /* ============================================================ 液晶帯（台） */
@@ -644,7 +634,7 @@ body.busy .bet-box .bar {
   filter: drop-shadow(0 3px 0 #2a2d38) drop-shadow(0 0 24px rgba(255, 255, 255, 0.35));
 }
 
-/* ============================================================ 精算画面：大当り履歴 */
+/* ============================================================ 成績画面：大当り履歴 */
 .sum-log {
   display: flex;
   flex-wrap: wrap;
@@ -883,7 +873,7 @@ body.busy .bet-box .bar {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-/* 精算画面のグラフ：面・BONUS の区間・最後の点 */
+/* 成績画面のグラフ：面・BONUS の区間・最後の点 */
 .sum-slump .area {
   stroke: none;
 }
