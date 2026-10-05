@@ -20,7 +20,8 @@ export type TutorialAction =
   | 'nextQuestion' // 判定のあと次の問題へ
   | 'freeBet' // チュートリアル中の BET をなしにする
   | 'paidBet' // BET を元に戻す
-  | 'keikoFocus'; // 稽古の重点学習・通常の出題にする
+  | 'keikoFocus' // 稽古の重点学習・通常の出題にする
+  | 'haltMachine'; // 台を止める（残りの保留で次の大当りが起きないように。稽古へ移るときは台がリセットされる）
 
 export type Step =
   /** セリフ。タップで次へ */
@@ -87,6 +88,7 @@ export const CHAPTERS: Chapter[] = [
     steps: [
       // RUSH でまた大当りしていたら、その BONUS を遊び終えてから道場へ
       { kind: 'free', face: 'grin', text: 'おっと、また BONUS か。まずはこいつを遊び切りな。', until: 'idle' },
+      { kind: 'do', action: 'haltMachine' },
       { kind: 'say', face: 'sweat', text: '……とはいえ、数え方を知らなきゃ賭場じゃカモだ。yan を使わない道場で叩き込むぜ。' },
       { kind: 'spot', target: '.play-tab[data-play="keiko"]', face: 'neutral', text: '「稽古」を押しな。', next: 'click' },
       { kind: 'do', action: 'keikoFocus' },

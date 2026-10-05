@@ -1573,6 +1573,9 @@ export class App {
           this.next();
         }
         return;
+      case 'haltMachine':
+        if (!this.round && !this.keiko) this.panel.stop();
+        return;
       case 'keikoFocus':
         if (this.s.keikoStudy !== 'focus' || this.s.keikoSource !== 'normal' || this.s.answerStyle !== 'choice') {
           this.update({ keikoStudy: 'focus', keikoSource: 'normal', answerStyle: 'choice' });
