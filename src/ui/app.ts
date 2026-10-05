@@ -2,7 +2,9 @@ import { type Choice, makeChoices } from '../core/choices';
 import { type HandQuestion, type Mode, type Question, generateQuestion } from '../core/generator';
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
 import { EAST } from '../core/tiles';
-import { type BgmTrack, bgm, configureAudio, sfx, unlockAudio } from './audio';
+import { adPrivacyRequired, showAdPrivacyOptions } from './ads';
+import { buyRemoveAds, onPurchaseChange, purchaseState, restoreRemoveAds } from './purchase';
+import { type BgmTrack, bgm, configureAudio, sfx, suspendAudio, unlockAudio } from './audio';
 import { Fx, type WinTier } from './effects/pachinko';
 import type { EffectLevel } from './effects/performance';
 import {
@@ -300,6 +302,21 @@ export class App {
 
   private get compact(): boolean {
     return typeof matchMedia === 'function' && matchMedia('(max-width: 640px)').matches;
+  }
+
+  /** Android の戻るボタン：開いているダイアログ（いちばん手前）か出題設定シートを閉じる。閉じるものがなければ false */
+  back(): boolean {
+    const open = [...document.querySelectorAll<HTMLDialogElement>('dialog[open]')];
+    const top = open[open.length - 1];
+    if (top) {
+      top.close();
+      return true;
+    }
+    if (document.body.classList.contains('cfg-open')) {
+      this.toggleConfigSheet(false);
+      return true;
+    }
+    return false;
   }
 
   private toggleConfigSheet(open = !document.body.classList.contains('cfg-open')): void {
@@ -997,7 +1014,14 @@ export class App {
     $('#progress').innerHTML = `<span>${ss.answered + (this.phase === 'answering' || this.phase === 'suspense' ? 1 : 0)}${total}</span>
       <span class="muted">正答率 ${acc}%</span>
       <span class="streak${ss.streak >= 20 ? ' holo' : ss.streak >= 10 ? ' ten' : ss.streak >= 5 ? ' mid' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>${this.ballsTag()}
-      ${this.practice && this.s.count ? `<span class="score">SCORE <b>${ss.score.toLocaleString()}</b></span>` : ''}`;
+      ${this.practice && this.s.count ? `<span class="score">SCORE <b>${ss.score.toLocaleString()}</b></span>` : ''}${this.adFreeTag()}`;
+  }
+
+  /** Android 版：広告が出ている間だけ、問題数の行の右端に「広告を消す」（押すと購入画面） */
+  private adFreeTag(): string {
+    const p = purchaseState();
+    if (!p.available || p.owned || p.busy || !document.body.classList.contains('has-ad')) return '';
+    return `<button class="adfree-btn" type="button" data-adfree>広告を消す${p.price ? `<small>${p.price}</small>` : ''}</button>`;
   }
 
   /** 問題数の横に出す「次の正解で入る玉の数」（ノーマルで2個以上のときだけ） */
@@ -1192,9 +1216,22 @@ export class App {
     this.bindShop();
     this.bindGuide();
     this.bindSettings();
-    // 画面ロックや別アプリから戻ったら音を起こし直す（iOS は止まったままになる）
+    let lastMessage = '';
+    onPurchaseChange((p) => {
+      this.renderProgress();
+      if ($<HTMLDialogElement>('#settings-dialog').open) this.renderSettings();
+      // 問題数の行のボタンから買ったときは、結果を一言ガイドで知らせる（設定からのときは設定の中に出る）
+      else if (p.message && p.message !== lastMessage) this.toast(p.message);
+      lastMessage = p.message;
+    });
+    // 広告が出た・消えたら「広告を消す」を出し直す
+    document.addEventListener('ads:change', () => this.renderProgress());
+    // 隠れたら音を止め、画面ロックや別アプリから戻ったら起こし直す（iOS は止まったままになる）
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState !== 'visible') return;
+      if (document.visibilityState !== 'visible') {
+        suspendAudio();
+        return;
+      }
       unlockAudio();
       this.syncBgm();
     });
@@ -1214,6 +1251,11 @@ export class App {
     });
     $('#overlay').addEventListener('click', () => this.fx.tap());
     $('#stage').addEventListener('click', (e) => {
+      // 「広告を消す」は購入画面を開く（次の問題へは進まない）
+      if ((e.target as HTMLElement).closest('[data-adfree]')) {
+        void buyRemoveAds();
+        return;
+      }
       // 解説の「符の数え方」はヘルプを開く（次の問題へは進まない）
       const link = (e.target as HTMLElement).closest<HTMLElement>('[data-help-link]');
       if (link) {
@@ -1634,6 +1676,15 @@ export class App {
           save(BEST_KEY, {});
         }
         return;
+      case 'adPrivacy':
+        showAdPrivacyOptions();
+        return;
+      case 'buyAdFree':
+        void buyRemoveAds();
+        return;
+      case 'restoreAdFree':
+        void restoreRemoveAds();
+        return;
       case 'tips':
         this.tips.reset();
         this.tipsReset = true;
@@ -1665,6 +1716,30 @@ export class App {
     this.renderSettings();
     const dlg = $<HTMLDialogElement>('#settings-dialog');
     if (!dlg.open) dlg.showModal();
+  }
+
+  /** 設定の「広告」欄（Android 版だけ）：広告削除の購入・復元と、広告のプライバシー設定 */
+  private adSettingsHtml(): string {
+    const p = purchaseState();
+    const rows: string[] = [];
+    const btn = (set: string, label: string) =>
+      `<div class="cfg-group"><button class="cfg" data-set="${set}" data-v="1"${p.busy ? ' disabled' : ''}>${label}</button></div>`;
+    if (p.available) {
+      if (p.owned) {
+        rows.push(`<div class="set-row"><div><div class="set-label">広告なし</div><div class="set-desc">${p.message || '広告削除は購入済みです。ありがとうございます'}</div></div></div>`);
+      } else {
+        rows.push(
+          `<div class="set-row"><div><div class="set-label">広告を消す${p.price ? `（${p.price}）` : ''}</div><div class="set-desc">${p.message || '一度買うと、画面上部の広告がずっと消えます。ゲームの内容は変わりません'}</div></div>${btn('buyAdFree', p.busy ? '処理中…' : '購入')}</div>`,
+          `<div class="set-row"><div><div class="set-label">購入を復元</div><div class="set-desc">機種変更・再インストールのあと、同じ Google アカウントで買った広告削除を取り戻す</div></div>${btn('restoreAdFree', '復元')}</div>`,
+        );
+      }
+    }
+    if (adPrivacyRequired() && !p.owned) {
+      rows.push(
+        `<div class="set-row"><div><div class="set-label">プライバシー設定</div><div class="set-desc">広告のためのデータ利用への同意を見直す</div></div>${btn('adPrivacy', '変更')}</div>`,
+      );
+    }
+    return rows.length ? `<div class="set-sec">広告</div>${rows.join('')}` : '';
   }
 
   private renderSettings(): void {
@@ -1699,6 +1774,7 @@ export class App {
       <div class="set-row"><div><div class="set-label">所持金 ${this.wallet.balance.toLocaleString()} yan</div><div class="set-desc">ノーマルの所持金を ${ECONOMY.initial}yan に戻す（破産 ${this.wallet.bankrupts}回）</div></div><div class="cfg-group"><button class="cfg danger" data-set="wallet" data-v="1">リセット</button></div></div>
       <div class="set-row"><div><div class="set-label">一言ガイド</div><div class="set-desc">初めての人向けのヒントをもう一度表示する</div></div><div class="cfg-group"><button class="cfg${this.tipsReset ? ' on' : ''}" data-set="tips" data-v="1">${this.tipsReset ? '表示します' : 'もう一度'}</button></div></div>
       <div class="set-row"><div><div class="set-label">自己ベスト</div><div class="set-desc">モード・問題数ごとの記録を消去</div></div><div class="cfg-group"><button class="cfg danger" data-set="reset" data-v="1">リセット</button></div></div>
+      ${this.adSettingsHtml()}
     </div>`;
     const el = dlg.querySelector('.settings');
     if (el) el.scrollTop = scroll;

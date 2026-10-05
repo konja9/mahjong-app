@@ -30,6 +30,11 @@ export function unlockAudio(): void {
   }
 }
 
+/** 画面が隠れたら音を止める（アプリを背面に回したあとも BGM が鳴り続けないように）。戻ったら unlockAudio で再開する */
+export function suspendAudio(): void {
+  if (ctx && ctx.state === 'running') void ctx.suspend().catch(() => undefined);
+}
+
 let analyser: AnalyserNode | null = null;
 
 /** 動作確認用：いま出ている音の大きさ（RMS） */

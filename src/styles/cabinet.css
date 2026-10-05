@@ -692,6 +692,40 @@ body.busy .bet-box .bar {
   }
 }
 
+/* BONUS 中は出題モードを変えられないので、スマホではモードのタブを畳んで問題を出す場所を空ける */
+@media (max-width: 640px) {
+  :root[data-play='normal'] body.bonus #mode-tabs {
+    display: none;
+  }
+}
+
+/* 背の低いスマホ（〜820px。上部に広告が載ると実質さらに低い）：
+   BONUS 中は液晶帯の賞金の説明とミッションの帯を畳み、4択を下から持ち上げる余白も控えめにする */
+@media (max-width: 640px) and (max-height: 820px) {
+  :root[data-play='normal'] body.bonus .b-note,
+  :root[data-play='normal'] body.bonus #dock #mission-strip {
+    display: none;
+  }
+  #dock,
+  :root[data-play='normal'] #dock {
+    padding-bottom: calc(env(safe-area-inset-bottom) + clamp(12px, 2.5vh, 56px));
+  }
+}
+
+/* さらに低い画面（〜700px。iPhone SE ほどの大きさ）：通常時もミッションの帯を畳み、モードのタブを低くする。
+   ミッションは右上の交換所からいつでも見られる */
+@media (max-width: 640px) and (max-height: 700px) {
+  :root[data-play='normal'] body #mission-strip {
+    display: none;
+  }
+  body .mode-tabs {
+    margin-bottom: 6px;
+  }
+  body .mode-tab {
+    padding: 5px 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mt-credit.low b,
   .b-cell.lit {

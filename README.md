@@ -152,7 +152,35 @@ npm run build    # 型チェックと本番ビルド（dist/）
 
 - ホーム画面・タブのアイコンは `public/` にあります（絵柄：黒金の液晶の枠で赤五筒が3枚そろった大当り）。
 - スマホのホーム画面に追加すると「パチふと」の名前とアイコンで、全画面のアプリとして開きます（`public/manifest.webmanifest`）。
-- 絵柄を変えたら `npx -p playwright node scripts/icons.mjs` で SVG と PNG を作り直します。
+- 絵柄を変えたら `npx -p playwright node scripts/icons.mjs` で SVG と PNG を作り直します。Android 用の元画像（`assets/`）も一緒に書き出されるので、続けて `npx @capacitor/assets generate --android --iconBackgroundColor '#0c0d11' --splashBackgroundColor '#0c0d11'` を実行します。
+
+### Android アプリ（Capacitor）
+
+Google Play 向けに、同じ `src/` を [Capacitor](https://capacitorjs.com/) で Android アプリにしています（アプリID `io.github.konja9.pachifuto`）。`android/` が Android Studio のプロジェクトです。
+
+```bash
+npm run android        # Web をビルドして android/ に反映（cap sync）
+npm run android:open   # Android Studio で開く（実機・エミュレータで実行、AAB の作成）
+```
+
+- 必要なもの：Android Studio（JDK 21・Android SDK を含む）。
+- アプリの中身は APK に同梱し、通信なしで動きます。フォントも `@fontsource/*` で同梱しています（Web 版も同じ。woff2 だけを使うよう `vite.config.ts` で絞っています）。
+- 戻るボタン：開いているダイアログか出題設定シートを閉じ、何も開いていなければアプリを背面に回します（`src/ui/native.ts`、`App.back()`）。
+- 画面が隠れたら音を止め、戻ると再開します。画面は縦固定です。
+- **上部バナー広告（AdMob）**：Android 版だけに出します（`src/ui/ads.ts`）。起動時に EEA・英国などでは同意フォームを出し、必要な地域では設定に「広告 › プライバシー設定」を出します。広告の高さ＋8px（液晶帯の誤タップ防止）を CSS 変数 `--ad-h` に入れて、画面全体を下げます。
+  - `npm run android` の開発ビルドは**常に Google のテスト広告**です。開発中は本番広告を表示・タップしないでください（アカウント停止の対象）。
+  - 本番の ID は2か所に書きます。AdMob の管理画面でアプリと広告ユニット（アダプティブ バナー）を作って発行します。
+    - アプリ ID：`android/gradle.properties` の `ADMOB_APP_ID=ca-app-pub-…~…`（未設定ならテスト用 ID）
+    - 広告ユニット ID：リポジトリ直下の `.env.release` に `VITE_ADMOB_BANNER_ID=ca-app-pub-…/…`
+  - Play に出すビルドは `npm run android:release` で作ります（`.env.release` を読む）。
+- **広告削除（買い切り 500円）**：Google Play の課金を `@capgo/native-purchases` で直接使います（`src/ui/purchase.ts`）。サーバーは使いません。
+  - Play Console で **1回限りのアイテム**を ID `remove_ads`・価格 500円で作ります。
+  - 設定の「広告」に「広告を消す（￥500）」と「購入を復元」を出します。広告が出ている間は、問題数・正答率の行の右端にも「広告を消す」を出し、押すと購入画面を開きます。買うとその場でバナーを消します。
+  - 起動のたびに Google Play に購入を問い合わせ、買ってあれば広告を出しません。返金されると次の起動から広告に戻ります。通信できないときは前回の結果を使います。
+  - コンビニ払いなどの支払い待ちは購入済みにせず、支払いが済んでアプリに戻ったときに反映します。
+  - 実機で試すには、AAB を Play Console の内部テストに一度アップロードし、自分の Google アカウントを**ライセンス テスター**に登録します（テスト用のカードで、実際には請求されません）。
+- **ストア掲載情報**：`store/listing.md`（アプリ名・説明文・分類）と、`store/` の画像（アイコン、フィーチャー グラフィック、スクリーンショット6枚）。画像は `npx -p playwright node scripts/store.mjs` で作り直します（元の画面は `store/raw/`）。
+- バージョンは `package.json` の `version` から作ります（`1.2.3` → versionName `1.2.3`、versionCode `10203`）。Play に上げるたびに上げてください。
 
 ### 公開（GitHub Pages）
 
