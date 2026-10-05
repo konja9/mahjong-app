@@ -197,14 +197,18 @@ body.cfg-open #cfg-backdrop {
   font-family: 'Noto Sans JP', sans-serif;
   font-size: 14px;
   opacity: 0;
+  /* 閉じている間は Tab でもフォーカスが入らないよう隠す（閉じるアニメーションのあとで） */
+  visibility: hidden;
   pointer-events: none;
   transform: translate(-50%, -8px);
-  transition: opacity 0.18s, transform 0.18s;
+  transition: opacity 0.18s, transform 0.18s, visibility 0s linear 0.18s;
 }
 body.cfg-open #config {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
   transform: translate(-50%, 0);
+  transition-delay: 0s;
 }
 .cfg-head {
   display: flex;
@@ -1897,10 +1901,11 @@ body.chou::before {
     font-size: 15px;
     opacity: 1;
     transform: translateY(110%);
-    transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
+    transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1), visibility 0s linear 0.25s;
   }
   body.cfg-open #config {
     transform: none;
+    transition-delay: 0s;
   }
   .cfg-head,
   .cfg-body,
@@ -3310,4 +3315,119 @@ body.busy #answer {
   font-size: 20px;
   font-weight: 800;
   color: var(--text);
+}
+
+/* ---- 稽古：上部の切り替え（1段目 学習モード、2段目 出題） */
+.mode-tabs.keiko-tabs {
+  flex-direction: column;
+  gap: 6px;
+}
+.keiko-tabs .tab-row {
+  display: flex;
+  gap: 6px;
+}
+.keiko-tabs .source-tabs .mode-tab {
+  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+.keiko-tabs .mode-tab[disabled] {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ---- 稽古の重点学習：面子ごとに区切った手牌（出題用）。聞いている面子を光らせる */
+.ex-blocks.quiz {
+  margin-bottom: 4px;
+  padding-bottom: 0;
+  border-bottom: 0;
+  gap: 8px 12px;
+}
+.ex-blocks.quiz .blk-tiles {
+  --tile-h: 46px;
+}
+.ex-blocks.quiz .blk-cap:empty,
+.ex-blocks.quiz .blk-cap span:empty {
+  display: none;
+}
+.ex-blocks.quiz .blk {
+  padding: 4px;
+  border-radius: 8px;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.ex-blocks.quiz .blk.hl {
+  background: color-mix(in srgb, var(--main) 14%, transparent);
+  box-shadow: 0 0 0 2px var(--main);
+}
+.q-win {
+  margin-top: 2px;
+}
+@media (max-width: 640px) {
+  .ex-blocks.quiz .blk-tiles {
+    --tile-h: 34px;
+  }
+  .ex-blocks.quiz {
+    gap: 6px 8px;
+  }
+}
+
+/* ---- 稽古の重点学習：符の積み上げの帯 */
+.tally {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 2px 0 10px;
+  font-family: 'JetBrains Mono', 'Noto Sans JP', monospace;
+  font-size: 14px;
+}
+.tl-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-weight: 700;
+}
+.tl-chip small {
+  color: var(--sub);
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+}
+.tl-chip.zero {
+  color: var(--sub);
+  font-weight: 400;
+}
+.tl-eq {
+  color: var(--sub);
+}
+.tl-eq b {
+  color: var(--main);
+}
+.steps li.auto {
+  color: var(--sub);
+}
+
+/* 稽古の段階練習の選択肢（+0・+2 ツモ・2符・両面・1翻 など） */
+#choices.step-pad {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+#choices.step-pad .choice {
+  padding: 12px 6px;
+  font-size: clamp(16px, 2vw, 20px);
+}
+@media (max-width: 640px) {
+  #choices.step-pad {
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    gap: 6px;
+  }
+  #choices.step-pad .choice {
+    min-height: 44px;
+    padding: 6px 4px;
+    font-size: clamp(14px, 4.2vw, 17px);
+  }
 }

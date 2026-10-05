@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { configPanelHtml, configSummaryHtml } from '../src/ui/configPanel';
+import { configPanelHtml, configSummaryHtml, keikoTabsHtml } from '../src/ui/configPanel';
 import { DEFAULT_SETTINGS, type Settings } from '../src/ui/settings';
 
 const view = (patch: Partial<Settings>, keiko: boolean, reviewCount = 3) => ({
@@ -20,10 +20,9 @@ function btn(html: string, group: string, v: string): Btn | null {
 }
 const sections = (html: string) => [...html.matchAll(/<section class="cfg-sec"><h3>([^<]+)<\/h3>/g)].map((m) => m[1]);
 const has = (html: string, group: string) => html.includes(`data-group="${group}"`);
-const note = (html: string, group: string) => html.split(`data-group="${group}"`)[1]?.match(/<p class="cfg-note">([^<]*)</)?.[1] ?? '';
 
 describe('出題設定のパネル', () => {
-  it('パチンコには稽古だけの行（出題・問題数・絞り込み・段階）が出ず、「成績を見る」がある', () => {
+  it('パチンコには稽古だけの行（問題数・鳴き）が出ず、「成績を見る」がある', () => {
     const d = doc(configPanelHtml(view({ mode: 'fu' }, false)));
     expect(sections(d)).toEqual(['答え方', '状況']);
     expect(btn(d, 'answer', 'steps')).toBeNull();
@@ -33,35 +32,26 @@ describe('出題設定のパネル', () => {
     expect(d).toMatch(/data-summary>成績を見る/);
     expect(d).not.toContain('精算');
   });
-  it('稽古の符計算は4つの区分がそろい、制限時間は出ない', () => {
+  it('稽古のパネルは回答・問題数・鳴き・親子・和了だけ（形・分布・段階・出題・制限時間はない）', () => {
     const d = doc(configPanelHtml(view({ mode: 'fu' }, true)));
-    expect(sections(d)).toEqual(['答え方', '出題', '絞り込み', '状況']);
-    expect(has(d, 'time')).toBe(false);
-    expect(btn(d, 'answer', 'steps')?.disabled).toBe(false);
+    expect(sections(d)).toEqual(['答え方', '出題', '状況']);
+    for (const g of ['answer', 'count', 'call', 'seat', 'win']) expect(has(d, g)).toBe(true);
+    for (const g of ['time', 'shape', 'dist', 'source', 'mode']) expect(has(d, g)).toBe(false);
+    expect(btn(d, 'answer', 'steps')).toBeNull();
     expect(d).toContain('data-restart');
   });
-  it('形が七対子なら、鳴きは門前に決まり、ほかは押せず理由が出る', () => {
-    const d = doc(configPanelHtml(view({ mode: 'fu', keikoFilters: { call: 'open', shape: 'chiitoi', dist: 'real' } }, true)));
-    expect(btn(d, 'call', 'menzen')?.on).toBe(true);
-    expect(btn(d, 'call', 'open')?.disabled).toBe(true);
-    expect(btn(d, 'call', 'any')?.disabled).toBe(true);
-    expect(note(d, 'call')).toContain('七対子は門前');
-  });
-  it('復習が0問なら押せない', () => {
-    const d = doc(configPanelHtml(view({ mode: 'jissen' }, true, 0)));
-    expect(btn(d, 'source', 'review')?.disabled).toBe(true);
-    expect(btn(d, 'source', 'review')?.text).toBe('復習（0問）');
-  });
-  it('早見は絞り込みが出ず、苦手と段階は押せない', () => {
-    const d = doc(configPanelHtml(view({ mode: 'hayami', answerStyle: 'steps' }, true)));
-    expect(sections(d)).toEqual(['答え方', '出題', '状況']);
-    expect(btn(d, 'source', 'weak')?.disabled).toBe(true);
-    expect(btn(d, 'answer', 'steps')?.disabled).toBe(true);
-    // 段階が使えないときは選択（4択）として扱う
-    expect(btn(d, 'answer', 'choice')?.on).toBe(true);
+  it('稽古の上部の切り替え：1段目は学習モード、2段目は出題（復習0問なら押せない）', () => {
+    const t = keikoTabsHtml(view({ keikoStudy: 'quick', keikoSource: 'normal' }, true, 0));
+    const [row1, row2] = t.split('</div>');
+    expect(row1).toContain('重点学習');
+    expect(row1).toMatch(/class="mode-tab on"[^>]*data-study="quick"/);
+    expect(row2).toContain('通常');
+    expect(row2).toContain('苦手');
+    expect(row2).toMatch(/data-source="review" disabled/);
+    expect(row2).not.toContain('選択');
   });
   it('要約ボタン', () => {
-    expect(configSummaryHtml(view({ mode: 'fu', count: 25, keikoFilters: { call: 'any', shape: 'pinfu', dist: 'real' } }, true))).toMatch(/選択.*平和.*25問/);
+    expect(configSummaryHtml(view({ count: 25, keikoFilters: { call: 'menzen' } }, true))).toMatch(/選択.*門前.*25問/);
     expect(configSummaryHtml(view({ mode: 'jissen' }, false))).toMatch(/4択.*出題設定/);
   });
 });

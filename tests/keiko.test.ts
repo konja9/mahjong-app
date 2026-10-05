@@ -7,6 +7,7 @@ import { DEFAULT_RULES } from '../src/core/rules';
 import { calcScore } from '../src/core/score';
 import {
   type KeikoData,
+  migrateKeiko,
   REVIEW_MAX,
   addReview,
   handElements,
@@ -32,35 +33,46 @@ function fuQ(concealed: string, win: string, sit = {}): HandQuestion {
 }
 
 describe('復習', () => {
-  it('間違えた手を入れ、2回続けて正解したら外す', () => {
+  it('間違えた手を入れ、段階練習（実戦の手）として出す。2回続けて正解したら外す', () => {
     const d = empty();
     const q = fuQ('234m555p345s99s11m', '9s', { riichi: true });
     addReview(d, q);
-    expect(reviewCount(d, 'fu')).toBe(1);
-    const r = nextReview(d, 'fu', R)!;
+    expect(reviewCount(d)).toBe(1);
+    const r = nextReview(d, R)!;
     expect(r.key).toBe(reviewKey(q));
-    expect(r.q.mode === 'fu' && r.q.ev.fu.fu).toBe(40);
+    expect(r.q.mode).toBe('jissen');
+    expect(r.q.ev.fu.fu).toBe(40);
     markReview(d, r.key, true);
     markReview(d, r.key, false);
     markReview(d, r.key, true);
-    expect(reviewCount(d, 'fu')).toBe(1);
+    expect(reviewCount(d)).toBe(1);
     markReview(d, r.key, true);
-    expect(reviewCount(d, 'fu')).toBe(0);
+    expect(reviewCount(d)).toBe(0);
   });
-  it('同じ手は重複させず、上限を超えたら古いものから消す', () => {
+  it('同じ手は重複させず、上限を超えたら古いものから消す。早見は入れない', () => {
     const d = empty();
     addReview(d, hayami(1, 30));
-    addReview(d, hayami(1, 30));
+    expect(d.reviews.length).toBe(0);
+    const first = fuQ('234m555p345s99s11m', '9s', { riichi: true });
+    addReview(d, first);
+    addReview(d, { ...first, mode: 'jissen' });
     expect(d.reviews.length).toBe(1);
-    for (let i = 0; i < REVIEW_MAX + 5; i++) addReview(d, { ...hayami(2, 30), dealer: i % 2 === 0, fu: 30 + i });
+    for (let i = 0; i < REVIEW_MAX + 5; i++) addReview(d, { ...first, sit: { ...first.sit, doraIndicators: [i % 34, Math.floor(i / 34)] } });
     expect(d.reviews.length).toBe(REVIEW_MAX);
-    expect(d.reviews.some((r) => r.key === reviewKey(hayami(1, 30)))).toBe(false);
+    expect(d.reviews.some((r) => r.key === reviewKey(first))).toBe(false);
   });
-  it('出題中のモードの手だけを出す', () => {
-    const d = empty();
-    addReview(d, hayami(3, 30));
-    expect(nextReview(d, 'fu', R)).toBeNull();
-    expect(nextReview(d, 'hayami', R)?.q.mode).toBe('hayami');
+  it('以前の記録を読み替える（早見の手を外し、加符→基本符、合計・切り上げ→符）', () => {
+    const q = fuQ('234m555p345s99s11m', '9s', { riichi: true });
+    const d = migrateKeiko({
+      reviews: [
+        { key: 'x', q: { mode: 'hayami', han: 1, fu: 30, dealer: false, tsumo: false }, hits: 0 },
+        { key: 'y', q: { mode: 'fu', hand: q.hand, sit: q.sit }, hits: 1 },
+      ],
+      elements: { kafu: { c: 1, n: 2 }, total: { c: 2, n: 3 }, roundup: { c: 1, n: 1 }, wait: { c: 4, n: 5 } },
+    });
+    expect(d.reviews.length).toBe(1);
+    expect(d.reviews[0].hits).toBe(1);
+    expect(d.elements).toEqual({ base: { c: 1, n: 2 }, fu: { c: 3, n: 4 }, wait: { c: 4, n: 5 } });
   });
 });
 
@@ -82,21 +94,22 @@ describe('要素別の正答率', () => {
   it('苦手は記録が5問以上の要素から選び、正答率の低い方を多く選ぶ', () => {
     const d = empty();
     expect(pickWeak(d)).toBeNull();
-    d.elements = { wait: { c: 1, n: 10 }, kafu: { c: 10, n: 10 }, pair: { c: 0, n: 3 } };
+    d.elements = { wait: { c: 1, n: 10 }, base: { c: 10, n: 10 }, pair: { c: 0, n: 3 } };
     let wait = 0;
     let i = 0;
     const rng = () => ((i = (i * 9301 + 49297) % 233280), i / 233280);
     for (let k = 0; k < 500; k++) if (pickWeak(d, rng) === 'wait') wait++;
     expect(wait).toBeGreaterThan(400);
-    expect(weakAllowed({ call: 'any', shape: 'pinfu' }, { seat: 'any', win: 'any' })).toEqual([]);
-    expect(weakAllowed({ call: 'open', shape: 'any' }, { seat: 'any', win: 'ron' })).not.toContain('kafu');
+    expect(weakAllowed('any', { seat: 'any', win: 'any' })).toHaveLength(7);
+    expect(weakAllowed('open', { seat: 'any', win: 'ron' })).not.toContain('base');
   });
   it('苦手ドリルの条件', () => {
     expect(weakWant('mentsu')(q)).toBe(true);
     expect(weakWant('wait')(q)).toBe(true);
     const pinfu = fuQ('234m567p345s78s55p', '9s', { riichi: true });
     expect(weakWant('wait')(pinfu)).toBe(false);
-    expect(weakWant('roundup')(pinfu)).toBe(false);
+    expect(weakWant('fu')(pinfu)).toBe(false);
+    expect(weakWant('han')(pinfu)).toBe(true);
   });
 });
 
@@ -107,5 +120,24 @@ describe('タブの移行', () => {
     expect(migratePlayMode('practice')).toBe('keiko');
     expect(migratePlayMode('keiko')).toBe('keiko');
     expect(migratePlayMode(undefined)).toBe('pachinko');
+  });
+});
+
+describe('設定の移行', () => {
+  it('「段階」は選択に、制限時間と形・分布の絞り込みは消す', async () => {
+    const store = new Map<string, string>();
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => store.set(k, v),
+    };
+    store.set('tensu.settings.v1', JSON.stringify({ playMode: 'practice', answerStyle: 'steps', timeLimit: 15, keikoFilters: { call: 'open', shape: 'pinfu', dist: 'even' } }));
+    const { loadSettings } = await import('../src/ui/settings');
+    const s = loadSettings();
+    expect(s.playMode).toBe('keiko');
+    expect(s.answerStyle).toBe('choice');
+    expect('timeLimit' in s).toBe(false);
+    expect(s.keikoFilters).toEqual({ call: 'open' });
+    expect(s.keikoStudy).toBe('focus');
+    delete (globalThis as { localStorage?: unknown }).localStorage;
   });
 });

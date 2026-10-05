@@ -67,7 +67,7 @@ function groupTiles(g: Group): Tile[] {
 }
 
 /** 1つのブロック（面子・雀頭・対子）：牌と、その下の符 */
-function block(tiles: Tile[], opts: { win: boolean; winTile: Tile; aka: AkaAllocator; back?: boolean; kind: string; fu?: number; tag?: string; wait?: string }): string {
+function block(tiles: Tile[], opts: { win: boolean; winTile: Tile; aka: AkaAllocator; back?: boolean; kind: string; fu?: number; tag?: string; wait?: string; hl?: boolean }): string {
   let marked = false;
   const html = tiles
     .map((t, i) => {
@@ -80,20 +80,29 @@ function block(tiles: Tile[], opts: { win: boolean; winTile: Tile; aka: AkaAlloc
   const fu = opts.fu === undefined ? '' : `<b class="${opts.fu ? '' : 'zero'}">${opts.fu}符</b>`;
   const tag = opts.tag ? `<em>${opts.tag}</em>` : '';
   const wait = opts.wait ? `<span class="blk-wait">${opts.wait}</span>` : '';
-  return `<div class="blk${opts.win ? ' has-win' : ''}"><div class="blk-tiles">${html}</div><div class="blk-cap"><span>${opts.kind}${tag}</span>${fu}${wait}</div></div>`;
+  return `<div class="blk${opts.win ? ' has-win' : ''}${opts.hl ? ' hl' : ''}"><div class="blk-tiles">${html}</div><div class="blk-cap"><span>${opts.kind}${tag}</span>${fu}${wait}</div></div>`;
 }
 
 /**
  * 手牌を面子ごとに区切って並べ、各ブロックの下に符を出す（正解に使った解釈）。
  * 和了牌は光らせ、和了牌で完成したブロックに待ちの形を添える
  */
-export function blocksHtml(hand: Hand, ev: Evaluation): string {
+export interface BlockQuiz {
+  /** 光らせるブロック（groups での位置。雀頭は -1。なしは null） */
+  highlight: number | null;
+}
+
+/**
+ * quiz を渡すと稽古の出題用：符・面子の種類・待ちの形を隠し（答えになるため）、鳴きの種類だけ残す。
+ * いま聞いている面子（または雀頭）を光らせる
+ */
+export function blocksHtml(hand: Hand, ev: Evaluation, quiz?: BlockQuiz): string {
   if (ev.yakuman) return '';
   const aka = new AkaAllocator(hand.akaTiles);
   const it = ev.interp;
   if (it.form === 'chiitoi') {
-    const blocks = it.pairs.map((p) => block([p, p], { win: p === hand.winTile, winTile: hand.winTile, aka, kind: '対子' }));
-    return `<div class="ex-blocks">${blocks.join('')}</div>`;
+    const blocks = it.pairs.map((p) => block([p, p], { win: p === hand.winTile, winTile: hand.winTile, aka, kind: quiz ? '' : '対子' }));
+    return `<div class="ex-blocks${quiz ? ' quiz' : ''}">${blocks.join('')}</div>`;
   }
   if (it.form !== 'standard') return '';
   const waitFu = it.wait === 'kanchan' || it.wait === 'penchan' || it.wait === 'tanki' ? 2 : 0;
@@ -108,10 +117,11 @@ export function blocksHtml(hand: Hand, ev: Evaluation): string {
       winTile: hand.winTile,
       aka,
       back: meld?.type === 'ankan',
-      kind: GROUP_SHORT[g.kind] ?? tripletKind(g),
+      kind: quiz ? '' : GROUP_SHORT[g.kind] ?? tripletKind(g),
       tag: meld ? MELD_NAME[meld.type] : '',
-      fu: fuOf(i),
-      wait: i === it.winGroup ? waitLabel : '',
+      fu: quiz ? undefined : fuOf(i),
+      wait: !quiz && i === it.winGroup ? waitLabel : '',
+      hl: quiz?.highlight === i,
     });
   };
   const closed = it.groups.slice(0, firstMeld).map((g, i) => groupBlock(g, i));
@@ -120,11 +130,12 @@ export function blocksHtml(hand: Hand, ev: Evaluation): string {
     winTile: hand.winTile,
     aka,
     kind: '雀頭',
-    fu: fuOf(-1),
-    wait: it.winGroup === -1 ? waitLabel : '',
+    fu: quiz ? undefined : fuOf(-1),
+    wait: !quiz && it.winGroup === -1 ? waitLabel : '',
+    hl: quiz?.highlight === -1,
   });
   const melds = it.groups.slice(firstMeld).map((g, i) => groupBlock(g, firstMeld + i));
-  return `<div class="ex-blocks">${[...closed, pair, ...melds].join('')}</div>`;
+  return `<div class="ex-blocks${quiz ? ' quiz' : ''}">${[...closed, pair, ...melds].join('')}</div>`;
 }
 
 /** 分け方の短い説明（例 両面待ち・平和／七対子） */

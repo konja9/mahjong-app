@@ -1,8 +1,8 @@
 import { type Choice, FU_BUTTONS, makeChoices } from '../core/choices';
 import { type Diagnosis, ELEMENT_NAMES, type FuElement, diagnose, diagnosisText } from '../core/diagnose';
-import { type HandConstraints, type HandQuestion, type Mode, type Question, type ShapeFilter, generateQuestion, shapeCall } from '../core/generator';
+import { type CallFilter, type HandConstraints, type HandQuestion, type Mode, type Question, generateQuestion } from '../core/generator';
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
-import { EAST } from '../core/tiles';
+import { EAST, tileName } from '../core/tiles';
 import { adPrivacyRequired, showAdPrivacyOptions } from './ads';
 import { buyRemoveAds, onPurchaseChange, purchaseState, restoreRemoveAds } from './purchase';
 import { type BgmTrack, bgm, configureAudio, sfx, suspendAudio, unlockAudio } from './audio';
@@ -28,9 +28,9 @@ import {
   saveWallet,
 } from './machine/economy';
 import { type JackpotResult, MachinePanel } from './machine/panel';
-import { doraLabel, handExplain, hayamiExplain, situationChips, situationLabel } from './explain';
+import { blocksHtml, doraLabel, handExplain, hayamiExplain, situationChips, situationLabel } from './explain';
 import { type Settings, loadSettings, saveSettings } from './settings';
-import { type ConfigView, configPanelHtml, configSummaryHtml } from './configPanel';
+import { type ConfigView, configPanelHtml, configSummaryHtml, keikoTabsHtml } from './configPanel';
 import { type HelpTab, helpHtml } from './help';
 import { introHtml, introSeen, markIntroSeen } from './intro';
 import { SPECS } from './machine/specs';
@@ -41,7 +41,7 @@ import { type TipId, Tips, tipLink, tipText } from './tips';
 import { TILE_DEFS, handHtml, tilesInline } from './tileView';
 import { PRIVACY_POLICY_URL } from './links';
 import { ELEMENTS, WEAK_MIN, type KeikoSource, accuracy, addReview, loadKeiko, markReview, nextReview, pickWeak, recordElement, recordFuAnswer, reviewCount, saveKeiko, weakAllowed, weakWant } from './keiko';
-import { fuSteps } from '../core/steps';
+import { type Study, studySteps } from '../core/steps';
 import { StepRun } from './steps';
 
 type Phase = 'answering' | 'suspense' | 'result' | 'summary';
@@ -138,7 +138,7 @@ export class App {
   private awaitingBankrupt = false;
   private choices: Choice[] = [];
   private picked = -1;
-  /** 段階回答の進行（段階回答でなければ null） */
+  /** 稽古の段階練習の進行（パチンコでは null） */
   private steps: StepRun | null = null;
   /** 回答を止めている理由（台の発展リーチ・大当り、ダイアログ） */
   private pauses = new Set<string>();
@@ -211,20 +211,20 @@ export class App {
     this.syncAnswerAttr();
   }
 
-  /** 実際の回答方式（段階回答では段階ごとに選択と入力が切り替わる） */
+  /** 実際の回答方式（段階練習では段階ごとに選択と入力が切り替わる） */
   private syncAnswerAttr(): void {
     document.documentElement.dataset.answer = this.isChoice ? 'choice' : 'input';
   }
 
-  /** 段階回答が使えるか（稽古の符計算で、回答方式が段階） */
-  private get stepMode(): boolean {
-    return this.keiko && this.s.mode === 'fu' && this.s.answerStyle === 'steps';
+  /** 段階練習の今の段階を、数値で打つか（入力モードで、選択だけの段階でない） */
+  private get stepTyped(): boolean {
+    return !!this.steps && this.s.answerStyle === 'input' && this.steps.shown.input !== 'choice';
   }
 
-  /** 段階回答の今の段階の選択肢 */
+  /** 段階練習の今の段階の選択肢 */
   private stepChoices(): Choice[] {
     const st = this.steps!.shown;
-    return st.kind === 'buttons' ? st.options.map((o) => ({ label: o.label, correct: o.value === st.answer })) : [];
+    return this.stepTyped ? [] : st.options.map((o) => ({ label: o.label, correct: o.value === st.answer }));
   }
 
   private renderSteps(): void {
@@ -260,20 +260,24 @@ export class App {
 
   private renderConfig(): void {
     const s = this.s;
-    const view: ConfigView = { s, keiko: this.keiko, reviewCount: reviewCount(this.kd, s.mode) };
+    const view: ConfigView = { s, keiko: this.keiko, reviewCount: reviewCount(this.kd) };
     $('#config').innerHTML = configPanelHtml(view);
     document.querySelectorAll<HTMLElement>('[data-play]').forEach((b) => {
       const on = b.dataset.play === s.playMode;
       b.classList.toggle('on', on);
       b.setAttribute('aria-selected', String(on));
     });
-    // ミドル以上の台は実戦のみ
-    $('#mode-tabs').innerHTML = (['hayami', 'fu', 'jissen'] as Mode[])
-      .map(
-        (m) =>
-          `<button class="mode-tab${s.mode === m ? ' on' : ''}${!this.keiko && this.spec.jissenOnly && m !== 'jissen' ? ' locked' : ''}" role="tab" aria-selected="${s.mode === m}" data-mode="${m}">${MODE_NAMES[m]}</button>`,
-      )
-      .join('');
+    // パチンコは種目タブ（ミドル以上の台は実戦のみ）。稽古は学習モードと出題の2段
+    const tabs = $('#mode-tabs');
+    tabs.classList.toggle('keiko-tabs', this.keiko);
+    tabs.innerHTML = this.keiko
+      ? keikoTabsHtml(view)
+      : (['hayami', 'fu', 'jissen'] as Mode[])
+          .map(
+            (m) =>
+              `<button class="mode-tab${s.mode === m ? ' on' : ''}${this.spec.jissenOnly && m !== 'jissen' ? ' locked' : ''}" role="tab" aria-selected="${s.mode === m}" data-mode="${m}">${MODE_NAMES[m]}</button>`,
+          )
+          .join('');
     $('#cfg-toggle').innerHTML = configSummaryHtml(view);
   }
 
@@ -335,23 +339,15 @@ export class App {
       case 'win':
         this.update({ filters: { ...this.s.filters, win: v as Settings['filters']['win'] } });
         break;
-      case 'call': {
-        // 形が鳴きを決めている（七対子・平和・喰い平和）ときに逆を選んだら、形の指定を外す
-        const kf = this.s.keikoFilters;
-        const forced = shapeCall(kf.shape);
-        const shape = forced && forced !== v ? 'any' : kf.shape;
-        this.update({ keikoFilters: { ...kf, call: v as HandConstraints['call'], shape } });
-        break;
-      }
-      case 'shape':
-        this.update({ keikoFilters: { ...this.s.keikoFilters, shape: v as ShapeFilter } });
-        break;
-      case 'dist':
-        this.update({ keikoFilters: { ...this.s.keikoFilters, dist: v as HandConstraints['dist'] } });
+      case 'call':
+        this.update({ keikoFilters: { call: v as CallFilter } });
         break;
       case 'source':
         this.weakNoted = false;
         this.update({ keikoSource: v as KeikoSource });
+        break;
+      case 'study':
+        this.update({ keikoStudy: v as Study });
         break;
     }
   }
@@ -405,8 +401,8 @@ export class App {
     this.picked = -1;
     // BONUS・RUSH の4択は、誤答を同じ翻で符だけ違う点数にして符を試す
     const fuFocus = !this.keiko && (this.isRoundQ || this.panel.rush);
-    const steps = this.stepMode && this.q.mode !== 'hayami' ? fuSteps(this.q, this.s.rules) : [];
-    this.steps = steps.length ? new StepRun(steps) : null;
+    // 稽古は手牌の段階練習（重点学習・簡易学習）
+    this.steps = this.keiko && this.q.mode !== 'hayami' ? new StepRun(studySteps(this.q, this.s.rules, this.s.keikoStudy)) : null;
     this.choices = this.steps ? this.stepChoices() : this.isChoice ? makeChoices(this.q, this.s.rules, Math.random, fuFocus) : [];
     this.syncAnswerAttr();
     this.renderSteps();
@@ -439,8 +435,10 @@ export class App {
     this.reviewKey = null;
     this.weakEl = null;
     const src = this.keiko ? this.s.keikoSource : 'normal';
+    // 稽古は種目なし：実戦と同じ作り方の手牌を段階練習で解く
+    const mode: Mode = this.keiko ? 'jissen' : this.s.mode;
     if (src === 'review') {
-      const r = nextReview(this.kd, this.s.mode, this.s.rules);
+      const r = nextReview(this.kd, this.s.rules);
       if (r) {
         this.reviewKey = r.key;
         return r.q;
@@ -450,10 +448,12 @@ export class App {
     }
     const c = this.constraints();
     if (src === 'weak' && c) {
-      const el = pickWeak(this.kd, Math.random, weakAllowed(c, this.s.filters));
+      const allowed = weakAllowed(c.call, this.s.filters);
+      const el = pickWeak(this.kd, Math.random, allowed);
       if (el) {
         try {
-          const q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, premium, { ...c, want: weakWant(el) });
+          const want = weakWant(el);
+          const q = generateQuestion(mode, this.s.rules, this.s.filters, Math.random, premium, { ...c, want: (h) => c.want!(h) && want(h) });
           this.weakEl = el;
           return q;
         } catch {
@@ -461,36 +461,29 @@ export class App {
         }
       } else if (!this.weakNoted) {
         this.weakNoted = true;
-        this.toast(
-          weakAllowed(c, this.s.filters).length
-            ? `苦手を選ぶには、要素ごとに${WEAK_MIN}問以上の記録が必要です。それまでは通常の出題です`
-            : 'この形では苦手ドリルを使えません。通常の出題にします',
-        );
+        this.toast(`苦手を選ぶには、要素ごとに${WEAK_MIN}問以上の記録が必要です。それまでは通常の出題です`);
       }
-    } else if (src === 'weak' && !this.weakNoted) {
-      this.weakNoted = true;
-      this.toast('苦手ドリルは符計算・実戦で使えます。早見は通常の出題です');
     }
-    return generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, premium, c);
+    return generateQuestion(mode, this.s.rules, this.s.filters, Math.random, premium, c);
   }
 
   /** 回答を稽古の記録に入れる（パチンコでも記録し、間違えた手は稽古の復習で出す） */
   private recordKeiko(correct: boolean, diag: Diagnosis[]): void {
     const q = this.q;
     if (this.reviewKey) markReview(this.kd, this.reviewKey, correct);
-    else if (!correct) {
+    else if (!correct && q.mode !== 'hayami') {
       addReview(this.kd, q);
       this.session.reviewAdded++;
     }
-    if (this.steps) for (const r of this.steps.results) recordElement(this.kd, r.step.element, r.ok);
+    if (this.steps) for (const r of this.steps.answered) recordElement(this.kd, r.step.element, r.ok);
     else if (q.mode !== 'hayami') recordFuAnswer(this.kd, q, correct, diag);
     saveKeiko(this.kd);
   }
 
-  /** 稽古の絞り込み（パチンコと早見では使わない） */
+  /** 稽古の絞り込み（鳴き）。役満は段階練習に向かないので出さない。パチンコでは使わない */
   private constraints(): HandConstraints | undefined {
-    if (!this.keiko || this.s.mode === 'hayami') return undefined;
-    return { ...this.s.keikoFilters };
+    if (!this.keiko) return undefined;
+    return { call: this.s.keikoFilters.call, shape: 'any', dist: 'real', want: (q) => !q.ev.yakuman };
   }
 
   /** 今の状態に合った曲を流す（BONUS 中は BONUS の曲、RUSH 中は RUSH の曲） */
@@ -747,12 +740,14 @@ export class App {
   }
 
   private get isChoice(): boolean {
-    if (this.steps) return this.steps.shown.kind === 'buttons';
+    if (this.steps) return !this.stepTyped;
     return this.s.answerStyle !== 'input';
   }
 
   private needsPair(): boolean {
     if (this.isChoice || this.q.mode === 'fu') return false;
+    // 段階練習で「子-親」の2つを打つのは点数の段階だけ
+    if (this.steps && this.steps.shown.input !== 'points') return false;
     const { dealer, tsumo } = questionMeta(this.q);
     return tsumo && !dealer;
   }
@@ -766,7 +761,7 @@ export class App {
   /** 動作確認用：現在の問題の正解入力 */
   debugAnswer(): string {
     if (this.steps && this.isChoice) return String(this.steps.shown.options.findIndex((o) => o.value === this.steps!.shown.answer) + 1);
-    if (this.steps) return String(this.steps.shown.answer);
+    if (this.steps && this.steps.shown.input === 'number') return String(this.steps.shown.answerNum);
     if (this.isChoice) return String(this.choices.findIndex((c) => c.correct) + 1);
     if (this.q.mode === 'fu') return String(this.q.ev.fu.fu);
     const s = scoreOf(this.q);
@@ -811,17 +806,20 @@ export class App {
     this.reveal(correct, elapsed, timeout);
   }
 
-  /** 段階回答の1段階に答える。まだ段階が残っていれば true（判定に進まない） */
+  /** 段階練習の1段階に答える。まだ段階が残っていれば true（判定に進まない） */
   private answerStep(): boolean {
     const run = this.steps!;
     const st = run.current!;
-    run.answer(this.isChoice ? st.options[this.picked].value : Number(this.input));
+    const typed = this.stepTyped;
+    run.answer(typed ? this.input : st.options[this.picked].value, typed);
     this.renderSteps();
     if (run.done) return false;
     this.input = '';
     this.picked = -1;
     this.choices = this.stepChoices();
     this.syncAnswerAttr();
+    // 面子の段階では、聞いている面子を光らせ直す
+    this.renderQuestion();
     this.renderInput();
     this.renderProgress();
     return true;
@@ -842,7 +840,7 @@ export class App {
     const explain = this.q.mode === 'hayami' ? hayamiExplain(this.q) : handExplain(this.q, this.s.rules);
     const answerEl = this.answerAnchor();
     const yours = this.steps
-      ? `段階 ${this.steps.okCount}/${this.steps.steps.length}`
+      ? `段階 ${this.steps.okCount}/${this.steps.total}`
       : timeout
         ? '時間切れ'
         : this.isChoice
@@ -1014,12 +1012,26 @@ export class App {
           ${ura}
         </div>
       </div>
-      ${handHtml(q.hand, q.sit.tsumo)}
+      ${this.handView(q)}
     </div>`;
   }
 
+  /**
+   * 手牌の見せ方。稽古の重点学習では面子ごとに区切って見せ（符・面子の種類・待ちは隠す）、
+   * いま聞いている刻子・槓子（または雀頭）を光らせる
+   */
+  private handView(q: HandQuestion): string {
+    if (this.keiko && this.s.keikoStudy === 'focus' && this.steps && !q.ev.yakuman) {
+      const st = this.steps.current;
+      const blocks = blocksHtml(q.hand, q.ev, { highlight: st?.block ?? null });
+      if (blocks) return `${blocks}<div class="q-win muted small">${q.sit.tsumo ? 'ツモ' : 'ロン'}：${tileName(q.hand.winTile)}（少し上がっている牌）</div>`;
+    }
+    return handHtml(q.hand, q.sit.tsumo);
+  }
+
   private promptUnit(): { unit: string; ghost: string } {
-    if (this.steps) return { unit: '符', ghost: `${ELEMENT_NAMES[this.steps.shown.element]}を入力` };
+    const st = this.steps?.shown;
+    if (st && st.input !== 'points') return { unit: st.element === 'han' ? '翻' : '符', ghost: `${ELEMENT_NAMES[st.element]}を入力` };
     if (this.q.mode === 'fu') return { unit: '符', ghost: '符を入力' };
     const { dealer, tsumo } = questionMeta(this.q);
     if (!tsumo) return { unit: '点', ghost: '点数を入力' };
@@ -1039,11 +1051,15 @@ export class App {
     const el = $('#choices');
     const done = this.phase === 'result';
     // 符計算は固定の7つのボタン（昇順）
-    el.classList.toggle('fu-pad', this.q.mode === 'fu' && this.choices.length === FU_BUTTONS.length);
+    const fuPad = (this.q.mode === 'fu' || this.steps?.shown.element === 'fu') && this.choices.length === FU_BUTTONS.length;
+    el.classList.toggle('fu-pad', fuPad);
+    // 段階練習（符・点数の段階以外）は短い選択肢が並ぶので、小さめのボタンにする
+    el.classList.toggle('step-pad', !!this.steps && !fuPad && this.steps.shown.input !== 'points');
     el.innerHTML = this.choices
       .map((c, i) => {
         const cls = done ? (c.correct ? ' is-correct' : i === this.picked ? ' is-wrong' : ' is-dim') : '';
-        const unit = this.q.mode === 'fu' || c.label.endsWith('オール') ? '' : '<span class="unit">点</span>';
+        const pts = this.steps ? this.steps.shown.input === 'points' : this.q.mode !== 'fu';
+        const unit = !pts || c.label.endsWith('オール') ? '' : '<span class="unit">点</span>';
         return `<button class="choice${cls}" data-choice="${i}"${done ? ' disabled' : ''}><kbd>${i + 1}</kbd><span class="label">${c.label}</span>${unit}</button>`;
       })
       .join('');
@@ -1114,7 +1130,7 @@ export class App {
     return `<span class="balls b${n}" title="次の正解で玉が${n}個入る（電チュー）">${'<i></i>'.repeat(n)}</span>`;
   }
 
-  /** 稽古の結果：符の要素別の正答率（これまでの累計）と、復習に入った手の数 */
+  /** 稽古の結果：要素別の正答率（これまでの累計）と、復習に入った手の数 */
   private elementsHtml(): string {
     const rows = ELEMENTS.map((el) => {
       const st = this.kd.elements[el];
@@ -1125,7 +1141,7 @@ export class App {
     const added = this.session.reviewAdded
       ? `<div class="muted small">間違えた ${this.session.reviewAdded}問を復習に入れました（出題の「復習」で解き直せます）</div>`
       : '';
-    return `<div><div class="ex-h">符の要素別 <span class="muted">これまでの累計</span></div>${rows}${added}</div>`;
+    return `<div><div class="ex-h">要素別 <span class="muted">これまでの累計</span></div>${rows}${added}</div>`;
   }
 
   /** end: 規定問題数の終了 / summary: パチンコで「成績を見る」 / bankrupt: 破産 */
@@ -1249,8 +1265,14 @@ export class App {
       }),
     );
     $('#mode-tabs').addEventListener('click', (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-mode]');
+      const t = e.target as HTMLElement;
+      const b = t.closest<HTMLElement>('[data-mode]');
       if (b && b.dataset.mode !== this.s.mode) this.setMode(b.dataset.mode as Mode);
+      // 稽古：学習モード（重点・簡易）と出題（通常・苦手・復習）
+      const st = t.closest<HTMLButtonElement>('[data-study]');
+      if (st && !st.disabled && st.dataset.study !== this.s.keikoStudy) this.onConfig('study', st.dataset.study!);
+      const so = t.closest<HTMLButtonElement>('[data-source]');
+      if (so && !so.disabled && so.dataset.source !== this.s.keikoSource) this.onConfig('source', so.dataset.source!);
     });
     $('#cfg-toggle').addEventListener('click', () => this.toggleConfigSheet());
     $('#cfg-backdrop').addEventListener('click', () => this.toggleConfigSheet(false));

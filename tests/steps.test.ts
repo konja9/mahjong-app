@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { generateHandQuestion } from '../src/core/generator';
 import { DEFAULT_RULES } from '../src/core/rules';
-import { fuSteps } from '../src/core/steps';
+import { formatAnswer } from '../src/core/score';
+import { hanBucket, stepCorrect, studySteps } from '../src/core/steps';
+import { StepRun } from '../src/ui/steps';
 
 function mulberry32(seed: number) {
   return () => {
@@ -13,25 +15,64 @@ function mulberry32(seed: number) {
   };
 }
 
-describe('段階回答', () => {
-  it('段階の正解を足すと、点数エンジンの符と一致する', () => {
-    const rng = mulberry32(12);
-    for (let i = 0; i < 1000; i++) {
-      const q = generateHandQuestion({ mode: 'fu', rules: DEFAULT_RULES, filters: { seat: 'any', win: 'any' }, rng });
-      const steps = fuSteps(q, DEFAULT_RULES);
+const keikoHands = (seed: number, n: number) => {
+  const rng = mulberry32(seed);
+  const c = { call: 'any', shape: 'any', dist: 'real', want: (q: { ev: { yakuman: number } }) => !q.ev.yakuman } as const;
+  return Array.from({ length: n }, () => generateHandQuestion({ mode: 'jissen', rules: DEFAULT_RULES, filters: { seat: 'any', win: 'any' }, rng, constraints: c }));
+};
+
+describe('稽古の段階練習', () => {
+  it('重点学習：段階の答えが点数エンジン（符・翻・点数）と一致する', () => {
+    for (const q of keikoHands(12, 1000)) {
+      const steps = studySteps(q, DEFAULT_RULES, 'focus', mulberry32(1));
+      const els = steps.map((s) => s.element);
+      expect(els.slice(-3)).toEqual(['fu', 'han', 'score']);
+      const [fu, han, score] = steps.slice(-3);
+      expect(fu.answer).toBe(q.ev.fu.fu);
+      expect(han.answerNum).toBe(q.ev.han);
+      expect(han.answer).toBe(hanBucket(q.ev.han));
+      expect(score.answer).toBe(formatAnswer(q.ev.score));
+      // 選択肢に正解が含まれる
+      for (const s of steps) if (!s.auto) expect(s.options.some((o) => o.value === s.answer)).toBe(true);
       if (q.ev.interp.form === 'chiitoi') {
-        expect(steps.map((s) => s.answer)).toEqual([25]);
+        // 七対子は基本符〜待ちを飛ばして、符（25）から
+        expect(els).toEqual(['fu', 'han', 'score']);
+        expect(fu.answer).toBe(25);
         continue;
       }
-      expect(steps.map((s) => s.element)).toEqual(['wait', 'mentsu', 'pair', 'kafu', 'total', 'roundup']);
-      const [wait, mentsu, pair, kafu, total, round] = steps;
-      expect(wait.answer).toBe(q.ev.interp.form === 'standard' && q.ev.interp.wait);
+      expect(els[0]).toBe('base');
+      // 刻子・槓子の数だけ面子の段階がある（なければ表示だけの段階が1つ）
+      const triplets = q.ev.interp.form === 'standard' ? q.ev.interp.groups.filter((g) => g.kind !== 'shuntsu').length : 0;
+      const mentsu = steps.filter((s) => s.element === 'mentsu');
+      expect(mentsu.length).toBe(Math.max(1, triplets));
+      if (!triplets) expect(mentsu[0].auto).toBe(true);
+      // 積み上げ：副底20 ＋ 基本符・面子・雀頭・待ち ＝ 切り上げ前の合計（喰い平和形は 20 → 30）
+      const sum = 20 + steps.reduce((t, s) => t + (s.tally?.fu ?? 0), 0);
       const kui = q.ev.fu.items.some((x) => x.label.startsWith('喰い平和'));
-      expect(20 + Number(mentsu.answer) + Number(pair.answer) + Number(kafu.answer) + (kui ? 10 : 0)).toBe(total.answer);
-      expect(total.answer).toBe(q.ev.fu.raw);
-      expect(round.answer).toBe(Math.min(q.ev.fu.fu, 70));
-      // 選択肢に正解が含まれる
-      for (const s of steps) if (s.kind === 'buttons') expect(s.options.some((o) => o.value === s.answer)).toBe(true);
+      expect(kui ? 30 : sum).toBe(q.ev.fu.raw);
     }
+  });
+  it('簡易学習は 符 → 翻 → 点数 の3段階', () => {
+    for (const q of keikoHands(13, 200)) {
+      expect(studySteps(q, DEFAULT_RULES, 'quick').map((s) => s.element)).toEqual(['fu', 'han', 'score']);
+    }
+  });
+  it('数値入力：翻は翻数そのもの、点数は子のツモなら「子-親」で照合する', () => {
+    for (const q of keikoHands(14, 200)) {
+      const [, han, score] = studySteps(q, DEFAULT_RULES, 'quick');
+      expect(stepCorrect(han, String(q.ev.han), true)).toBe(true);
+      expect(stepCorrect(han, String(q.ev.han + 1), true)).toBe(false);
+      const s = q.ev.score;
+      const typed = !s.tsumo ? String(s.payment.ron) : s.dealer ? String(s.payment.fromDealer) : `${s.payment.fromChild}-${s.payment.fromDealer}`;
+      expect(stepCorrect(score, typed, true)).toBe(true);
+    }
+  });
+  it('進行：表示だけの段階は自動で進み、正答数に数えない', () => {
+    const q = keikoHands(15, 300).find((h) => h.ev.interp.form === 'standard' && h.ev.interp.groups.every((g) => g.kind === 'shuntsu'))!;
+    const run = new StepRun(studySteps(q, DEFAULT_RULES, 'focus'));
+    while (!run.done) run.answer(run.current!.answer, false);
+    expect(run.allCorrect).toBe(true);
+    expect(run.total).toBe(run.steps.length - 1);
+    expect(run.html()).toContain('副底');
   });
 });

@@ -1,4 +1,3 @@
-import { SHAPE_NAMES, type ShapeFilter, shapeCall } from '../core/generator';
 import type { Settings } from './settings';
 
 /**
@@ -9,7 +8,7 @@ import type { Settings } from './settings';
 export interface ConfigView {
   s: Settings;
   keiko: boolean;
-  /** 稽古の復習に残っている、いまの種目の手の数 */
+  /** 稽古の復習に残っている手の数（上部の出題タブに出す） */
   reviewCount: number;
 }
 
@@ -39,83 +38,40 @@ function row(name: string, label: string, opts: Opt[], note = '', cols = opts.le
 const section = (title: string, rows: string[]) =>
   rows.length ? `<section class="cfg-sec"><h3>${title}</h3>${rows.join('')}</section>` : '';
 
-/** 回答方式の表示名（符計算は固定ボタンなので「選択」、ほかは「4択」） */
+/** 回答方式の表示名（パチンコの符計算は固定ボタンなので「選択」、早見・実戦は「4択」） */
 export function answerLabel(v: ConfigView): string {
   const { s } = v;
   if (s.answerStyle === 'input') return '入力';
-  if (s.answerStyle === 'steps' && v.keiko && s.mode === 'fu') return '段階';
-  return s.mode === 'fu' ? '選択' : '4択';
+  return !v.keiko && s.mode !== 'fu' ? '4択' : '選択';
 }
 
 export function configPanelHtml(v: ConfigView): string {
   const { s, keiko } = v;
-  const hand = s.mode !== 'hayami';
-  const stepsOk = keiko && s.mode === 'fu';
-  const choiceOn = s.answerStyle === 'choice' || (s.answerStyle === 'steps' && !stepsOk);
-
+  const choiceLabel = !keiko && s.mode !== 'fu' ? '4択' : '選択';
   const answer = [
     row(
       'answer',
       '回答',
       [
-        { v: 'choice', label: s.mode === 'fu' ? '選択' : '4択', on: choiceOn },
+        { v: 'choice', label: choiceLabel, on: s.answerStyle !== 'input' },
         { v: 'input', label: '入力', on: s.answerStyle === 'input' },
-        ...(keiko ? [{ v: 'steps', label: '段階', on: s.answerStyle === 'steps' && stepsOk, disabled: !stepsOk }] : []),
       ],
-      keiko ? (stepsOk ? '段階：待ち → 面子 → 雀頭 → 加符 → 合計 → 切り上げ の順に答える' : '段階は符計算だけ') : '',
+      keiko ? '入力：符・翻・点数を数字で打つ（待ちの形だけは選ぶ）' : '',
     ),
   ];
 
-  const source = keiko
+  const count = keiko ? [row('count', '問題数', [10, 25, 50, 0].map((n) => ({ v: String(n), label: n ? `${n}問` : '無制限', on: s.count === n })))] : [];
+
+  const call = s.keikoFilters.call;
+  const filter = keiko
     ? [
-        row(
-          'source',
-          '出題',
-          [
-            { v: 'normal', label: '通常', on: s.keikoSource === 'normal' },
-            { v: 'review', label: `復習（${v.reviewCount}問）`, on: s.keikoSource === 'review', disabled: !v.reviewCount && s.keikoSource !== 'review' },
-            { v: 'weak', label: '苦手', on: s.keikoSource === 'weak', disabled: !hand },
-          ],
-          hand ? '復習：間違えた手を解き直す／苦手：正答率の低い要素が出てくる手を多めに出す' : '苦手は符計算・実戦だけ',
-        ),
-        row('count', '問題数', [10, 25, 50, 0].map((n) => ({ v: String(n), label: n ? `${n}問` : '無制限', on: s.count === n }))),
+        row('call', '鳴き', [
+          { v: 'any', label: 'すべて', on: call === 'any' },
+          { v: 'menzen', label: '門前', on: call === 'menzen' },
+          { v: 'open', label: '副露', on: call === 'open' },
+        ]),
       ]
     : [];
-
-  const kf = s.keikoFilters;
-  const forced = shapeCall(kf.shape);
-  const call = forced ?? kf.call;
-  const filter =
-    keiko && hand
-      ? [
-          row(
-            'call',
-            '鳴き',
-            [
-              { v: 'any', label: 'すべて', on: call === 'any' },
-              { v: 'menzen', label: '門前', on: call === 'menzen' },
-              { v: 'open', label: '副露', on: call === 'open' },
-            ].map((o) => ({ ...o, disabled: !!forced && o.v !== forced })),
-            forced ? `${SHAPE_NAMES[kf.shape]}は${forced === 'menzen' ? '門前' : '副露'}の手だけ` : '',
-          ),
-          row(
-            'shape',
-            '形',
-            (Object.keys(SHAPE_NAMES) as ShapeFilter[]).map((k) => ({ v: k, label: SHAPE_NAMES[k], on: kf.shape === k })),
-            '',
-            4,
-          ),
-          row(
-            'dist',
-            '符の分布',
-            [
-              { v: 'real', label: '実戦寄り', on: kf.dist === 'real' },
-              { v: 'even', label: '均等', on: kf.dist === 'even' },
-            ],
-            kf.dist === 'even' ? '20〜60符を同じ数ずつ出す' : '30符・40符が中心（実戦に近い）',
-          ),
-        ]
-      : [];
 
   const situation = [
     row('seat', '親子', [
@@ -138,23 +94,38 @@ export function configPanelHtml(v: ConfigView): string {
   return `<div class="cfg-head"><b>出題設定</b><button class="cfg-x" type="button" data-close-cfg aria-label="閉じる">×</button></div>
   <div class="cfg-body">
     ${lead}
-    ${section('答え方', answer.filter(Boolean))}
-    ${section('出題', source)}
-    ${section('絞り込み', filter)}
+    ${section('答え方', answer)}
+    ${section('出題', [...count, ...filter])}
     ${section('状況', situation)}
   </div>
   <div class="cfg-foot">${foot}<button class="cfg-done main" type="button" data-close-cfg>閉じる</button></div>`;
 }
 
-/** 上部の要約ボタンの中身（例 選択 · 平和 · 25問） */
+/** 上部の要約ボタンの中身（例 選択 · 門前 · 25問） */
 export function configSummaryHtml(v: ConfigView): string {
   const { s, keiko } = v;
   const sep = '<span class="dot-sep">·</span>';
   const parts = [`<span class="pill-answer">${answerLabel(v)}${sep}</span>`];
-  if (keiko && s.mode !== 'hayami' && s.keikoFilters.shape !== 'any') parts.push(`<span class="pill-shape">${SHAPE_NAMES[s.keikoFilters.shape]}${sep}</span>`);
-  if (keiko && s.keikoSource !== 'normal') parts.push(`<span class="pill-shape">${s.keikoSource === 'review' ? '復習' : '苦手'}${sep}</span>`);
+  if (keiko && s.keikoFilters.call !== 'any') parts.push(`<span class="pill-shape">${s.keikoFilters.call === 'menzen' ? '門前' : '副露'}${sep}</span>`);
   if (keiko) parts.push(s.count ? `${s.count}問` : '無制限');
   // 狭いスマホでは回答方式を畳むので、パチンコは「出題設定」とだけ出す
   else parts.push('<span class="pill-wide">出題設定</span><span class="pill-narrow">出題設定</span>');
   return `${parts.join('')}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+}
+
+/**
+ * 稽古の上部の切り替え（種目タブの代わり）。1段目は学習モード、2段目は出題（通常・苦手・復習）
+ */
+export function keikoTabsHtml(v: ConfigView): string {
+  const { s } = v;
+  const tab = (attr: string, val: string, label: string, on: boolean, disabled = false) =>
+    `<button class="mode-tab${on ? ' on' : ''}" role="tab" aria-selected="${on}" data-${attr}="${val}"${disabled ? ' disabled aria-disabled="true"' : ''}>${label}</button>`;
+  const study = [tab('study', 'focus', '重点学習', s.keikoStudy === 'focus'), tab('study', 'quick', '簡易学習', s.keikoStudy === 'quick')].join('');
+  const source = [
+    tab('source', 'normal', '通常', s.keikoSource === 'normal'),
+    tab('source', 'weak', '苦手', s.keikoSource === 'weak'),
+    tab('source', 'review', `復習（${v.reviewCount}）`, s.keikoSource === 'review', !v.reviewCount && s.keikoSource !== 'review'),
+  ].join('');
+  return `<div class="tab-row study-tabs" role="tablist" aria-label="学習モード">${study}</div>
+    <div class="tab-row source-tabs" role="tablist" aria-label="出題">${source}</div>`;
 }
