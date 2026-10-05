@@ -39,6 +39,7 @@ import { renderOdometer } from './odometer';
 import { type ItemsTab, RARITY_LABEL, type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, missionStrip, saveShop, shopHtml, unlockMachine } from './shop';
 import { type TipId, Tips, tipLink, tipText } from './tips';
 import { TILE_DEFS, handHtml, tilesInline } from './tileView';
+import { PRIVACY_POLICY_URL } from './links';
 import { ELEMENTS, WEAK_MIN, type KeikoSource, accuracy, addReview, loadKeiko, markReview, nextReview, pickWeak, recordElement, recordFuAnswer, reviewCount, saveKeiko, weakAllowed, weakWant } from './keiko';
 import { fuSteps } from '../core/steps';
 import { StepRun } from './steps';
@@ -106,7 +107,6 @@ export class App {
   private input = '';
   private startedAt = 0;
   private fx: Fx;
-  private timerRaf = 0;
   private lastCorrect = false;
   private panel: MachinePanel;
   private busy = false;
@@ -329,9 +329,6 @@ export class App {
       case 'count':
         this.update({ count: Number(v) });
         break;
-      case 'time':
-        this.update({ timeLimit: Number(v) });
-        break;
       case 'seat':
         this.update({ filters: { ...this.s.filters, seat: v as Settings['filters']['seat'] } });
         break;
@@ -426,7 +423,6 @@ export class App {
     $('#result').innerHTML = '';
     $('#stage').classList.remove('correct', 'wrong');
     document.querySelector('main')?.scrollTo({ top: 0 });
-    this.startTimer();
     this.startBetRing();
     this.renderNet();
     if (this.isRoundQ && this.fxLevel !== 'off') {
@@ -729,12 +725,12 @@ export class App {
     this.showSummary('bankrupt');
   }
 
-  /** 発展リーチ・大当り中は回答と制限時間を止める */
+  /** 発展リーチ・大当り中は回答（と速答の時間）を止める */
   private setBusy(b: boolean): void {
     this.pause('machine', b);
   }
 
-  /** 理由ごとに回答と制限時間を止める。どれか1つでも残っていれば止めたまま */
+  /** 理由ごとに回答（と速答の時間）を止める。どれか1つでも残っていれば止めたまま */
   private pause(reason: string, on: boolean): void {
     if (on) this.pauses.add(reason);
     else this.pauses.delete(reason);
@@ -744,36 +740,10 @@ export class App {
     document.body.classList.toggle('busy', b);
     if (b) {
       this.pausedAt = performance.now();
-      cancelAnimationFrame(this.timerRaf);
     } else {
-      if (this.pausedAt && this.phase === 'answering') {
-        this.startedAt += performance.now() - this.pausedAt;
-        this.startTimer();
-      }
+      if (this.pausedAt && this.phase === 'answering') this.startedAt += performance.now() - this.pausedAt;
       this.pausedAt = 0;
     }
-  }
-
-  private startTimer(): void {
-    cancelAnimationFrame(this.timerRaf);
-    const bar = $('#timer');
-    if (!this.s.timeLimit || this.keiko) {
-      bar.style.transform = 'scaleX(0)';
-      return;
-    }
-    const limit = this.s.timeLimit * 1000;
-    const tick = () => {
-      if (this.phase !== 'answering') return;
-      const left = 1 - (performance.now() - this.startedAt) / limit;
-      bar.style.transform = `scaleX(${Math.max(0, left)})`;
-      bar.classList.toggle('low', left < 0.25);
-      if (left <= 0) {
-        void this.submit(true);
-        return;
-      }
-      this.timerRaf = requestAnimationFrame(tick);
-    };
-    this.timerRaf = requestAnimationFrame(tick);
   }
 
   private get isChoice(): boolean {
@@ -834,7 +804,6 @@ export class App {
       }
     }
     if (this.steps && !timeout && this.answerStep()) return;
-    cancelAnimationFrame(this.timerRaf);
     this.setPhase('suspense');
     const elapsed = this.activeElapsed();
     cancelAnimationFrame(this.betRaf);
@@ -1162,7 +1131,6 @@ export class App {
   /** end: 規定問題数の終了 / summary: パチンコで「成績を見る」 / bankrupt: 破産 */
   private showSummary(kind: 'end' | 'summary' | 'bankrupt' = 'end'): void {
     this.setPhase('summary');
-    cancelAnimationFrame(this.timerRaf);
     cancelAnimationFrame(this.betRaf);
     this.toggleConfigSheet(false);
     const ss = this.session;
@@ -1895,6 +1863,8 @@ export class App {
       <div class="set-row"><div><div class="set-label">稽古の記録</div><div class="set-desc">復習の手 ${this.kd.reviews.length}問と、要素別の正答率を消去</div></div><div class="cfg-group"><button class="cfg danger" data-set="keiko" data-v="1">リセット</button></div></div>
       <div class="set-row"><div><div class="set-label">一言ガイド</div><div class="set-desc">初めての人向けのヒントをもう一度表示する</div></div><div class="cfg-group"><button class="cfg${this.tipsReset ? ' on' : ''}" data-set="tips" data-v="1">${this.tipsReset ? '表示します' : 'もう一度'}</button></div></div>
       ${this.adSettingsHtml()}
+      <div class="set-sec">このアプリについて</div>
+      <div class="set-row"><div><div class="set-label">プライバシーポリシー</div><div class="set-desc">広告・購入・端末に保存する記録の扱い</div></div><div class="cfg-group"><a class="cfg" href="${PRIVACY_POLICY_URL}" target="_blank" rel="noopener noreferrer">開く</a></div></div>
     </div>`;
     const el = dlg.querySelector('.settings');
     if (el) el.scrollTop = scroll;
@@ -1935,7 +1905,6 @@ const SHELL = `
       </div>
       <div id="answer" aria-live="polite"></div>
       <div id="choices" role="group" aria-label="選択肢"></div>
-      <div class="timer-track"><div id="timer"></div></div>
       <div id="hint" class="hint"></div>
       <button id="next-btn" type="button">次へ</button>
     </div>

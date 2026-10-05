@@ -27,7 +27,8 @@ describe('出題設定のパネル', () => {
     const d = doc(configPanelHtml(view({ mode: 'fu' }, false)));
     expect(sections(d)).toEqual(['答え方', '状況']);
     expect(btn(d, 'answer', 'steps')).toBeNull();
-    expect(has(d, 'time')).toBe(true);
+    // 制限時間はなしで固定
+    expect(has(d, 'time')).toBe(false);
     expect(has(d, 'count')).toBe(false);
     expect(d).toMatch(/data-summary>成績を見る/);
     expect(d).not.toContain('精算');
@@ -61,7 +62,6 @@ describe('出題設定のパネル', () => {
   });
   it('要約ボタン', () => {
     expect(configSummaryHtml(view({ mode: 'fu', count: 25, keikoFilters: { call: 'any', shape: 'pinfu', dist: 'real' } }, true))).toMatch(/選択.*平和.*25問/);
-    expect(configSummaryHtml(view({ mode: 'jissen', timeLimit: 15 }, false))).toMatch(/4択.*制限15秒/);
-    expect(configSummaryHtml(view({ mode: 'fu', timeLimit: 0 }, false))).toContain('時間制限なし');
+    expect(configSummaryHtml(view({ mode: 'jissen' }, false))).toMatch(/4択.*出題設定/);
   });
 });

@@ -9,8 +9,8 @@ export const ECONOMY = {
   initial: 1000,
   /** 1問のコスト */
   cost: 40,
-  /** 速答で正解したときのコスト */
-  fastCost: 35,
+  /** 速答で正解したときのコスト（BET の半額） */
+  fastCost: 20,
   /** 速答（割引）の締切（秒）。モードの難しさに合わせる */
   fastSeconds: { hayami: 6, fu: 12, jissen: 20 } as Record<Mode, number>,
   /** 不正解・パス・時間切れの追加ペナルティ */

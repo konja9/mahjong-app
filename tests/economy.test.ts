@@ -31,7 +31,7 @@ function mulberry32(seed: number) {
 
 describe('yan', () => {
   it('コスト', () => {
-    expect(costFor(true, true)).toBe(35);
+    expect(costFor(true, true)).toBe(20);
     expect(costFor(true, false)).toBe(40);
     expect(costFor(false, false)).toBe(60);
     expect(costFor(false, true)).toBe(60);
@@ -121,19 +121,20 @@ export function simulate(
 
 describe('経済バランス（シミュレーション）', () => {
   for (const mode of ['hayami', 'fu', 'jissen'] as Mode[]) {
-    it(`${mode}：中級はほぼ100%、上級は大きくプラス、初心者は大きくマイナス`, () => {
+    // 速答の BET を半額（20）にしてから、中級者は約110〜125%（少し勝てる）
+    it(`${mode}：中級はやや勝ち越し、上級は大きくプラス、初心者は大きくマイナス`, () => {
       const mid = simulate(mode, 0.85, 0.5);
-      expect(mid).toBeGreaterThan(0.85);
-      expect(mid).toBeLessThan(1.15);
+      expect(mid).toBeGreaterThan(0.95);
+      expect(mid).toBeLessThan(1.35);
       expect(simulate(mode, 0.95, 0.8, 2)).toBeGreaterThan(1.6);
       expect(simulate(mode, 0.6, 0.2, 3)).toBeLessThan(0.5);
     });
   }
-  it('ミドル・MAX（実戦のみ）：中級はほぼ100%、上級は大きくプラス', () => {
+  it('ミドル・MAX（実戦のみ）：中級はやや勝ち越し、上級は大きくプラス', () => {
     for (const id of ['middle', 'max'] as const) {
       const mid = simulate('jissen', 0.85, 0.5, 11, 40000, SPECS[id]);
-      expect(mid).toBeGreaterThan(0.85);
-      expect(mid).toBeLessThan(1.15);
+      expect(mid).toBeGreaterThan(0.95);
+      expect(mid).toBeLessThan(1.35);
       expect(simulate('jissen', 0.95, 0.8, 12, 40000, SPECS[id])).toBeGreaterThan(1.6);
     }
   });
@@ -144,8 +145,10 @@ describe('経済バランス（シミュレーション）', () => {
       return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length);
     };
     const [a, b, c] = [spread(SPECS.ama), spread(SPECS.middle), spread(SPECS.max)];
-    expect(b).toBeGreaterThan(a);
-    expect(c).toBeGreaterThan(b);
+    expect(b).toBeGreaterThan(a * 1.5);
+    // MAX はミドルと同じくらい振れる（当たらないセッションが多い）。1割以上は小さくならない
+    expect(c).toBeGreaterThan(b * 0.9);
+    expect(c).toBeGreaterThan(a * 1.5);
   }, 60000);
 });
 

@@ -139,8 +139,7 @@
   }
   /* 回答後はスマホと同じく選択肢を畳み、解説を読める広さを空ける（正誤は判定の行で示す） */
   :root[data-play='pachinko'] body[data-phase='result'] #choices,
-  :root[data-play='pachinko'] body[data-phase='result'] #answer,
-  :root[data-play='pachinko'] body[data-phase='result'] .timer-track {
+  :root[data-play='pachinko'] body[data-phase='result'] #answer {
     display: none !important;
   }
   :root[data-play='pachinko'] body[data-phase='result'] #next-btn {

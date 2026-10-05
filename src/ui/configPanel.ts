@@ -64,10 +64,6 @@ export function configPanelHtml(v: ConfigView): string {
       ],
       keiko ? (stepsOk ? '段階：待ち → 面子 → 雀頭 → 加符 → 合計 → 切り上げ の順に答える' : '段階は符計算だけ') : '',
     ),
-    // 稽古は時間を気にせず数え方を身につける場なので、制限時間はパチンコだけ
-    !keiko
-      ? row('time', '制限時間', [0, 15, 30].map((n) => ({ v: String(n), label: n ? `${n}秒` : 'なし', on: s.timeLimit === n })))
-      : '',
   ];
 
   const source = keiko
@@ -158,8 +154,7 @@ export function configSummaryHtml(v: ConfigView): string {
   if (keiko && s.mode !== 'hayami' && s.keikoFilters.shape !== 'any') parts.push(`<span class="pill-shape">${SHAPE_NAMES[s.keikoFilters.shape]}${sep}</span>`);
   if (keiko && s.keikoSource !== 'normal') parts.push(`<span class="pill-shape">${s.keikoSource === 'review' ? '復習' : '苦手'}${sep}</span>`);
   if (keiko) parts.push(s.count ? `${s.count}問` : '無制限');
-  else if (s.timeLimit) parts.push(`制限${s.timeLimit}秒`);
-  // 狭いスマホでは回答方式を畳むので、パチンコで時間制限もなければ「出題設定」とだけ出す
-  else parts.push('<span class="pill-wide">時間制限なし</span><span class="pill-narrow">出題設定</span>');
+  // 狭いスマホでは回答方式を畳むので、パチンコは「出題設定」とだけ出す
+  else parts.push('<span class="pill-wide">出題設定</span><span class="pill-narrow">出題設定</span>');
   return `${parts.join('')}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
 }

@@ -15,7 +15,6 @@ export interface Settings {
   /** 回答方式：4択・数値入力・段階（稽古の符計算のみ） */
   answerStyle: AnswerStyle;
   count: number; // 0 = 無制限
-  timeLimit: number; // 秒、0 = なし
   filters: Filters;
   /** 稽古の出題の絞り込み（符計算・実戦のみ） */
   keikoFilters: Omit<HandConstraints, 'want'>;
@@ -35,7 +34,6 @@ export const DEFAULT_SETTINGS: Settings = {
   mode: 'hayami',
   answerStyle: 'choice',
   count: 25,
-  timeLimit: 0,
   filters: { seat: 'any', win: 'any' },
   keikoFilters: { call: 'any', shape: 'any', dist: 'real' },
   keikoSource: 'normal',

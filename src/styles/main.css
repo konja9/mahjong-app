@@ -586,20 +586,6 @@ main {
   color: var(--main);
   text-shadow: 0 0 24px color-mix(in srgb, var(--main) 55%, transparent);
 }
-.timer-track {
-  height: 3px;
-  border-radius: 2px;
-  overflow: hidden;
-}
-#timer {
-  height: 100%;
-  background: var(--main);
-  transform-origin: left;
-  transform: scaleX(0);
-}
-#timer.low {
-  background: var(--error);
-}
 .hint {
   font-size: 13px;
   color: var(--sub);
@@ -1113,6 +1099,11 @@ dialog::backdrop {
 .set-row .cfg {
   background: var(--sub-bg);
   font-size: 13px;
+}
+/* 外部ページへのリンク（プライバシーポリシー） */
+a.cfg {
+  display: inline-block;
+  text-decoration: none;
 }
 .set-row .cfg.on {
   background: var(--main);
@@ -1964,9 +1955,6 @@ body.chou::before {
   #hint:empty {
     display: none;
   }
-  .timer-track {
-    order: -1;
-  }
 
   /* ---- 早見の問題 */
   .q-hayami {
@@ -2071,8 +2059,7 @@ body.chou::before {
   /* ---- 判定後：回答エリアを「次へ」ボタンに切り替える */
   body[data-phase='result'] #choices,
   body[data-phase='result'] #answer,
-  body[data-phase='result'] #numpad,
-  body[data-phase='result'] .timer-track {
+  body[data-phase='result'] #numpad {
     display: none !important;
   }
   body[data-phase='result'] #next-btn {
