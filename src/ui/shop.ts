@@ -44,7 +44,7 @@ export type Rarity = 'common' | 'rare' | 'epic' | 'legend';
 export const RARITY_LABEL: Record<Rarity, string> = { common: 'コモン', rare: 'レア', epic: 'エピック', legend: 'レジェンド' };
 
 /** 買う称号のレア度は値段で決める */
-const rarityByPrice = (p: number): Rarity => (p >= 60000 ? 'legend' : p >= 15000 ? 'epic' : p >= 5000 ? 'rare' : 'common');
+const rarityByPrice = (p: number): Rarity => (p >= 20000 ? 'legend' : p >= 5000 ? 'epic' : p >= 1500 ? 'rare' : 'common');
 
 export interface ShopItem {
   id: string;
@@ -64,33 +64,33 @@ const earned = (id: string, name: string, rarity: Rarity, unlock: Unlock): ShopI
 
 export const ITEMS: ShopItem[] = [
   { id: 'back-green', kind: 'back', name: '深緑', price: 0, value: '#1f5c45' },
-  { id: 'back-indigo', kind: 'back', name: '藍', price: 4000, value: '#243a6b' },
-  { id: 'back-vermilion', kind: 'back', name: '朱', price: 4000, value: '#a8322a' },
-  { id: 'back-black', kind: 'back', name: '漆黒', price: 8000, value: '#16161a' },
-  { id: 'back-gold', kind: 'back', name: '金', price: 25000, value: '#c9a227' },
+  { id: 'back-indigo', kind: 'back', name: '藍', price: 1500, value: '#243a6b' },
+  { id: 'back-vermilion', kind: 'back', name: '朱', price: 1500, value: '#a8322a' },
+  { id: 'back-black', kind: 'back', name: '漆黒', price: 3000, value: '#16161a' },
+  { id: 'back-gold', kind: 'back', name: '金', price: 8000, value: '#c9a227' },
   { id: 'skin-gold', kind: 'skin', name: '黒金', price: 0, value: 'gold' },
-  { id: 'skin-silver', kind: 'skin', name: '銀', price: 10000, value: 'silver' },
-  { id: 'skin-urushi', kind: 'skin', name: '朱漆', price: 15000, value: 'urushi' },
-  { id: 'skin-rainbow', kind: 'skin', name: '虹', price: 40000, value: 'rainbow' },
+  { id: 'skin-silver', kind: 'skin', name: '銀', price: 3500, value: 'silver' },
+  { id: 'skin-urushi', kind: 'skin', name: '朱漆', price: 5000, value: 'urushi' },
+  { id: 'skin-rainbow', kind: 'skin', name: '虹', price: 12000, value: 'rainbow' },
   { id: 'bgm-standard', kind: 'bgm', name: 'スタンダード', price: 0, value: 'standard' },
-  { id: 'bgm-euro', kind: 'bgm', name: 'ユーロビート', price: 8000, value: 'euro' },
-  { id: 'bgm-wa', kind: 'bgm', name: '和風', price: 12000, value: 'wa' },
-  { id: 'bgm-chip', kind: 'bgm', name: 'チップチューン', price: 15000, value: 'chip' },
+  { id: 'bgm-euro', kind: 'bgm', name: 'ユーロビート', price: 2500, value: 'euro' },
+  { id: 'bgm-wa', kind: 'bgm', name: '和風', price: 4000, value: 'wa' },
+  { id: 'bgm-chip', kind: 'bgm', name: 'チップチューン', price: 5000, value: 'chip' },
   { id: 'title-none', kind: 'title', name: 'なし', price: 0, value: '' },
   // 買う称号（安い順）
-  title('hayami-new', '早見の新人', 1500),
-  title('tenbou', '点棒係', 2000),
-  title('fu-apprentice', '符の見習い', 2500),
-  title('regular', '雀荘の常連', 3000),
-  title('night', '夜の雀士', 5000),
-  title('fu-reader', '符読み', 6000),
-  title('fast', '速答職人', 8000),
-  title('mangan', '満貫の申し子', 10000),
-  title('oni', '点数の鬼', 12000),
-  title('yakuman', '役満ハンター', 15000),
-  title('gambler', '鉄火場の勝負師', 20000),
-  title('legend', '伝説の打ち手', 40000),
-  title('master', 'パチふと名人', 60000),
+  title('hayami-new', '早見の新人', 500),
+  title('tenbou', '点棒係', 700),
+  title('fu-apprentice', '符の見習い', 800),
+  title('regular', '雀荘の常連', 1000),
+  title('night', '夜の雀士', 1500),
+  title('fu-reader', '符読み', 2000),
+  title('fast', '速答職人', 2500),
+  title('mangan', '満貫の申し子', 3000),
+  title('oni', '点数の鬼', 4000),
+  title('yakuman', '役満ハンター', 5000),
+  title('gambler', '鉄火場の勝負師', 7000),
+  title('legend', '伝説の打ち手', 12000),
+  title('master', 'パチふと名人', 20000),
   // 実力で解放する称号（運の条件は入れない）
   earned('first-perfect', '初陣', 'rare', { get: (s) => s.perfectBonus, target: 1, label: 'BONUS を初めて全問正解' }),
   earned('perfect10', '完全試合', 'epic', { get: (s) => s.perfectBonus, target: 10, label: 'BONUS の全問正解 10 回' }),

@@ -5,8 +5,8 @@ import { ITEMS, buyItem, checkUnlocks, equipItem, freshShop, loadShop, missionSt
 describe('交換所', () => {
   it('所持金が足りないと買えない。買うと装備される', () => {
     const s = freshShop();
-    expect(buyItem(s, 'back-indigo', 3999)).toBe(0);
-    expect(buyItem(s, 'back-indigo', 4000)).toBe(4000);
+    expect(buyItem(s, 'back-indigo', 1499)).toBe(0);
+    expect(buyItem(s, 'back-indigo', 1500)).toBe(1500);
     expect(s.equip.back).toBe('back-indigo');
     expect(buyItem(s, 'back-indigo', 99999)).toBe(0);
   });
@@ -17,8 +17,8 @@ describe('交換所', () => {
   });
   it('台の解放', () => {
     const s = freshShop();
-    expect(unlockMachine(s, 'middle', 7999)).toBe(0);
-    expect(unlockMachine(s, 'middle', 8000)).toBe(8000);
+    expect(unlockMachine(s, 'middle', 2999)).toBe(0);
+    expect(unlockMachine(s, 'middle', 3000)).toBe(3000);
     expect(s.machines).toContain('middle');
   });
 });
@@ -76,7 +76,7 @@ describe('称号と BGM', () => {
   });
   it('BGM を買って装備できる', () => {
     const s = freshShop();
-    expect(buyItem(s, 'bgm-euro', 8000)).toBe(8000);
+    expect(buyItem(s, 'bgm-euro', 2500)).toBe(2500);
     expect(s.equip.bgm).toBe('bgm-euro');
   });
 });
