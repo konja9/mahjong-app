@@ -384,7 +384,7 @@ export class MachinePanel {
     this.hooks.onBusy(false);
   }
 
-  /** プラクティスへ切り替えたときなどに停止 */
+  /** 稽古へ切り替えたときなどに停止 */
   stop(): void {
     this.reset();
     this.isStopped = true;

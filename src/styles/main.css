@@ -1,4 +1,4 @@
-/* ============================================================ 色（ノーマル・プラクティス共通のモノクロ） */
+/* ============================================================ 色（パチンコ・稽古共通のモノクロ） */
 :root {
   --bg: #0c0d11;
   --sub-bg: #17181e;
@@ -751,15 +751,6 @@ tr.yakuman td {
 .stat small {
   font-size: 0.45em;
   color: var(--sub);
-}
-.new-best {
-  align-self: flex-start;
-  font-family: 'Noto Sans JP', sans-serif;
-  font-weight: 700;
-  color: var(--bg);
-  background: var(--main);
-  padding: 3px 12px;
-  border-radius: 6px;
 }
 .sum-cols {
   display: grid;
@@ -2080,7 +2071,7 @@ body.chou::before {
   }
 }
 
-/* ============================================================ ノーマル／プラクティス タブ */
+/* ============================================================ パチンコ／稽古 タブ */
 #top {
   gap: 16px;
 }
@@ -2109,16 +2100,16 @@ body.chou::before {
   background: var(--main);
   color: var(--bg);
 }
-.play-tab[data-play='practice'].on {
+.play-tab[data-play='keiko'].on {
   background: var(--text);
 }
 
-/* プラクティス：パチンコ要素を出さない */
-[data-play='practice'] #machine,
-[data-play='practice'] #combo,
-[data-play='practice'] #notice,
-[data-play='practice'] #overlay,
-[data-play='practice'] #fx {
+/* 稽古：パチンコ要素を出さない */
+[data-play='keiko'] #machine,
+[data-play='keiko'] #combo,
+[data-play='keiko'] #notice,
+[data-play='keiko'] #overlay,
+[data-play='keiko'] #fx {
   display: none !important;
 }
 
@@ -2462,21 +2453,6 @@ body.busy #answer {
 }
 
 
-.pts {
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--main);
-}
-#progress .score {
-  margin-left: auto;
-  font-size: 14px;
-  color: var(--sub);
-}
-#progress .score b {
-  font-size: 20px;
-  color: var(--main);
-  font-variant-numeric: tabular-nums;
-}
 
 
 /* ---- まとめ：スランプグラフ */

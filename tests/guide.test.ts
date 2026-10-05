@@ -58,9 +58,9 @@ describe('遊び方', () => {
     }
   });
 
-  it('導入は3ステップで、最後にプラクティスへの導線がある', () => {
+  it('導入は3ステップで、最後に稽古への導線がある', () => {
     expect(introHtml(0)).toContain('data-intro="next"');
-    expect(introHtml(2)).toContain('data-intro="practice"');
+    expect(introHtml(2)).toContain('data-intro="keiko"');
     expect(introHtml(2)).toContain('data-intro="start"');
   });
 });

@@ -11,7 +11,7 @@ const KEY = 'tensu.shop.v1';
 
 export type ItemKind = 'back' | 'skin' | 'bgm' | 'title';
 
-/** 実力で解放する称号の条件に使う、ノーマルでの累計の記録 */
+/** 実力で解放する称号の条件に使う、パチンコでの累計の記録 */
 export interface PlayStats {
   correct: Record<Mode, number>;
   fast: number;
@@ -246,7 +246,7 @@ export function itemsHtml(s: ShopState, balance: number, canPreview = true, tab:
       '<p class="help-note top">装備すると、画面下の計器の「所持」の横にプレートで表示されます。色はレア度（コモン・レア・エピック・レジェンド）。</p>' +
       group('称号', titles.filter((i) => !i.unlock)) +
       group(`実力の称号 <span class="muted small">${earnedCount}/${titles.filter((i) => i.unlock).length}</span>`, titles.filter((i) => i.unlock)) +
-      '<p class="help-note">実力の称号は買えません。ノーマルで条件を満たすと自動で手に入ります。</p>';
+      '<p class="help-note">実力の称号は買えません。パチンコで条件を満たすと自動で手に入ります。</p>';
   return `<div class="cfg-group help-tabs items-tabs" role="tablist">${tabs}</div>${body}`;
 }
 
@@ -263,7 +263,7 @@ export function missionsHtml(s: ShopState): string {
           <div class="mis-bar"><i style="width:${(v / d.target) * 100}%"></i></div><div class="shop-desc">${done ? '達成' : `${v}/${d.target}`}</div></div>
           <span class="shop-reward">+${d.reward.toLocaleString()}</span></div>`;
       })
-      .join('') + '<p class="help-note">ミッションは毎日変わります（ノーマルのみ）。達成すると yan がすぐに入ります。</p>'
+      .join('') + '<p class="help-note">ミッションは毎日変わります（パチンコのみ）。達成すると yan がすぐに入ります。</p>'
   );
 }
 

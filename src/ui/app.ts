@@ -25,7 +25,6 @@ import {
   saveWallet,
 } from './machine/economy';
 import { type JackpotResult, MachinePanel } from './machine/panel';
-import { practiceScore, speedMultiplier } from '../core/practiceScore';
 import { doraLabel, handExplain, hayamiExplain, situationChips, situationLabel } from './explain';
 import { type Settings, loadSettings, saveSettings } from './settings';
 import { type HelpTab, helpHtml } from './help';
@@ -34,7 +33,6 @@ import { SPECS } from './machine/specs';
 import { dateKey, ensureToday, recordAnswer } from './missions';
 import { renderOdometer } from './odometer';
 import { type ItemsTab, RARITY_LABEL, type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, missionStrip, saveShop, shopHtml, unlockMachine } from './shop';
-import { load, save } from './storage';
 import { type TipId, Tips, tipLink, tipText } from './tips';
 import { TILE_DEFS, handHtml, tilesInline } from './tileView';
 
@@ -51,29 +49,19 @@ interface Session {
   streak: number;
   maxStreak: number;
   times: number[];
-  score: number;
-  /** セッション開始時の所持金（ノーマルの収支表示用） */
+  /** セッション開始時の所持金（パチンコの収支表示用） */
   startBalance: number;
   byCat: Record<string, { c: number; n: number }>;
   misses: Miss[];
 }
 
-interface Best {
-  acc: number;
-  avg: number;
-  streak: number;
-  /** プラクティスのスコア */
-  score?: number;
-}
-
 const MODE_NAMES: Record<Mode, string> = { hayami: '早見', fu: '符計算', jissen: '実戦' };
-const BEST_KEY = 'tensu.best.v1';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) =>
   root.querySelector(sel) as T;
 
 function newSession(): Session {
-  return { answered: 0, correct: 0, streak: 0, maxStreak: 0, times: [], score: 0, startBalance: 0, byCat: {}, misses: [] };
+  return { answered: 0, correct: 0, streak: 0, maxStreak: 0, times: [], startBalance: 0, byCat: {}, misses: [] };
 }
 
 function questionMeta(q: Question): { dealer: boolean; tsumo: boolean } {
@@ -108,7 +96,6 @@ export class App {
   private q!: Question;
   private input = '';
   private startedAt = 0;
-  private best = load<Record<string, Best>>(BEST_KEY, {});
   private fx: Fx;
   private timerRaf = 0;
   private lastCorrect = false;
@@ -164,7 +151,7 @@ export class App {
       onJackpot: ({ premium }) => this.startRound(premium),
       onTap: () => {
         // 演出中・BONUS 中は誤タップで開かないようにする
-        if (!this.practice && !this.busy && !this.round) this.openShop('machine');
+        if (!this.keiko && !this.busy && !this.round) this.openShop('machine');
       },
       onEvent: (e) => this.tip(e),
     });
@@ -181,8 +168,8 @@ export class App {
 
   // ------------------------------------------------------------ 設定
 
-  private get practice(): boolean {
-    return this.s.playMode === 'practice';
+  private get keiko(): boolean {
+    return this.s.playMode === 'keiko';
   }
 
   /** 今の台 */
@@ -190,13 +177,13 @@ export class App {
     return SPECS[this.shop.machine];
   }
 
-  /** プラクティスでは演出を一切出さない */
+  /** 稽古では演出を一切出さない */
   private get fxLevel(): EffectLevel {
-    return this.practice ? 'off' : this.s.effects;
+    return this.keiko ? 'off' : this.s.effects;
   }
 
   private configureSound(): void {
-    configureAudio(this.s.sound && !this.practice, this.s.volume);
+    configureAudio(this.s.sound && !this.keiko, this.s.volume);
   }
 
   private applyTheme(): void {
@@ -249,11 +236,13 @@ export class App {
         ['choice', s.mode === 'fu' ? '選択' : '4択', s.answerStyle === 'choice'],
         ['input', '入力', s.answerStyle === 'input'],
       ]),
-      this.practice &&
+      this.keiko &&
       group(
         'count',
         [10, 25, 50, 0].map((n) => [String(n), n ? String(n) : '∞', s.count === n]),
       ),
+      // 稽古は時間を気にせず数え方を身につける場なので、制限時間を出さない
+      !this.keiko &&
       group(
         'time',
         [0, 15, 30].map((n) => [String(n), n ? `${n}s` : '無制限', s.timeLimit === n]),
@@ -271,12 +260,12 @@ export class App {
     ]
       .filter(Boolean)
       .join('<span class="cfg-sep"></span>') +
-      (this.practice
+      (this.keiko
         ? '<button class="cfg-done" type="button" data-restart>最初から</button>'
         : '<button class="cfg-done cashout" type="button" data-cashout>精算</button>') +
       '<button class="cfg-done" type="button" data-close-cfg>閉じる</button>';
     // ミドル以上の台は実戦のみ
-    const locked = !this.practice && this.spec.jissenOnly;
+    const locked = !this.keiko && this.spec.jissenOnly;
     document.querySelectorAll<HTMLElement>('#config [data-cfg="mode"]').forEach((b) => b.classList.toggle('locked', locked && b.dataset.v !== 'jissen'));
     document.querySelectorAll<HTMLElement>('[data-play]').forEach((b) => {
       const on = b.dataset.play === s.playMode;
@@ -286,10 +275,10 @@ export class App {
     $('#mode-tabs').innerHTML = (['hayami', 'fu', 'jissen'] as Mode[])
       .map(
         (m) =>
-          `<button class="mode-tab${s.mode === m ? ' on' : ''}${!this.practice && this.spec.jissenOnly && m !== 'jissen' ? ' locked' : ''}" role="tab" aria-selected="${s.mode === m}" data-mode="${m}">${MODE_NAMES[m]}</button>`,
+          `<button class="mode-tab${s.mode === m ? ' on' : ''}${!this.keiko && this.spec.jissenOnly && m !== 'jissen' ? ' locked' : ''}" role="tab" aria-selected="${s.mode === m}" data-mode="${m}">${MODE_NAMES[m]}</button>`,
       )
       .join('');
-    const count = !this.practice ? '∞' : s.count ? `${s.count}問` : '∞';
+    const count = !this.keiko ? '∞' : s.count ? `${s.count}問` : '∞';
     $('#cfg-toggle').innerHTML = `<span class="pill-mode">${MODE_NAMES[s.mode]}<span class="dot-sep">·</span></span><span class="pill-answer">${s.answerStyle === 'choice' ? (s.mode === 'fu' ? '選択' : '4択') : '入力'}<span class="dot-sep">·</span></span>${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
   }
 
@@ -309,7 +298,7 @@ export class App {
 
   /** 出題モードの切り替え。ミドル以上の台は実戦のみ */
   private setMode(m: Mode): void {
-    if (!this.practice && this.spec.jissenOnly && m !== 'jissen') {
+    if (!this.keiko && this.spec.jissenOnly && m !== 'jissen') {
       this.toast(`${this.spec.name}の台は実戦のみです。液晶帯の台選びで甘デジに戻すと切り替えられます`);
       return;
     }
@@ -341,15 +330,15 @@ export class App {
 
   // ------------------------------------------------------------ 進行
 
-  /** resetMachine=false ならノーマルの台（保留・確変）を引き継ぐ */
+  /** resetMachine=false ならパチンコの台（保留・確変）を引き継ぐ */
   private startSession(resetMachine = false): void {
     this.endRound();
     this.fx.reset();
-    if (this.practice || resetMachine || this.panel.stopped) {
+    if (this.keiko || resetMachine || this.panel.stopped) {
       this.tutorialCount = 0;
       this.tutorialForced = false;
     }
-    if (this.practice) this.panel.stop();
+    if (this.keiko) this.panel.stop();
     else if (resetMachine || this.panel.stopped) this.panel.reset();
     else {
       this.fx.syncRush(this.panel.rush);
@@ -370,7 +359,7 @@ export class App {
       this.hint('保留の抽選結果を待っています…');
       return;
     }
-    const count = this.practice ? this.s.count : 0;
+    const count = this.keiko ? this.s.count : 0;
     if (count && this.session.answered >= count) {
       this.showSummary();
       return;
@@ -387,7 +376,7 @@ export class App {
     this.input = '';
     this.picked = -1;
     // BONUS・RUSH の4択は、誤答を同じ翻で符だけ違う点数にして符を試す
-    const fuFocus = !this.practice && (this.isRoundQ || this.panel.rush);
+    const fuFocus = !this.keiko && (this.isRoundQ || this.panel.rush);
     this.choices = this.isChoice ? makeChoices(this.q, this.s.rules, Math.random, fuFocus) : [];
     this.setPhase('answering');
     this.startedAt = performance.now();
@@ -416,7 +405,7 @@ export class App {
 
   /** 今の状態に合った曲を流す（BONUS 中は BONUS の曲、RUSH 中は RUSH の曲） */
   private syncBgm(): void {
-    if (this.practice) return;
+    if (this.keiko) return;
     if (this.round) this.fx.bonusBgm(true);
     else if (this.panel.rush && !this.busy) this.fx.syncRush(true);
   }
@@ -424,7 +413,7 @@ export class App {
   /** BONUS の液晶表示（ラウンド・連続の倍率・符の目盛り）。result は直前の回答で光らせるマス */
   private renderBonus(result: { lit?: number | string; miss?: number | string; up?: boolean } = {}): void {
     const r = this.round;
-    if (!r || this.practice) {
+    if (!r || this.keiko) {
       this.panel.bonus(null);
       return;
     }
@@ -503,14 +492,14 @@ export class App {
   }
 
   /**
-   * 計器の BET（ノーマルのみ）。時間は意識させないよう秒数は出さず、
+   * 計器の BET（パチンコのみ）。時間は意識させないよう秒数は出さず、
    * 締切までは定価に取り消し線＋割引額と、下辺の細いバーが静かに減るだけ。締切後は定価に戻る
    */
   private startBetRing(): void {
     cancelAnimationFrame(this.betRaf);
     const el = $('#bet');
     el.classList.remove('expired', 'settled');
-    if (this.practice) {
+    if (this.keiko) {
       el.innerHTML = '';
       return;
     }
@@ -542,7 +531,7 @@ export class App {
   /** 回答後、BET を実際にかかった額に切り替える（通常の問題のみ） */
   private settleBet(correct: boolean, fast: boolean): void {
     cancelAnimationFrame(this.betRaf);
-    if (this.practice || this.isRoundQ) return;
+    if (this.keiko || this.isRoundQ) return;
     const cost = costFor(correct, correct && fast, this.spec);
     const tag = !correct ? '<em class="ng">不正解</em>' : fast ? '<em>速答で割引</em>' : '';
     const el = $('#bet');
@@ -574,9 +563,9 @@ export class App {
     const val = w.querySelector<HTMLElement>('b')!;
     const target = this.wallet.balance;
     w.classList.toggle('low', target < ECONOMY.lowWarn);
-    if (target < ECONOMY.lowWarn && !this.practice && delta < 0) this.tip('low');
+    if (target < ECONOMY.lowWarn && !this.keiko && delta < 0) this.tip('low');
     // yan の使い道を知らせる（初めて届いたとき）
-    if (!this.practice && delta > 0) {
+    if (!this.keiko && delta > 0) {
       if (target >= 1500) this.tip('shop');
       if (target >= SPECS.middle.price && !this.shop.machines.includes('middle')) this.tip('machine');
     }
@@ -630,7 +619,7 @@ export class App {
 
   /** 所持金が尽きたら、保留の抽選をすべて待ってから破産判定 */
   private checkBankrupt(): void {
-    if (this.practice || this.phase === 'summary') return;
+    if (this.keiko || this.phase === 'summary') return;
     if (!isBankrupt(this.wallet)) {
       if (this.awaitingBankrupt) {
         this.awaitingBankrupt = false;
@@ -674,7 +663,7 @@ export class App {
   private startTimer(): void {
     cancelAnimationFrame(this.timerRaf);
     const bar = $('#timer');
-    if (!this.s.timeLimit) {
+    if (!this.s.timeLimit || this.keiko) {
       bar.style.transform = 'scaleX(0)';
       return;
     }
@@ -765,11 +754,7 @@ export class App {
       ss.byCat[cat].c++;
       const { tier, label } = this.tier();
       let extra = '';
-      if (this.practice && this.s.count) {
-        const pts = practiceScore(this.s.mode, true, elapsed);
-        ss.score += pts;
-        extra = `<span class="pts">+${pts}</span><span class="muted">速さ ×${speedMultiplier(this.s.mode, elapsed).toFixed(1)}</span>`;
-      } else if (this.isRoundQ && this.round) {
+      if (this.isRoundQ && this.round) {
         const r = this.round;
         const mult = comboMult(r.combo);
         r.combo++;
@@ -807,13 +792,13 @@ export class App {
           this.tip('roundUp');
         } else if (up) this.tip('ladder');
         this.fx.roundWin(prize, answerEl, $('#net'), () => this.changeBalance(prize, 900));
-      } else if (!this.practice && elapsed <= ECONOMY.fastSeconds[this.s.mode]) {
+      } else if (!this.keiko && elapsed <= ECONOMY.fastSeconds[this.s.mode]) {
         this.tip('fast');
         extra = '<span class="fast-tag">速答</span>';
       }
       $('#result').innerHTML = `<div class="verdict ok"><span class="mark">正解</span><span class="ans">${this.correctText()}</span><span class="muted">${elapsed.toFixed(1)}s</span>${extra}</div>${explain}`;
       const streak = ss.streak;
-      if (!this.practice) {
+      if (!this.keiko) {
         this.fx.hit(streak, answerEl);
         // 正解＝始動口入賞。ラウンド中は台に玉を入れない
         if (!this.isRoundQ) {
@@ -845,23 +830,23 @@ export class App {
       const penalty = this.isRoundQ ? '<span class="punk">パンク（賞金なし）</span>' : '';
       $('#result').innerHTML = `<div class="verdict ng"><span class="mark">不正解</span><span class="yours">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${explain}`;
       this.fx.lose(this.isChoice ? $('#choices') : answerEl, false);
-      if (!this.practice && !this.isRoundQ) {
+      if (!this.keiko && !this.isRoundQ) {
         this.tip('miss');
         // RUSH 中の不正解は ST を1回転消費する（継続が実力で決まる）
         if (this.panel.rush) this.tip('rushMiss');
         this.panel.missSpin();
       }
     }
-    if (!this.practice && !this.isRoundQ) {
+    if (!this.keiko && !this.isRoundQ) {
       const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
       this.settleBet(correct, fast);
       this.changeBalance(-costFor(correct, correct && fast, this.spec));
     }
-    if (!this.practice) this.recordMission(correct, elapsed <= ECONOMY.fastSeconds[this.s.mode], dealer, tsumo);
+    if (!this.keiko) this.recordMission(correct, elapsed <= ECONOMY.fastSeconds[this.s.mode], dealer, tsumo);
     this.renderProgress();
     this.renderInput();
     this.hint(this.compact ? '' : correct ? 'クリック / 任意のキーで次へ' : 'クリック / Enter / Space で次へ');
-    if (!this.practice) this.checkBankrupt();
+    if (!this.keiko) this.checkBankrupt();
     if (this.compact) {
       // 解説の先頭（判定）が見える位置までスクロール
       const main = document.querySelector('main');
@@ -992,23 +977,22 @@ export class App {
 
   private renderProgress(): void {
     const ss = this.session;
-    const total = this.practice && this.s.count ? `/${this.s.count}` : '';
+    const total = this.keiko && this.s.count ? `/${this.s.count}` : '';
     const acc = ss.answered ? Math.round((ss.correct / ss.answered) * 100) : 100;
     $('#progress').innerHTML = `<span>${ss.answered + (this.phase === 'answering' || this.phase === 'suspense' ? 1 : 0)}${total}</span>
       <span class="muted">正答率 ${acc}%</span>
-      <span class="streak${ss.streak >= 20 ? ' holo' : ss.streak >= 10 ? ' ten' : ss.streak >= 5 ? ' mid' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>${this.ballsTag()}
-      ${this.practice && this.s.count ? `<span class="score">SCORE <b>${ss.score.toLocaleString()}</b></span>` : ''}`;
+      <span class="streak${ss.streak >= 20 ? ' holo' : ss.streak >= 10 ? ' ten' : ss.streak >= 5 ? ' mid' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>${this.ballsTag()}`;
   }
 
-  /** 問題数の横に出す「次の正解で入る玉の数」（ノーマルで2個以上のときだけ） */
+  /** 問題数の横に出す「次の正解で入る玉の数」（パチンコで2個以上のときだけ） */
   private ballsTag(): string {
-    if (this.practice) return '';
+    if (this.keiko) return '';
     const n = ballsFor(this.s.mode, this.session.streak + 1);
     if (n < 2) return '';
     return `<span class="balls b${n}" title="次の正解で玉が${n}個入る（電チュー）">${'<i></i>'.repeat(n)}</span>`;
   }
 
-  /** end: 規定問題数の終了 / settle: ノーマルの精算 / bankrupt: 破産 */
+  /** end: 規定問題数の終了 / settle: パチンコの精算 / bankrupt: 破産 */
   private showSummary(kind: 'end' | 'settle' | 'bankrupt' = 'end'): void {
     this.setPhase('summary');
     cancelAnimationFrame(this.timerRaf);
@@ -1017,21 +1001,6 @@ export class App {
     const ss = this.session;
     const acc = ss.answered ? (ss.correct / ss.answered) * 100 : 0;
     const avg = ss.times.length ? ss.times.reduce((a, b) => a + b, 0) / ss.times.length : 0;
-    const scored = this.practice && this.s.count > 0;
-
-    // 自己ベスト（プラクティスはスコア、それ以外は正答率）
-    const key = `${this.s.playMode}:${this.s.mode}:${this.s.count}`;
-    const prev = this.best[key];
-    let newBest = false;
-    if (this.practice && ss.answered) {
-      newBest = scored
-        ? !prev || ss.score > (prev.score ?? 0)
-        : !prev || acc > prev.acc || (acc === prev.acc && avg > 0 && avg < prev.avg);
-      if (newBest) {
-        this.best[key] = { acc, avg, streak: Math.max(ss.maxStreak, prev?.streak ?? 0), score: ss.score };
-        save(BEST_KEY, this.best);
-      }
-    }
 
     const cats = Object.entries(ss.byCat)
       .map(([k, v]) => {
@@ -1053,17 +1022,13 @@ export class App {
     let head = '';
     let stats: string;
     let again = 'もう一度';
-    if (this.practice) {
+    if (this.keiko) {
       stats = [
-        scored ? stat('スコア', ss.score.toLocaleString(), 'hero') : stat('正答率', `${Math.round(acc)}<small>%</small>`),
-        scored ? stat('正答率', `${Math.round(acc)}<small>%</small>`) : stat('問題数', String(ss.answered)),
+        stat('正答率', `${Math.round(acc)}<small>%</small>`, 'hero'),
+        stat('問題数', String(ss.answered)),
         stat('平均回答', `${avg.toFixed(1)}<small>s</small>`),
         stat('最大連続', String(ss.maxStreak)),
       ].join('');
-      if (newBest) head = '<div class="new-best">自己ベスト更新</div>';
-      else if (prev) {
-        head = `<div class="muted small">自己ベスト ${scored ? `${(prev.score ?? 0).toLocaleString()}点` : `${Math.round(prev.acc)}% / ${prev.avg.toFixed(1)}s`}</div>`;
-      }
     } else {
       const diff = this.wallet.balance - ss.startBalance;
       const d = this.panel.machine.data;
@@ -1083,7 +1048,7 @@ export class App {
     }
 
     // 大当り履歴（新しい順。数字は何回転目で当ったか）
-    const log = this.practice ? [] : this.panel.machine.data.log;
+    const log = this.keiko ? [] : this.panel.machine.data.log;
     const logHtml = log.length
       ? `<div class="sum-log"><span class="ex-h">大当り履歴</span>${log
           .map(
@@ -1099,7 +1064,7 @@ export class App {
     sum.innerHTML = `
       ${head}
       <div class="stats">${stats}</div>
-      ${!this.practice ? '<div class="sum-slump"></div>' : ''}
+      ${!this.keiko ? '<div class="sum-slump"></div>' : ''}
       ${logHtml}
       <div class="sum-cols">
         <div><div class="ex-h">状況別 <span class="muted">${weakText}</span></div>${cats}</div>
@@ -1167,7 +1132,7 @@ export class App {
         return;
       }
       if ((e.target as HTMLElement).closest('[data-restart]')) {
-        // プラクティスのやり直し（途中まで答えていたら確認する）
+        // 稽古のやり直し（途中まで答えていたら確認する）
         if (!this.session.answered || confirm('最初からやり直しますか？ ここまでの成績は消えます')) {
           this.toggleConfigSheet(false);
           this.startSession();
@@ -1327,9 +1292,9 @@ export class App {
           intro.innerHTML = introHtml(this.introStep);
           intro.querySelector<HTMLElement>('[data-intro="next"],[data-intro="start"]')?.focus();
           return;
-        case 'practice':
+        case 'keiko':
           intro.close();
-          if (!this.practice) this.update({ playMode: 'practice' });
+          if (!this.keiko) this.update({ playMode: 'keiko' });
           return;
         default:
           intro.close();
@@ -1390,9 +1355,9 @@ export class App {
     }
   }
 
-  /** 初めての出来事なら一言ガイドを出す（ノーマルのみ・各1回） */
+  /** 初めての出来事なら一言ガイドを出す（パチンコのみ・各1回） */
   private tip(id: Exclude<TipId, 'firstHit'>): void {
-    if (this.practice || !this.tips.first(id)) return;
+    if (this.keiko || !this.tips.first(id)) return;
     this.toast(tipText(id, ECONOMY.fastSeconds[this.s.mode], this.spec, this.s.mode), tipLink(id));
   }
 
@@ -1628,12 +1593,6 @@ export class App {
         if (this.blockedInBonus()) return;
         rules.doubleWindPairFu = Number(v) as 2 | 4;
         break;
-      case 'reset':
-        if (confirm('自己ベストを消去しますか？')) {
-          this.best = {};
-          save(BEST_KEY, {});
-        }
-        return;
       case 'tips':
         this.tips.reset();
         this.tipsReset = true;
@@ -1696,9 +1655,8 @@ export class App {
       ${row('ダブル役満', '役満の複合・ダブル役満を認める', 'doubleYakuman', yn, onOff(r.doubleYakuman))}
       ${row('連風牌の雀頭', '場風かつ自風の雀頭', 'doubleWindPairFu', [['2', '2符'], ['4', '4符']], String(r.doubleWindPairFu))}
       <div class="set-sec">記録</div>
-      <div class="set-row"><div><div class="set-label">所持金 ${this.wallet.balance.toLocaleString()} yan</div><div class="set-desc">ノーマルの所持金を ${ECONOMY.initial}yan に戻す（破産 ${this.wallet.bankrupts}回）</div></div><div class="cfg-group"><button class="cfg danger" data-set="wallet" data-v="1">リセット</button></div></div>
+      <div class="set-row"><div><div class="set-label">所持金 ${this.wallet.balance.toLocaleString()} yan</div><div class="set-desc">パチンコの所持金を ${ECONOMY.initial}yan に戻す（破産 ${this.wallet.bankrupts}回）</div></div><div class="cfg-group"><button class="cfg danger" data-set="wallet" data-v="1">リセット</button></div></div>
       <div class="set-row"><div><div class="set-label">一言ガイド</div><div class="set-desc">初めての人向けのヒントをもう一度表示する</div></div><div class="cfg-group"><button class="cfg${this.tipsReset ? ' on' : ''}" data-set="tips" data-v="1">${this.tipsReset ? '表示します' : 'もう一度'}</button></div></div>
-      <div class="set-row"><div><div class="set-label">自己ベスト</div><div class="set-desc">モード・問題数ごとの記録を消去</div></div><div class="cfg-group"><button class="cfg danger" data-set="reset" data-v="1">リセット</button></div></div>
     </div>`;
     const el = dlg.querySelector('.settings');
     if (el) el.scrollTop = scroll;
@@ -1709,8 +1667,8 @@ const SHELL = `
 <header id="top">
   <div class="logo" aria-label="パチふと"><span class="logo-pachi">パチ</span><span class="logo-futo">ふと</span><span class="sub">パチンコ符計算トレーニング</span></div>
   <div class="play-tabs" role="tablist" aria-label="モード">
-    <button class="play-tab" role="tab" data-play="normal">ノーマル</button>
-    <button class="play-tab" role="tab" data-play="practice">プラクティス</button>
+    <button class="play-tab" role="tab" data-play="pachinko">パチンコ</button>
+    <button class="play-tab" role="tab" data-play="keiko">稽古</button>
   </div>
   <div class="top-right">
     <button id="cfg-toggle" class="cfg-pill" type="button" aria-expanded="false" aria-controls="config"></button>

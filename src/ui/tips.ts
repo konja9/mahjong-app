@@ -77,7 +77,7 @@ export function tipText(id: Exclude<TipId, 'firstHit'>, fastSec: number, spec: M
     case 'fast':
       return `速答ボーナス！ ${fastSec}秒以内に正解すると BET が ${costFor(true, true)} yan に割引されます`;
     case 'low':
-      return '所持金が残りわずか。プラクティスなら yan を使わずに練習できます';
+      return '所持金が残りわずか。稽古なら yan を使わずに練習できます';
     case 'denchuSoon':
       return `あと2連で電チュー開放。${MODE_NAME[mode]}は ${ECONOMY.denchu[mode]}連から、正解1回で玉が2個入ります`;
     case 'denchu':

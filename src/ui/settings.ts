@@ -4,10 +4,10 @@ import { load, save } from './storage';
 
 export type EffectLevel = 'off' | 'lite' | 'max';
 export type AnswerStyle = 'choice' | 'input';
-export type PlayMode = 'normal' | 'practice';
+export type PlayMode = 'pachinko' | 'keiko';
 
 export interface Settings {
-  /** 最上位タブ：ノーマル（パチンコ台あり）かプラクティス（演出なし） */
+  /** 最上位タブ：パチンコ（台・yan あり）か稽古（演出なし・数え方の練習） */
   playMode: PlayMode;
   mode: Mode;
   /** 回答方式：4択か数値入力か */
@@ -25,7 +25,7 @@ const reducedMotion =
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export const DEFAULT_SETTINGS: Settings = {
-  playMode: 'normal',
+  playMode: 'pachinko',
   mode: 'hayami',
   answerStyle: 'choice',
   count: 25,
@@ -45,9 +45,16 @@ export function loadSettings(): Settings {
   const { theme: _theme, ...rest } = s as Settings & { theme?: unknown };
   return {
     ...rest,
+    playMode: migratePlayMode(rest.playMode),
     filters: { ...DEFAULT_SETTINGS.filters, ...s.filters },
     rules: { ...DEFAULT_RULES, ...s.rules },
   };
+}
+
+/** 旧バージョンのタブ（ノーマル・プラクティス）を今のタブに読み替える */
+function migratePlayMode(v: unknown): PlayMode {
+  if (v === 'keiko' || v === 'practice') return 'keiko';
+  return 'pachinko';
 }
 
 export function saveSettings(s: Settings): void {
