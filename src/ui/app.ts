@@ -1,6 +1,6 @@
 import { type Choice, makeChoices } from '../core/choices';
 import { type Diagnosis, diagnose, diagnosisText } from '../core/diagnose';
-import { type HandQuestion, type Mode, type Question, generateQuestion } from '../core/generator';
+import { type HandConstraints, type HandQuestion, type Mode, type Question, SHAPE_NAMES, type ShapeFilter, generateQuestion, shapeCall } from '../core/generator';
 import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
 import { EAST } from '../core/tiles';
 import { type BgmTrack, bgm, configureAudio, sfx, unlockAudio } from './audio';
@@ -223,11 +223,35 @@ export class App {
       time: '制限時間',
       seat: '親子',
       win: '和了',
+      call: '鳴き',
+      shape: '形',
+      dist: '分布',
     };
     const group = (name: string, items: [string, string, boolean][]) =>
       `<div class="cfg-group" data-group="${name}"><span class="cfg-label">${LABELS[name]}</span>${items
         .map(([v, label, on]) => `<button class="cfg${on ? ' on' : ''}" data-cfg="${name}" data-v="${v}">${label}</button>`)
         .join('')}</div>`;
+    const kf = s.keikoFilters;
+    const forcedCall = shapeCall(kf.shape);
+    // 稽古の絞り込み（手牌の出る符計算・実戦のみ）
+    const keikoFilter =
+      this.keiko && s.mode !== 'hayami'
+        ? [
+            group('call', [
+              ['any', 'すべて', (forcedCall ?? kf.call) === 'any'],
+              ['menzen', '門前', (forcedCall ?? kf.call) === 'menzen'],
+              ['open', '副露', (forcedCall ?? kf.call) === 'open'],
+            ]),
+            group(
+              'shape',
+              (Object.keys(SHAPE_NAMES) as ShapeFilter[]).map((k) => [k, SHAPE_NAMES[k], kf.shape === k]),
+            ),
+            group('dist', [
+              ['real', '実戦寄り', kf.dist === 'real'],
+              ['even', '均等', kf.dist === 'even'],
+            ]),
+          ]
+        : [];
     $('#config').innerHTML = [
       group(
         'mode',
@@ -258,6 +282,7 @@ export class App {
         ['ron', 'ロン', s.filters.win === 'ron'],
         ['tsumo', 'ツモ', s.filters.win === 'tsumo'],
       ]),
+      ...keikoFilter,
     ]
       .filter(Boolean)
       .join('<span class="cfg-sep"></span>') +
@@ -280,7 +305,8 @@ export class App {
       )
       .join('');
     const count = !this.keiko ? '∞' : s.count ? `${s.count}問` : '∞';
-    $('#cfg-toggle').innerHTML = `<span class="pill-mode">${MODE_NAMES[s.mode]}<span class="dot-sep">·</span></span><span class="pill-answer">${s.answerStyle === 'choice' ? (s.mode === 'fu' ? '選択' : '4択') : '入力'}<span class="dot-sep">·</span></span>${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+    const shape = this.keiko && s.mode !== 'hayami' && s.keikoFilters.shape !== 'any' ? `${SHAPE_NAMES[s.keikoFilters.shape]}<span class="dot-sep">·</span>` : '';
+    $('#cfg-toggle').innerHTML = `<span class="pill-mode">${MODE_NAMES[s.mode]}<span class="dot-sep">·</span></span><span class="pill-answer">${s.answerStyle === 'choice' ? (s.mode === 'fu' ? '選択' : '4択') : '入力'}<span class="dot-sep">·</span></span>${shape}${count}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
   }
 
   private setPhase(phase: Phase): void {
@@ -325,6 +351,20 @@ export class App {
         break;
       case 'win':
         this.update({ filters: { ...this.s.filters, win: v as Settings['filters']['win'] } });
+        break;
+      case 'call': {
+        // 形が鳴きを決めている（七対子・平和・喰い平和）ときに逆を選んだら、形の指定を外す
+        const kf = this.s.keikoFilters;
+        const forced = shapeCall(kf.shape);
+        const shape = forced && forced !== v ? 'any' : kf.shape;
+        this.update({ keikoFilters: { ...kf, call: v as HandConstraints['call'], shape } });
+        break;
+      }
+      case 'shape':
+        this.update({ keikoFilters: { ...this.s.keikoFilters, shape: v as ShapeFilter } });
+        break;
+      case 'dist':
+        this.update({ keikoFilters: { ...this.s.keikoFilters, dist: v as HandConstraints['dist'] } });
         break;
     }
   }
@@ -373,7 +413,7 @@ export class App {
     this.renderBonus();
     // BONUS・RUSH の出題は通常時と同じ分布。超大当りの BONUS だけ役満が出やすい
     const premium = this.isRoundQ && !!this.round?.premium;
-    this.q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, premium);
+    this.q = generateQuestion(this.s.mode, this.s.rules, this.s.filters, Math.random, premium, this.constraints());
     this.input = '';
     this.picked = -1;
     // BONUS・RUSH の4択は、誤答を同じ翻で符だけ違う点数にして符を試す
@@ -402,6 +442,12 @@ export class App {
     // 大当りの時点で音が使えなかった（未操作・音オフから復帰）場合も、問題ごとに曲を合わせ直す
     this.syncBgm();
     if (this.isRoundQ && this.round?.n === 1) this.tip('bonusFu');
+  }
+
+  /** 稽古の絞り込み（パチンコと早見では使わない） */
+  private constraints(): HandConstraints | undefined {
+    if (!this.keiko || this.s.mode === 'hayami') return undefined;
+    return { ...this.s.keikoFilters };
   }
 
   /** 今の状態に合った曲を流す（BONUS 中は BONUS の曲、RUSH 中は RUSH の曲） */

@@ -1,4 +1,4 @@
-import type { Filters, Mode } from '../core/generator';
+import type { Filters, HandConstraints, Mode } from '../core/generator';
 import { DEFAULT_RULES, type Rules } from '../core/rules';
 import { load, save } from './storage';
 
@@ -15,6 +15,8 @@ export interface Settings {
   count: number; // 0 = 無制限
   timeLimit: number; // 秒、0 = なし
   filters: Filters;
+  /** 稽古の出題の絞り込み（符計算・実戦のみ） */
+  keikoFilters: Omit<HandConstraints, 'want'>;
   effects: EffectLevel;
   sound: boolean;
   volume: number; // 0..1
@@ -31,6 +33,7 @@ export const DEFAULT_SETTINGS: Settings = {
   count: 25,
   timeLimit: 0,
   filters: { seat: 'any', win: 'any' },
+  keikoFilters: { call: 'any', shape: 'any', dist: 'real' },
   effects: reducedMotion ? 'lite' : 'max',
   sound: true,
   volume: 0.5,
@@ -47,6 +50,7 @@ export function loadSettings(): Settings {
     ...rest,
     playMode: migratePlayMode(rest.playMode),
     filters: { ...DEFAULT_SETTINGS.filters, ...s.filters },
+    keikoFilters: { ...DEFAULT_SETTINGS.keikoFilters, ...s.keikoFilters },
     rules: { ...DEFAULT_RULES, ...s.rules },
   };
 }
