@@ -1,0 +1,223 @@
+/* ============================================================ チュートリアル（パチふとくんの案内） */
+#tut {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+#tut[hidden] {
+  display: none;
+}
+/* セリフだけの場面は全体を暗くする */
+#tut.tut-say::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.62);
+  pointer-events: auto;
+}
+/* スポットライト：対象の穴の外側を大きな影で暗くする */
+.tut-hole {
+  position: fixed;
+  display: none;
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62), 0 0 0 2px var(--main), 0 0 18px 4px color-mix(in srgb, var(--main) 55%, transparent);
+  transition: left 0.2s, top 0.2s, width 0.2s, height 0.2s;
+  animation: tut-pulse 1.4s ease-in-out infinite;
+}
+#tut.tut-spot .tut-hole:not([hidden]) {
+  display: block;
+}
+@keyframes tut-pulse {
+  50% {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62), 0 0 0 3px var(--main), 0 0 26px 8px color-mix(in srgb, var(--main) 65%, transparent);
+  }
+}
+.tut-finger {
+  position: fixed;
+  display: none;
+  font-size: 34px;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  animation: tut-finger 0.9s ease-in-out infinite;
+}
+#tut.tut-spot .tut-finger:not([hidden]) {
+  display: block;
+}
+.tut-finger.up {
+  transform: translateX(-50%) rotate(180deg);
+}
+@keyframes tut-finger {
+  50% {
+    translate: 0 8px;
+    opacity: 0.75;
+  }
+}
+/* キャラと吹き出し：画面の下（対象が下半分にあるときは上） */
+.tut-ui {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(620px, calc(100vw - 24px));
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: auto;
+  cursor: pointer;
+  animation: tut-in 0.25s ease-out;
+}
+.tut-ui.top {
+  top: calc(64px + env(safe-area-inset-top) + var(--ad-h, 0px));
+  bottom: auto;
+  align-items: flex-start;
+}
+@keyframes tut-in {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+.tut-face {
+  flex: none;
+  width: 84px;
+  height: 100px;
+}
+.tut-face svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+  animation: tut-bob 2.4s ease-in-out infinite;
+}
+@keyframes tut-bob {
+  50% {
+    translate: 0 -3px;
+  }
+}
+.tut-bubble {
+  position: relative;
+  flex: 1;
+  min-height: 72px;
+  padding: 10px 14px 18px;
+  border-radius: 14px;
+  background: #fbf6e6;
+  color: #1b1206;
+  box-shadow: 0 0 0 2px #1b1206, 0 10px 30px rgba(0, 0, 0, 0.45);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.tut-name {
+  display: inline-block;
+  margin-bottom: 2px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: #1b1206;
+  color: #e8c45a;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+.tut-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.tut-more {
+  position: absolute;
+  right: 12px;
+  bottom: 4px;
+  font-size: 11px;
+  opacity: 0;
+}
+#tut.tut-typed:not(.tut-free):not(.tut-next-click):not(.tut-next-answered):not(.tut-next-stepAnswered) .tut-more {
+  opacity: 1;
+  animation: tut-more 0.8s ease-in-out infinite;
+}
+@keyframes tut-more {
+  50% {
+    translate: 0 3px;
+  }
+}
+/* 自由に遊ばせる場面は小さく出し、画面の操作を邪魔しない */
+#tut.tut-free .tut-ui {
+  top: calc(64px + env(safe-area-inset-top) + var(--ad-h, 0px));
+  bottom: auto;
+  width: min(420px, calc(100vw - 24px));
+  pointer-events: none;
+  opacity: 0.95;
+}
+#tut.tut-free .tut-face {
+  width: 48px;
+  height: 58px;
+}
+#tut.tut-free .tut-bubble {
+  min-height: 0;
+  padding: 6px 10px 8px;
+  font-size: 13px;
+}
+.tut-skip {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top) + var(--ad-h, 0px));
+  right: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: auto;
+}
+.tut-menu {
+  position: fixed;
+  top: calc(46px + env(safe-area-inset-top) + var(--ad-h, 0px));
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--sub-bg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+.tut-menu[hidden] {
+  display: none;
+}
+.tut-menu button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+}
+.tut-menu button:hover {
+  background: var(--bg);
+}
+@media (max-width: 640px) {
+  .tut-face {
+    width: 64px;
+    height: 76px;
+  }
+  .tut-bubble {
+    font-size: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tut-hole,
+  .tut-finger,
+  .tut-face svg {
+    animation: none;
+  }
+}
+
+/* 一言ガイド：パチふとくんの小さな顔 */
+.tip-face {
+  flex: none;
+  width: 30px;
+  height: 36px;
+  margin: -4px 0;
+}
+.tip-face svg {
+  width: 100%;
+  height: 100%;
+}

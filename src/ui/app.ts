@@ -1,7 +1,7 @@
 import { type Choice, FU_BUTTONS, makeChoices } from '../core/choices';
 import { type Diagnosis, ELEMENT_NAMES, type FuElement, diagnose, diagnosisText } from '../core/diagnose';
 import { type CallFilter, type HandConstraints, type HandQuestion, type Mode, type Question, generateQuestion } from '../core/generator';
-import { type ScoreResult, checkPointsAnswer, formatAnswer } from '../core/score';
+import { type ScoreResult, calcScore, checkPointsAnswer, formatAnswer } from '../core/score';
 import { EAST } from '../core/tiles';
 import { adPrivacyRequired, showAdPrivacyOptions } from './ads';
 import { buyRemoveAds, onPurchaseChange, purchaseState, restoreRemoveAds } from './purchase';
@@ -32,7 +32,10 @@ import { blocksHtml, doraLabel, handExplain, hayamiExplain, situationChips, situ
 import { type Settings, loadSettings, saveSettings } from './settings';
 import { type ConfigView, configPanelHtml, configSummaryHtml, keikoTabsHtml } from './configPanel';
 import { type HelpTab, helpHtml } from './help';
-import { introHtml, introSeen, markIntroSeen } from './intro';
+import { introSeen } from './intro';
+import { Tutorial, tutorialDone } from './tutorial/runner';
+import { charaSvg } from './tutorial/chara';
+import type { ChapterId, TutorialAction } from './tutorial/script';
 import { SPECS } from './machine/specs';
 import { dateKey, ensureToday, recordAnswer } from './missions';
 import { renderOdometer } from './odometer';
@@ -143,13 +146,18 @@ export class App {
   /** 回答を止めている理由（台の発展リーチ・大当り、ダイアログ） */
   private pauses = new Set<string>();
   private tips = new Tips();
-  private tipQueue: { text: string; link?: { tab: HelpTab; card: string } | null }[] = [];
+  private tipQueue: { text: string; link?: { tab: HelpTab; card: string } | null; chara?: boolean }[] = [];
   private tipTimer = 0;
   private tipShownAt = 0;
   /** まだ大当りしたことがない人向けのチュートリアル当り */
   private tutorialCount = 0;
   private tutorialForced = false;
-  private introStep = 0;
+  /** パチふとくんのチュートリアル */
+  private tut!: Tutorial;
+  /** チュートリアル中は BET をとらず、ミッション・記録にも数えない */
+  private tutFree = false;
+  /** チュートリアル：あと何問正解したら大当りにするか（0 はなし） */
+  private tutJackpotIn = 0;
   private helpTab: HelpTab = 'basic';
   private tipsReset = false;
   /** 交換所（台・景品・ミッション） */
@@ -182,7 +190,9 @@ export class App {
     this.renderConfig();
     this.bind();
     this.startSession();
-    if (!introSeen()) this.openIntro();
+    this.tut = new Tutorial({ act: (a) => this.tutAct(a), onActive: (on) => this.tutActive(on), idle: () => !this.round });
+    // 初めて開いたときだけ、全部の章を自動で再生する（以前の導入を見た人は除く）
+    if (!introSeen() && !tutorialDone().length) this.playTutorial(['prologue', 'pachinko', 'keiko', 'tools']);
   }
 
   // ------------------------------------------------------------ 設定
@@ -523,6 +533,7 @@ export class App {
   private startRound(premium: boolean): Promise<JackpotResult> {
     return new Promise((resolve) => {
       this.round = { n: 0, total: 0, combo: 0, extra: 0, perfect: true, premium, resolve };
+      queueMicrotask(() => this.tut.notify('bonusStart'));
       this.tips.first('firstHit');
       // 回答待ちの問題があれば、その問題を ROUND 1 にする（BET なし・賞金あり）。
       // 回答済みなら次の問題から ROUND 1
@@ -554,6 +565,8 @@ export class App {
     this.isRoundQ = false;
     document.body.classList.remove('bonus');
     this.panel.bonus(null);
+    this.tut.notify('bonusEnd');
+    this.tut.notify('idle');
     if (r.perfect) {
       this.shop.stats.perfectBonus++;
       this.tip('uwanose');
@@ -813,6 +826,7 @@ export class App {
     const typed = this.stepTyped;
     run.answer(typed ? this.input : st.options[this.picked].value, typed);
     this.renderSteps();
+    queueMicrotask(() => this.tut.notify('stepAnswered'));
     if (run.done) return false;
     this.input = '';
     this.picked = -1;
@@ -847,7 +861,7 @@ export class App {
           ? this.choices[this.picked].label
           : this.input;
     const diag = correct || timeout || this.steps ? [] : this.diagnose();
-    this.recordKeiko(correct, diag);
+    if (!this.tutFree) this.recordKeiko(correct, diag);
 
     if (correct) {
       ss.correct++;
@@ -904,6 +918,11 @@ export class App {
         // 正解＝始動口入賞。ラウンド中は台に玉を入れない
         if (!this.isRoundQ) {
           this.tutorialHit();
+          // チュートリアル：決めた数だけ正解したら大当り（設定から見直すときも BONUS まで見せる）
+          if (this.tutJackpotIn > 0 && --this.tutJackpotIn === 0 && !this.tutorialForced) {
+            this.tutorialForced = true;
+            this.panel.machine.forceNextHit();
+          }
           // 連続正解で電チュー開放（玉が2個入る）。開いた瞬間だけ告知する
           const balls = ballsFor(this.s.mode, ss.streak);
           const opened = balls > ballsFor(this.s.mode, ss.streak - 1);
@@ -939,16 +958,18 @@ export class App {
         this.panel.missSpin();
       }
     }
-    if (!this.keiko && !this.isRoundQ) {
+    // チュートリアルの問題は BET をとらず、ミッションにも数えない
+    if (!this.keiko && !this.isRoundQ && !this.tutFree) {
       const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
       this.settleBet(correct, fast);
       this.changeBalance(-costFor(correct, correct && fast, this.spec));
     }
-    if (!this.keiko) this.recordMission(correct, elapsed <= ECONOMY.fastSeconds[this.s.mode], dealer, tsumo);
+    if (!this.keiko && !this.tutFree) this.recordMission(correct, elapsed <= ECONOMY.fastSeconds[this.s.mode], dealer, tsumo);
     this.renderProgress();
     this.renderInput();
     this.hint(this.compact ? '' : correct ? 'クリック / 任意のキーで次へ' : 'クリック / Enter / Space で次へ');
     if (!this.keiko) this.checkBankrupt();
+    this.tut.notify('answered');
     if (this.compact) {
       // 解説の先頭（判定）が見える位置までスクロール
       const main = document.querySelector('main');
@@ -1058,7 +1079,8 @@ export class App {
         const cls = done ? (c.correct ? ' is-correct' : i === this.picked ? ' is-wrong' : ' is-dim') : '';
         const pts = this.steps ? this.steps.shown.input === 'points' : this.q.mode !== 'fu';
         const unit = !pts || c.label.endsWith('オール') ? '' : '<span class="unit">点</span>';
-        return `<button class="choice${cls}" data-choice="${i}"${done ? ' disabled' : ''}><kbd>${i + 1}</kbd><span class="label">${c.label}</span>${unit}</button>`;
+        const tut = this.tut?.active && c.correct ? ' data-tut="correct"' : '';
+        return `<button class="choice${cls}" data-choice="${i}"${tut}${done ? ' disabled' : ''}><kbd>${i + 1}</kbd><span class="label">${c.label}</span>${unit}</button>`;
       })
       .join('');
   }
@@ -1466,28 +1488,6 @@ export class App {
   // ------------------------------------------------------------ 初回導入・遊び方・一言ガイド
 
   private bindGuide(): void {
-    const intro = $<HTMLDialogElement>('#intro-dialog');
-    intro.addEventListener('click', (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-intro]');
-      if (!b) return;
-      switch (b.dataset.intro) {
-        case 'next':
-          this.introStep++;
-          intro.innerHTML = introHtml(this.introStep);
-          intro.querySelector<HTMLElement>('[data-intro="next"],[data-intro="start"]')?.focus();
-          return;
-        case 'keiko':
-          intro.close();
-          if (!this.keiko) this.update({ playMode: 'keiko' });
-          return;
-        default:
-          intro.close();
-      }
-    });
-    intro.addEventListener('close', () => {
-      markIntroSeen();
-      this.pause('intro', false);
-    });
     const help = $<HTMLDialogElement>('#help-dialog');
     help.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
@@ -1514,13 +1514,71 @@ export class App {
     });
   }
 
-  private openIntro(): void {
-    const dlg = $<HTMLDialogElement>('#intro-dialog');
-    this.introStep = 0;
-    dlg.innerHTML = introHtml(0);
-    this.pause('intro', true);
-    if (!dlg.open) dlg.showModal();
-    dlg.querySelector<HTMLElement>('[data-intro="next"]')?.focus();
+  // ------------------------------------------------------------ チュートリアル（パチふとくん）
+
+  playTutorial(ids: ChapterId[]): void {
+    for (const d of document.querySelectorAll<HTMLDialogElement>('dialog[open]')) d.close();
+    this.toggleConfigSheet(false);
+    this.tut.play(ids);
+  }
+
+  private tutActive(on: boolean): void {
+    document.body.classList.toggle('tutorial', on);
+    if (!on) {
+      this.tutFree = false;
+      this.tutJackpotIn = 0;
+      this.renderInput();
+    }
+  }
+
+  /** 台本の「画面の準備」 */
+  private tutAct(a: TutorialAction): void {
+    switch (a) {
+      case 'pachinko':
+        if (this.round) return;
+        if (this.keiko || this.s.answerStyle !== 'choice' || (this.s.mode !== 'hayami' && !this.spec.jissenOnly)) {
+          this.update({ playMode: 'pachinko', answerStyle: 'choice', ...(this.spec.jissenOnly ? {} : { mode: 'hayami' as Mode }) });
+        }
+        return;
+      case 'freeBet':
+        this.tutFree = true;
+        return;
+      case 'paidBet':
+        this.tutFree = false;
+        return;
+      case 'fixedQuestion': {
+        // 1翻30符・子のロン（1000点）：最初に覚える基本の1問
+        this.q = { mode: 'hayami', han: 1, fu: 30, dealer: false, tsumo: false, score: calcScore(1, 30, false, false, this.s.rules) };
+        this.steps = null;
+        this.input = '';
+        this.picked = -1;
+        this.choices = makeChoices(this.q, this.s.rules);
+        this.setPhase('answering');
+        this.startedAt = performance.now();
+        $('#result').innerHTML = '';
+        $('#stage').classList.remove('correct', 'wrong');
+        this.syncAnswerAttr();
+        this.renderSteps();
+        this.renderQuestion();
+        this.renderInput();
+        this.renderProgress();
+        return;
+      }
+      case 'armJackpot':
+        this.tutJackpotIn = 2;
+        return;
+      case 'nextQuestion':
+        if (this.phase === 'result') {
+          this.fx.skip();
+          this.next();
+        }
+        return;
+      case 'keikoFocus':
+        if (this.s.keikoStudy !== 'focus' || this.s.keikoSource !== 'normal' || this.s.answerStyle !== 'choice') {
+          this.update({ keikoStudy: 'focus', keikoSource: 'normal', answerStyle: 'choice' });
+        }
+        return;
+    }
   }
 
   /** ヘルプを開く。card を渡すとそのカードまでスクロールして光らせる */
@@ -1542,11 +1600,14 @@ export class App {
   /** 初めての出来事なら一言ガイドを出す（パチンコのみ・各1回） */
   private tip(id: Exclude<TipId, 'firstHit'>): void {
     if (this.keiko || !this.tips.first(id)) return;
-    this.toast(tipText(id, ECONOMY.fastSeconds[this.s.mode], this.spec, this.s.mode), tipLink(id));
+    // チュートリアル中はパチふとくんが直接案内しているので、一言ガイドは出さない（見たことにする）
+    if (this.tut?.active) return;
+    this.toast(tipText(id, ECONOMY.fastSeconds[this.s.mode], this.spec, this.s.mode), tipLink(id), true);
   }
 
-  private toast(text: string, link: { tab: HelpTab; card: string } | null = null): void {
-    this.tipQueue.push({ text, link });
+  /** 画面上端の一言。chara なら一言ガイド（パチふとくんの顔つき） */
+  private toast(text: string, link: { tab: HelpTab; card: string } | null = null, chara = false): void {
+    this.tipQueue.push({ text, link, chara });
     if ($('#tip').hidden) this.nextTip();
     else {
       // 続けて起きたときは、今のガイドを最低限読める時間だけ出して次へ
@@ -1564,7 +1625,8 @@ export class App {
       return;
     }
     const more = item.link ? `<button class="tip-more" type="button" data-tip-more="${item.link.tab}:${item.link.card}">詳しく</button>` : '';
-    el.innerHTML = `<span class="tip-label">TIPS</span><span class="tip-text">${item.text}</span>${more}`;
+    const label = item.chara ? `<span class="tip-face">${charaSvg('neutral')}</span>` : '<span class="tip-label">TIPS</span>';
+    el.innerHTML = `${label}<span class="tip-text">${item.text}</span>${more}`;
     el.hidden = false;
     el.classList.remove('show');
     void el.offsetWidth;
@@ -1790,6 +1852,10 @@ export class App {
         this.tips.reset();
         this.tipsReset = true;
         return;
+      case 'tutorial':
+        if (this.blockedInBonus()) return;
+        this.playTutorial(v === 'all' ? ['prologue', 'pachinko', 'keiko', 'tools'] : [v as ChapterId]);
+        return;
       case 'keiko':
         if (confirm('稽古の記録（復習の手と、要素別の正答率）を消去しますか？')) {
           this.kd = { reviews: [], elements: {} };
@@ -1881,6 +1947,7 @@ export class App {
       <div class="set-sec">記録</div>
       <div class="set-row"><div><div class="set-label">所持金 ${this.wallet.balance.toLocaleString()} yan</div><div class="set-desc">パチンコの所持金を ${ECONOMY.initial}yan に戻す（破産 ${this.wallet.bankrupts}回）</div></div><div class="cfg-group"><button class="cfg danger" data-set="wallet" data-v="1">リセット</button></div></div>
       <div class="set-row"><div><div class="set-label">稽古の記録</div><div class="set-desc">復習の手 ${this.kd.reviews.length}問と、要素別の正答率を消去</div></div><div class="cfg-group"><button class="cfg danger" data-set="keiko" data-v="1">リセット</button></div></div>
+      <div class="set-row"><div><div class="set-label">チュートリアル</div><div class="set-desc">パチふとくんの案内をもう一度見る</div></div><div class="cfg-group"><button class="cfg" data-set="tutorial" data-v="all">全部</button><button class="cfg" data-set="tutorial" data-v="pachinko">パチンコ</button><button class="cfg" data-set="tutorial" data-v="keiko">稽古</button><button class="cfg" data-set="tutorial" data-v="tools">道具</button></div></div>
       <div class="set-row"><div><div class="set-label">一言ガイド</div><div class="set-desc">初めての人向けのヒントをもう一度表示する</div></div><div class="cfg-group"><button class="cfg${this.tipsReset ? ' on' : ''}" data-set="tips" data-v="1">${this.tipsReset ? '表示します' : 'もう一度'}</button></div></div>
       ${this.adSettingsHtml()}
       <div class="set-sec">このアプリについて</div>
@@ -1948,6 +2015,5 @@ const SHELL = `
 <dialog id="settings-dialog"></dialog>
 <dialog id="help-dialog"></dialog>
 <dialog id="shop-dialog"></dialog>
-<dialog id="intro-dialog" class="intro-dialog"></dialog>
 ${TILE_DEFS}
 `;

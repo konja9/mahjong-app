@@ -8,6 +8,7 @@ import '@fontsource/jetbrains-mono/latin-700.css';
 import '@fontsource/jetbrains-mono/latin-800.css';
 import './styles/main.css';
 import './styles/cabinet.css';
+import './styles/tutorial.css';
 import { App } from './ui/app';
 import { audioLevel, bgm } from './ui/audio';
 import { setupNative } from './ui/native';

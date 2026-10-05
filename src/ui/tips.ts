@@ -61,45 +61,48 @@ export class Tips {
   }
 }
 
-/** 一言ガイドの文面。数値は ECONOMY と台の仕様から組み立てる */
+/**
+ * 一言ガイドの文面。案内役のパチふとくんの口調（「〜だぜ」「クケケ」）で話す。
+ * 数値は ECONOMY と台の仕様から組み立てる
+ */
 export function tipText(id: Exclude<TipId, 'firstHit'>, fastSec: number, spec: MachineSpec = SPECS.ama, mode: Mode = 'jissen'): string {
   switch (id) {
     case 'enter':
-      return '正解すると台に玉が入り、保留ランプが1つ点きます。保留があるかぎり台は自動で回ります';
+      return '正解したから玉が入ったぜ。保留ランプが点いてる間は、台が勝手に回る';
     case 'reach':
-      return 'リーチ！ 真ん中もそろえば大当り。保留や予告の色が熱いほど期待大';
+      return 'リーチだ！ 真ん中もそろえば大当り。保留や予告の色が熱いほど期待できるぜ';
     case 'jackpot':
-      return `大当り！ ここから${spec.rounds}問は BONUS。BET なしで、符の高い手ほど賞金。連続正解で倍率アップ`;
+      return `大当りだ！ ここから${spec.rounds}問は BONUS。BET なしで、符の高い手ほど賞金がデカいぜ`;
     case 'rush':
-      return `RUSH 突入！ ${spec.st}回転のあいだ大当り確率 1/${spec.rushOdds}。液晶帯の「残り」が ST。不正解でも1回転減ります`;
+      return `RUSH 突入だ！ ${spec.st}回転のあいだ大当り 1/${spec.rushOdds}。外すと回転が減るから、腕で引っぱりな`;
     case 'miss':
-      return `不正解は BET と合わせて −${costFor(false, false)} yan。連続正解も切れます。解説を読んで次の問題へ`;
+      return `外したな。BET と合わせて −${costFor(false, false)} yan、連続正解も切れる。解説を読んで取り返しな`;
     case 'fast':
-      return `速答ボーナス！ ${fastSec}秒以内に正解すると BET が ${costFor(true, true)} yan に割引されます`;
+      return `速いじゃねえか。${fastSec}秒以内の正解は BET が ${costFor(true, true)} yan に割引だぜ`;
     case 'low':
-      return '所持金が残りわずか。稽古なら yan を使わずに練習できます';
+      return '所持金がヤバいぜ。稽古なら yan を使わずに数え方を叩き込めるぞ';
     case 'denchuSoon':
-      return `あと2連で電チュー開放。${MODE_NAME[mode]}は ${ECONOMY.denchu[mode]}連から、正解1回で玉が2個入ります`;
+      return `あと2連で電チュー開放だ。${MODE_NAME[mode]}は ${ECONOMY.denchu[mode]}連から、正解1回で玉が2個入るぜ`;
     case 'denchu':
-      return '電チュー開放！ 外すまで正解1回で玉が2個。問題数の横の ●● が目印です';
+      return '電チュー開放！ 外すまで正解1回で玉2個だ。問題数の横の ●● が目印だぜ';
     case 'bonusFu':
-      return 'BONUS の賞金は、正解した手の「符」で決まります。液晶帯の目盛りで確認できます';
+      return 'BONUS の賞金は、正解した手の「符」のマスで決まる。液晶帯の目盛りを見な';
     case 'ladder':
-      return `連続正解で賞金の倍率が上がります（${ECONOMY.comboLadder.map((m) => `×${m}`).join(' → ')}）`;
+      return `連続正解で倍率が上がるぜ（${ECONOMY.comboLadder.map((m) => `×${m}`).join(' → ')}）。外すと戻る`;
     case 'bonusMiss':
-      return 'パンク（賞金なし）。連続の倍率が ×1 に戻り、全問正解の上乗せもなくなります';
+      return 'パンクだ、その問題の賞金はなし。連続の倍率も戻って、全問正解の上乗せも消えたぜ';
     case 'roundUp':
-      return '満貫以上を正解したのでラウンド上乗せ。BONUS の問題が増えます';
+      return '満貫以上を当てたから、ラウンド上乗せだ。BONUS の問題が増えるぜ';
     case 'uwanose':
-      return '全問正解！ ラウンドの賞金に上乗せ抽選があります';
+      return '全問正解だ！ クケケ、上乗せ抽選があるぜ';
     case 'rushMiss':
-      return 'RUSH 中の不正解は ST が1回転減ります。正解し続けるほど RUSH が長く続きます';
+      return 'RUSH 中に外すと回転が1つ減る。当て続けるほど RUSH が長く続くぜ';
     case 'shop':
-      return '交換所（右上の景品のアイコン）で称号・スキン・BGM が買えます';
+      return '交換所（右上の景品のアイコン）で称号・スキン・BGM が買えるぜ。格を見せつけな';
     case 'machine':
-      return `ミドル台を解放できる所持金になりました（${SPECS.middle.price.toLocaleString()} yan）。液晶帯の台の名前をタップ`;
+      return `ミドル台を解放できるだけ稼いだな（${SPECS.middle.price.toLocaleString()} yan）。液晶帯の台の名前をタップだ`;
     case 'mission':
-      return 'ミッションは毎日3つ。計器の上の帯をタップすると一覧が見られます';
+      return 'ミッションは毎日3つ。計器の上の帯をタップすりゃ一覧が見られるぜ';
   }
 }
 
