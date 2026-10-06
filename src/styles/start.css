@@ -26,9 +26,16 @@ body.start-open {
   text-align: center;
 }
 .st-logo {
-  width: min(400px, 100%);
-  margin: 0 0 6px;
+  width: min(300px, 78%);
+  margin: 0 0 8px;
   line-height: 0;
+}
+/* 低い画面ではロゴを小さく */
+@media (max-height: 700px) {
+  .st-logo {
+    width: min(196px, 56%);
+    margin-bottom: 4px;
+  }
 }
 .st-logo svg {
   width: 100%;

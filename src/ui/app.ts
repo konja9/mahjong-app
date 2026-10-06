@@ -2147,7 +2147,7 @@ const ALL_CHAPTERS: ChapterId[] = ['prologue', 'pachinko', 'keiko', 'tools'];
 
 const SHELL = `
 <header id="top">
-  <div class="logo" role="button" tabindex="0" aria-label="パチふと（スタート画面へ）">${logoSvg({ sub: false, glow: false })}<span class="sub">パチンコ符計算トレーニング</span></div>
+  <div class="logo" role="button" tabindex="0" aria-label="パチふと（スタート画面へ）">${logoSvg({ layout: 'wide', sub: false })}<span class="sub">パチンコ符計算トレーニング</span></div>
   <div class="play-tabs" role="tablist" aria-label="モード">
     <button class="play-tab" role="tab" data-play="pachinko">パチンコ</button>
     <button class="play-tab" role="tab" data-play="keiko">稽古</button>

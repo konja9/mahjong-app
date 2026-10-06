@@ -65,7 +65,7 @@ export function startHtml(v: StartView): string {
     ? `<button class="st-link" type="button" data-start="skip">チュートリアルをとばす</button>`
     : `<button class="st-link" type="button" data-start="tutorial">チュートリアルを見る</button>`;
   return `<div class="st-inner">
-    <h1 class="st-logo">${logoSvg()}</h1>
+    <h1 class="st-logo">${logoSvg({ layout: 'stack' })}</h1>
     ${v.first ? '' : `<p class="st-lv">Lv <b>${v.level}</b>${v.cleared ? '　物語 <b>完結</b>' : ''}</p>`}
     <div class="st-chara"><div class="st-face">${charaSvg('grin')}</div><p class="st-say">${say}</p></div>
     <div class="st-buttons">
