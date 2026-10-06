@@ -20,6 +20,10 @@ export interface Suspense {
   push: Push;
   /** リールがそろうか（= 正解か） */
   hit: boolean;
+  /** パチふとくんリーチ（スペシャルリーチ）に発展する */
+  sp?: boolean;
+  /** 復活演出：一度外れたように止まってから当りに戻る（当りのときだけ） */
+  revive?: boolean;
 }
 
 export interface SuspenseInput {
@@ -82,7 +86,52 @@ export function drawSuspense(inp: SuspenseInput, rng: Rng = Math.random): Suspen
     ? weighted(rng, [['none', 45], ['normal', 33], ['gold', 22]] as const)
     : weighted(rng, [['none', 68], ['normal', 32]] as const);
 
-  return { kind: 'reel', cutin, pseudo, push, hit: inp.correct };
+  // パチふとくんリーチ：熱いカットインほど発展しやすい。当りのときの割合を高くして信頼度を上げる
+  const hotCut = cutin === 'gold' || cutin === 'zebra' || cutin === 'rainbow';
+  const sp = rng() < (inp.correct ? (hotCut ? 0.45 : 0.18) : hotCut ? 0.25 : 0.04);
+  // 復活は当りのときだけ（確定演出）
+  const revive = inp.correct && rng() < 0.12;
+  return { kind: 'reel', cutin, pseudo, push, hit: inp.correct, sp, revive };
+}
+
+/** パチふとくん予告の吹き出しの色。white < red < gold < rainbow（虹は当りのときだけ） */
+export type CharaColor = 'white' | 'red' | 'gold' | 'rainbow';
+
+/**
+ * 回転開始時のパチふとくん予告（キャラの予告）。出さないときは null。
+ * 抽選結果は入賞時に決まっているので、当りかどうか（hit）で吹き出しの色の重みを変える
+ */
+export function drawCharaNotice(
+  lamp: number,
+  hit: boolean,
+  kakuhen: boolean,
+  level: EffectLevel,
+  rng: Rng = Math.random,
+): CharaColor | null {
+  if (level === 'off') return null;
+  const p = (hit ? 0.3 : 0.06) + lamp * 0.04 + (kakuhen ? 0.05 : 0);
+  if (rng() >= p) return null;
+  return hit
+    ? weighted(rng, [
+        ['white', 18],
+        ['red', 30 + lamp * 4],
+        ['gold', 26 + lamp * 5],
+        ['rainbow', 8 + (lamp >= 4 ? 30 : 0)],
+      ] as const)
+    : weighted(rng, [
+        ['white', 64],
+        ['red', 30],
+        ['gold', 6 + lamp * 2],
+      ] as const);
+}
+
+/**
+ * 保留変化：赤以上の保留を、ときどき低い色で点けておく（回る直前に本当の色に変える）。
+ * 低く見せる色を返す。変化させないときは null
+ */
+export function drawHoldDisguise(color: number, level: EffectLevel, rng: Rng = Math.random): number | null {
+  if (level !== 'max' || color < 2 || rng() >= 0.35) return null;
+  return rng() < 0.6 ? color - 1 : 0;
 }
 
 /** 問題表示時の予告（回答前なので正誤は使わない） */

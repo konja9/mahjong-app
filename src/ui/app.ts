@@ -5,7 +5,9 @@ import { type ScoreResult, calcScore, checkPointsAnswer, formatAnswer } from '..
 import { EAST } from '../core/tiles';
 import { adPrivacyRequired, showAdPrivacyOptions } from './ads';
 import { buyRemoveAds, onPurchaseChange, purchaseState, restoreRemoveAds } from './purchase';
+import { type TalkEvent, Talker, correctEvent } from './charaTalk';
 import { type BgmTrack, bgm, configureAudio, sfx, suspendAudio, unlockAudio } from './audio';
+import { LevelUpFx } from './effects/levelup';
 import { Fx, type WinTier } from './effects/pachinko';
 import type { EffectLevel } from './effects/performance';
 import {
@@ -54,6 +56,8 @@ import {
   saveDaily,
   saveLevel,
   unreadChapters,
+  type PendingLevelUp,
+  mergeLevelUp,
 } from './level';
 import { STORY, storyChapterHtml, storyIndexHtml } from './story';
 import { renderOdometer } from './odometer';
@@ -123,6 +127,9 @@ function scoreOf(q: Question): ScoreResult {
 
 /** 音量の表示（0 は「オフ」） */
 const volLabel = (v: number): string => (v <= 0 ? 'オフ' : String(Math.round(v * 100)));
+
+/** 答えないままこの時間がたったら、パチふとくんが一言（ミリ秒） */
+const IDLE_TALK_MS = 20000;
 export class App {
   private s: Settings = loadSettings();
   private session = newSession();
@@ -210,6 +217,8 @@ export class App {
         if (!this.keiko && !this.busy && !this.round) this.openShop('machine');
       },
       onEvent: (e) => this.tip(e),
+      onTalk: (e) => this.talk(e),
+      onCharaTap: () => this.talk('tap'),
     });
     this.panel.machine.spec = this.spec;
     if (this.spec.jissenOnly && this.s.mode !== 'jissen') this.s = { ...this.s, mode: 'jissen' };
@@ -344,6 +353,24 @@ export class App {
   private setPhase(phase: Phase): void {
     this.phase = phase;
     document.body.dataset.phase = phase;
+    // 長考：答えないまましばらくたったら、パチふとくんが一言
+    clearTimeout(this.idleTimer);
+    if (phase === 'answering' && !this.keiko && !this.isRoundQ) {
+      this.idleTimer = window.setTimeout(() => {
+        if (this.phase === 'answering' && !this.pausedAt) this.talk('idle');
+      }, IDLE_TALK_MS);
+    }
+  }
+
+  private idleTimer = 0;
+  private talker = new Talker();
+
+  /** 液晶帯のパチふとくんを反応させる（パチンコの通常時だけ。演出がオフなら表情だけ） */
+  private talk(ev: TalkEvent): void {
+    if (this.keiko || this.tut?.active || this.start?.shown || !this.panel) return;
+    const r = this.talker.react(ev, performance.now(), this.s.effects !== 'off');
+    if (r.line) this.panel.say(r.line, r.face);
+    else this.panel.face(r.face);
   }
 
   private get compact(): boolean {
@@ -729,6 +756,12 @@ export class App {
     saveLevel(this.lv);
     this.renderExpStrip(ups.length > 0);
     if (!ups.length) return;
+    // 演出があるときは、全画面の Lv アップ演出を、台が落ち着いたところで出す
+    if (this.s.effects !== 'off') {
+      this.pendingLevel = mergeLevelUp(this.pendingLevel, ups);
+      this.watchLevelUp();
+      return;
+    }
     const lv = ups[ups.length - 1];
     if (ups.includes(FINAL_LEVEL)) {
       this.toast(`Lv ${FINAL_LEVEL}！ パチふとくんの記憶がすべて戻った。最終話「${STORY[FINAL_LEVEL - 1].title}」で物語は完結だ`, null, true, FINAL_LEVEL);
@@ -736,6 +769,49 @@ export class App {
       this.toast(`Lv ${lv}！ パチふとくんの記憶が戻ってきた。第${lv}話「${STORY[lv - 1].title}」が読める`, null, true, lv);
     } else this.toast(`Lv ${lv}！`, null, true);
     this.tip('levelUp');
+  }
+
+  private pendingLevel: PendingLevelUp | null = null;
+  private levelUpTimer = 0;
+  private levelUp = new LevelUpFx(() => (this.s.effects === 'max' && !this.keiko ? 'max' : 'lite'));
+
+  /** Lv アップの演出を出せるときまで待つ（BONUS・発展リーチ・スタート画面・チュートリアル・ダイアログの間は待つ） */
+  private watchLevelUp(): void {
+    if (this.levelUpTimer) return;
+    const check = () => {
+      if (!this.pendingLevel || this.levelUp.shown) {
+        clearInterval(this.levelUpTimer);
+        this.levelUpTimer = 0;
+        return;
+      }
+      const blocked =
+        !!this.round ||
+        this.busy ||
+        this.phase === 'suspense' ||
+        this.start.shown ||
+        this.tut.active ||
+        document.querySelector('dialog[open]') !== null;
+      if (blocked) return;
+      clearInterval(this.levelUpTimer);
+      this.levelUpTimer = 0;
+      void this.showLevelUp();
+    };
+    // 正解の演出（火花・役名）を見てから出す
+    this.levelUpTimer = window.setInterval(check, 700);
+  }
+
+  private async showLevelUp(): Promise<void> {
+    const p = this.pendingLevel;
+    if (!p) return;
+    this.pendingLevel = null;
+    const final = p.from < FINAL_LEVEL && p.to >= FINAL_LEVEL;
+    const n = Math.min(p.to, FINAL_LEVEL);
+    const chapter = p.to <= FINAL_LEVEL || final ? { n, title: STORY[n - 1].title } : null;
+    this.pause('levelup', true);
+    const read = await this.levelUp.show({ from: p.from, to: p.to, chapter, final });
+    this.pause('levelup', false);
+    if (read && chapter) this.openStory(chapter.n);
+    else this.tip('levelUp');
   }
 
   /** 所持金の増減（計器の数字が回り、差額が浮き上がる） */
@@ -750,7 +826,10 @@ export class App {
     const val = w.querySelector<HTMLElement>('b')!;
     const target = this.wallet.balance;
     w.classList.toggle('low', target < ECONOMY.lowWarn);
-    if (target < ECONOMY.lowWarn && !this.keiko && delta < 0) this.tip('low');
+    if (target < ECONOMY.lowWarn && !this.keiko && delta < 0) {
+      this.tip('low');
+      this.talk('lowMoney');
+    }
     // yan の使い道を知らせる（初めて届いたとき）
     if (!this.keiko && delta > 0) {
       if (target >= 1500) this.tip('shop');
@@ -1004,6 +1083,9 @@ export class App {
       }
       $('#result').innerHTML = `<div class="verdict ok"><span class="mark">正解</span><span class="ans">${this.correctText()}</span><span class="muted">${elapsed.toFixed(1)}s</span>${extra}</div>${explain}`;
       const streak = ss.streak;
+      if (!this.isRoundQ) {
+        this.talk(correctEvent({ streak, big: !!scoreOf(this.q).limit, fast: elapsed <= ECONOMY.fastSeconds[this.s.mode] }));
+      }
       // パチンコの通常の問題の正解でも、経験値を少しだけ入れる（BONUS は賞金の分が入る）
       if (!this.keiko && !this.isRoundQ) this.gainExp(PACHINKO_EXP);
       if (!this.keiko) {
@@ -1047,6 +1129,7 @@ export class App {
       $('#result').innerHTML = `<div class="verdict ${close ? 'close' : 'ng'}"><span class="mark">${close ? 'おしい！' : '不正解'}</span><span class="${this.steps ? 'muted' : 'yours'}">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${diagHtml}${explain}`;
       this.fx.lose(this.isChoice ? $('#choices') : answerEl, false);
       if (!this.keiko && !this.isRoundQ) {
+        this.talk(diag.length ? 'nearMiss' : 'miss');
         this.tip('miss');
         // RUSH 中の不正解は ST を1回転消費する（継続が実力で決まる）
         if (this.panel.rush) this.tip('rushMiss');

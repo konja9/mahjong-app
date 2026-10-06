@@ -72,6 +72,19 @@ export function addExp(s: LevelState, n: number): number[] {
   return Array.from({ length: after - before }, (_, i) => before + 1 + i);
 }
 
+/** Lv アップの演出の待ち（まとめて上がったら最初の Lv から最後の Lv までを1回で見せる） */
+export interface PendingLevelUp {
+  from: number;
+  to: number;
+}
+
+/** 新しく上がった Lv（addExp の戻り値）を、まだ見せていない待ちにまとめる */
+export function mergeLevelUp(p: PendingLevelUp | null, ups: number[]): PendingLevelUp | null {
+  if (!ups.length) return p;
+  const from = p ? p.from : ups[0] - 1;
+  return { from, to: ups[ups.length - 1] };
+}
+
 /** 稽古の exp：答えた段階のうち正解した割合に応じて（全部正解で KEIKO_EXP） */
 export const keikoExp = (ok: number, total: number): number => (total > 0 ? Math.round((KEIKO_EXP * ok) / total) : 0);
 

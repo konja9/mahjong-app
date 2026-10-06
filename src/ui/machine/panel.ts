@@ -1,9 +1,10 @@
 import { sfx } from '../audio';
 import type { Fx } from '../effects/pachinko';
 import { LAMP_NAMES } from '../effects/pachinko';
-import { drawNotice } from '../effects/performance';
+import { drawCharaNotice, drawNotice } from '../effects/performance';
 import type { EffectLevel } from '../effects/performance';
 import { Reel } from '../effects/reel';
+import { type Face, charaSvg } from '../tutorial/chara';
 import { ECONOMY } from './economy';
 import { MAX_HOLDS, Machine, PREMIUM_SYMBOL, type SpinResult } from './machine';
 
@@ -18,6 +19,10 @@ export interface PanelHooks {
   onTap?(): void;
   /** 初めての人向けのガイドを出すきっかけ */
   onEvent?(e: 'enter' | 'reach' | 'jackpot' | 'rush'): void;
+  /** 液晶帯のパチふとくんに反応させたい出来事 */
+  onTalk?(e: 'holdMax' | 'reach' | 'jackpot' | 'bonusEnd' | 'rushStart' | 'rushEnd'): void;
+  /** 液晶帯のパチふとくんをタップした */
+  onCharaTap?(): void;
 }
 
 export interface JackpotResult {
@@ -73,13 +78,21 @@ export class MachinePanel {
           <div class="m-msg" aria-live="polite"></div>
           <div class="m-bottom">
             <div class="m-holds" aria-label="保留">${Array.from({ length: MAX_HOLDS }, () => '<span class="hold"></span>').join('')}</div>
+            <button class="m-chara" type="button" aria-label="パチふとくん" data-silent></button>
             <div class="m-chucker" title="始動口"><span></span></div>
           </div>
         </div>
       </div>
-      <div class="m-bonus" hidden></div>`;
+      <div class="m-bonus" hidden></div>
+      <div class="m-say" role="status" hidden></div>`;
     this.reel = new Reel(root.querySelector<HTMLElement>('.m-screen')!, 'mini');
     root.querySelector('.lcd')!.addEventListener('click', () => this.hooks.onTap?.());
+    root.querySelector('.m-chara')!.addEventListener('click', (e) => {
+      // 液晶帯のタップ（台選び）にはしない
+      e.stopPropagation();
+      this.hooks.onCharaTap?.();
+    });
+    this.face('neutral');
     this.idleSymbols();
     this.render();
   }
@@ -164,7 +177,10 @@ export class MachinePanel {
     this.chucker.classList.add('open');
     this.timers.push(window.setTimeout(() => this.chucker.classList.remove('open'), n > 1 ? 900 : 350));
     if (opened) this.msg('電チュー開放!', 'denchu');
-    else if (!added) this.msg('保留MAX', '');
+    else if (!added) {
+      this.msg('保留MAX', '');
+      this.hooks.onTalk?.('holdMax');
+    }
     if (added) this.hooks.onEvent?.('enter');
     this.render(true);
     this.kick();
@@ -187,14 +203,25 @@ export class MachinePanel {
     while (g === this.gen && this.machine.holds.length) {
       while (this.held && g === this.gen) await this.wait(200);
       if (g !== this.gen) return;
+      // 保留変化：低い色で見せていた保留を、回る直前に本当の色に変える
+      if (this.machine.holds[0]?.shown !== undefined) {
+        await this.holdChange(g);
+        if (g !== this.gen) return;
+      }
       const r = this.machine.spin();
       if (!r) break;
       this.render();
       await this.run(r, g);
       if (g !== this.gen) return;
       const t = this.machine.settle(r);
-      if (t.rushStart) this.hooks.onEvent?.('rush');
-      if (t.rushEnd) this.rushEnded();
+      if (t.rushStart) {
+        this.hooks.onEvent?.('rush');
+        this.hooks.onTalk?.('rushStart');
+      }
+      if (t.rushEnd) {
+        this.rushEnded();
+        this.hooks.onTalk?.('rushEnd');
+      }
       this.fx.syncRush(this.machine.rush);
       this.fx.rushChain(this.machine.data.rushChain);
       this.hooks.onState();
@@ -246,7 +273,12 @@ export class MachinePanel {
     this.root.classList.remove('reach', 'hot', 'win');
     this.msg('', '');
     // 回転開始時の予告（先読み）
-    if (r.reach || r.color >= 2) this.fx.notice(drawNotice(r.color, 0, r.rush, this.level()), r.color);
+    // パチふとくん予告（出なければ、いつもの予告）
+    const chara = drawCharaNotice(r.color, r.hit, r.rush, this.level());
+    if (chara) {
+      this.fx.charaNotice(chara);
+      this.face(chara === 'white' ? 'neutral' : 'surprise', 1800);
+    } else if (r.reach || r.color >= 2) this.fx.notice(drawNotice(r.color, 0, r.rush, this.level()), r.color);
 
     this.reel.spinAll();
     const tick = window.setInterval(() => sfx.reelTick(), 90);
@@ -274,6 +306,8 @@ export class MachinePanel {
     if (hot) this.root.classList.add('hot');
     this.msg(hot ? '激アツ!!' : 'リーチ!', hot ? 'hot' : 'reach');
     this.hooks.onEvent?.('reach');
+    this.hooks.onTalk?.('reach');
+    this.hush();
     this.reel.slow(1);
     const developed = full && (hot || r.plan.push !== 'none' || r.plan.pseudo > 0 || r.hit);
     if (developed) {
@@ -297,6 +331,7 @@ export class MachinePanel {
       this.root.classList.add('win');
       this.reel.hit();
       this.msg(r.kakuhen ? '確変大当り' : '大当り', 'win');
+      this.hooks.onTalk?.('jackpot');
       if (!developed) this.hooks.onBusy(true);
       const premium = r.symbols[0] === PREMIUM_SYMBOL;
       const rush = this.machine.rush;
@@ -338,11 +373,70 @@ export class MachinePanel {
       if (g !== this.gen) return;
       this.msg(total ? `出玉 +${total.toLocaleString()}` : '', 'win');
       this.hooks.onBusy(false);
+      this.hooks.onTalk?.('bonusEnd');
     } else {
       if (developed) this.hooks.onBusy(false);
       this.msg('', '');
     }
     this.root.classList.remove('reach', 'hot');
+  }
+
+  /** 保留変化：先頭の保留をパチふとくんが叩き、本当の色に変える */
+  private async holdChange(g: number): Promise<void> {
+    const h = this.machine.holds[0];
+    const lamp = this.root.querySelector<HTMLElement>('.hold');
+    this.face('proud', 1400);
+    lamp?.classList.add('knock');
+    await this.wait(380);
+    if (g !== this.gen) return;
+    delete h.shown;
+    this.render();
+    lamp?.classList.remove('knock');
+    lamp?.classList.add('change');
+    if (this.level() !== 'off') sfx.holdChange();
+    this.fx.lampUp(lamp ?? null);
+    await this.wait(650);
+    lamp?.classList.remove('change');
+  }
+
+  private faceTimer = 0;
+  private sayTimer = 0;
+  private faceNow: Face | null = null;
+
+  /** 液晶帯のパチふとくんの表情。ms たったら元の顔に戻す（0 なら戻さない） */
+  face(f: Face, ms = 2600): void {
+    const el = this.root.querySelector<HTMLElement>('.m-chara');
+    if (!el) return;
+    if (f !== this.faceNow) {
+      el.innerHTML = charaSvg(f);
+      this.faceNow = f;
+    }
+    el.dataset.face = f;
+    el.classList.remove('bounce');
+    void el.offsetWidth;
+    if (f !== 'neutral') el.classList.add('bounce');
+    clearTimeout(this.faceTimer);
+    if (ms && f !== 'neutral') this.faceTimer = window.setTimeout(() => this.face('neutral', 0), ms);
+  }
+
+  /** パチふとくんの一言（液晶帯の中段に吹き出し）。リーチ中・BONUS 中は出さない */
+  say(text: string, f: Face): void {
+    this.face(f, 3400);
+    if (this.root.classList.contains('reach') || this.root.classList.contains('bonus')) return;
+    const el = this.root.querySelector<HTMLElement>('.m-say')!;
+    el.textContent = text;
+    el.hidden = false;
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+    clearTimeout(this.sayTimer);
+    this.sayTimer = window.setTimeout(() => (el.hidden = true), 3200);
+  }
+
+  /** 吹き出しを消す */
+  hush(): void {
+    clearTimeout(this.sayTimer);
+    this.root.querySelector<HTMLElement>('.m-say')!.hidden = true;
   }
 
   private msg(text: string, cls: string): void {
@@ -366,7 +460,7 @@ export class MachinePanel {
     const holds = this.root.querySelectorAll<HTMLElement>('.hold');
     holds.forEach((h, i) => {
       const hold = m.holds[i];
-      h.className = `hold${hold ? ` on ${LAMP_NAMES[hold.color]}` : ''}`;
+      h.className = `hold${hold ? ` on ${LAMP_NAMES[hold.shown ?? hold.color]}` : ''}`;
     });
     if (pop && m.holds.length) holds[m.holds.length - 1]?.classList.add('lamp-pop');
     this.root.querySelector('[data-k="sinceHit"]')!.textContent = String(m.data.sinceHit);

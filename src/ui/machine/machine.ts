@@ -3,7 +3,7 @@
  * 正解＝始動口入賞で保留が増え、保留を消化するたびに抽選する。
  * 抽選結果は入賞時に確定し（先読み）、保留の色と演出はその結果から決める。
  */
-import { type EffectLevel, type Rng, type Suspense, drawSuspense } from '../effects/performance';
+import { type EffectLevel, type Rng, type Suspense, drawHoldDisguise, drawSuspense } from '../effects/performance';
 import { type MachineSpec, SPECS } from './specs';
 
 // 甘デジ（最初の台）の値。ほかの台は specs.ts を参照
@@ -27,6 +27,8 @@ export interface Hold {
   kakuhen: boolean;
   /** 保留の色 0:青 1:緑 2:赤 3:金 4:虹 */
   color: number;
+  /** 保留変化：回る直前まで見せておく低い色（本当の色は color） */
+  shown?: number;
 }
 
 export interface SpinResult extends Hold {
@@ -94,7 +96,10 @@ export class Machine {
   enter(n = 1): number {
     let added = 0;
     for (let i = 0; i < n && this.holds.length < MAX_HOLDS; i++) {
-      this.holds.push(this.draw());
+      const h = this.draw();
+      const shown = drawHoldDisguise(h.color, this.level(), this.rng);
+      if (shown !== null) h.shown = shown;
+      this.holds.push(h);
       added++;
     }
     return added;

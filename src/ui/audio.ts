@@ -148,6 +148,7 @@ const SAMPLE_NAMES = [
   'coin0', 'coin1', 'coin2', 'coin3', 'fanfare', 'yakuman', 'kakuhen', 'lampUp', 'miss', 'gyuin',
   'pushAppear', 'push', 'align', 'shatter', 'comboHit', 'glitch', 'swarm', 'step', 'stamp',
   'kakuhenEnd', 'god', 'register', 'chucker', 'round', 'gimmick', 'end', 'tap', 'tapClose',
+  'levelUp', 'charaIn', 'holdChange', 'revive',
 ] as const;
 type SampleName = (typeof SAMPLE_NAMES)[number];
 
@@ -192,6 +193,27 @@ function play(name: SampleName, o: { rate?: number; gain?: number; start?: numbe
 const semis = (n: number) => 2 ** (n / 12);
 
 export const sfx = {
+  /** Lv アップのファンファーレ */
+  levelUp(): void {
+    if (play('levelUp')) return;
+    [67, 72, 76, 84].forEach((n, i) => tone({ type: 'square', freq: note(n), start: i * 0.1, dur: 0.3, gain: 0.06 }));
+  },
+  /** パチふとくんが顔を出す */
+  charaIn(): void {
+    if (play('charaIn')) return;
+    tone({ type: 'sine', freq: 400, to: 1150, dur: 0.15, gain: 0.06 });
+  },
+  /** 保留変化（叩いて色が変わる） */
+  holdChange(): void {
+    if (play('holdChange')) return;
+    tone({ type: 'triangle', freq: 600, to: 2000, dur: 0.25, gain: 0.07 });
+  },
+  /** 復活演出のガシャン */
+  revive(): void {
+    if (play('revive')) return;
+    noise(0, 0.3, 0.2, 1200);
+    tone({ type: 'sawtooth', freq: 220, to: 1800, start: 0.18, dur: 0.45, gain: 0.06 });
+  },
   /** UI のタッチ音（ボタン・タブ・スイッチなど） */
   tap(): void {
     if (play('tap')) return;

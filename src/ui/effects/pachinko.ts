@@ -1,7 +1,8 @@
 import { bgm, sfx } from '../audio';
 import { tileSvg } from '../tileView';
 import { Particles } from './particles';
-import type { Cutin, EffectLevel, Notice, Suspense, WinTier } from './performance';
+import { type Face, charaSvg } from '../tutorial/chara';
+import type { CharaColor, Cutin, EffectLevel, Notice, Suspense, WinTier } from './performance';
 import { Reel, SYMBOL_COUNT } from './reel';
 
 export type { WinTier } from './performance';
@@ -15,6 +16,14 @@ const CUTIN_TEXT: Record<Cutin, string> = {
   gold: '激アツ',
   zebra: '超激アツ',
   rainbow: '確定!!',
+};
+
+/** パチふとくん予告の一言と表情（吹き出しの色＝期待度） */
+const CHARA_NOTICE: Record<CharaColor, { face: Face; lines: string[] }> = {
+  white: { face: 'neutral', lines: ['クケ…？', 'さあて、どうかな', 'ふむ…'] },
+  red: { face: 'surprise', lines: ['来る気がするぜ', '数えたな？', 'お、この回転…'] },
+  gold: { face: 'proud', lines: ['オレ様の出番だ!!', '熱いぜ、こいつは!!', '震えて待ちな!!'] },
+  rainbow: { face: 'grin', lines: ['確定だ!! クケケケ!!'] },
 };
 
 /** 全開時の演出の長さの倍率（溜め・当り・ラウンドなど sleep を使う演出すべて） */
@@ -180,6 +189,27 @@ export class Fx {
     setTimeout(() => frame.remove(), steps * 280 + 700);
   }
 
+  /** パチふとくん予告：画面の横から顔を出して一言。吹き出しの色で期待度を見せる（虹は当り確定） */
+  charaNotice(color: CharaColor): void {
+    if (!this.enabled) return;
+    const def = CHARA_NOTICE[color];
+    const line = def.lines[Math.floor(Math.random() * def.lines.length)];
+    const el = document.createElement('div');
+    el.className = `chara-notice c-${color}`;
+    el.innerHTML = `<div class="cn-face">${charaSvg(def.face)}</div><div class="cn-say">${line}</div>`;
+    this.noticeLayer.appendChild(el);
+    sfx.charaIn();
+    if (color === 'gold' || color === 'rainbow') {
+      setTimeout(() => sfx.gekiatsu(), 220);
+      if (this.full) setTimeout(() => this.pulse('shake', 350), 220);
+    }
+    if (color === 'rainbow' && this.full) {
+      const r = el.getBoundingClientRect();
+      setTimeout(() => this.particles.burst(r.left + r.width / 2, r.top + r.height / 2, 40, 'spark', 1.2), 250);
+    }
+    setTimeout(() => el.remove(), 2100);
+  }
+
   // ------------------------------------------------------------ 溜め
 
   /** preset を渡すと停止図柄 [左, 中, 右] を固定する（台パネルの発展リーチ用） */
@@ -243,6 +273,29 @@ export class Fx {
     } else sfx.reach();
     await this.sleep(hot ? 950 : 700);
 
+    // パチふとくんリーチ（スペシャルリーチ）：大きなパチふとくんがレバーを引き、真ん中の図柄を一コマずつ送る
+    let sp: HTMLElement | null = null;
+    if (plan.sp && !this.skipped) {
+      sp = document.createElement('div');
+      sp.className = 'sp-chara';
+      sp.innerHTML = `<div class="sp-face">${charaSvg('surprise')}</div>`;
+      this.overlay.appendChild(sp);
+      reel.setClass(`cut-${plan.cutin} sp`);
+      reel.title('パチふとくんリーチ', 't-sp');
+      sfx.charaIn();
+      sfx.gyuin();
+      this.pulse('shake', 300);
+      await this.sleep(700);
+      for (let k = 1; k <= 3 && !this.skipped; k++) {
+        sp.classList.remove('pull');
+        void sp.offsetWidth;
+        sp.classList.add('pull');
+        sfx.step(k + 1);
+        await this.sleep(420);
+      }
+      sp.querySelector('.sp-face')!.innerHTML = charaSvg('proud');
+    }
+
     if (plan.push !== 'none' && !this.skipped) {
       reel.sub(`<button class="push-btn ${plan.push}" type="button">PUSH!!</button>`);
       sfx.pushAppear();
@@ -260,9 +313,28 @@ export class Fx {
       : plan.hit
         ? sym
         : (sym + (Math.random() < 0.5 ? 1 : SYMBOL_COUNT - 1)) % SYMBOL_COUNT;
+    // 復活演出（当りのときだけ）：一コマずれて止まり、暗転のあとガシャンと戻る
+    if (plan.hit && plan.revive && !this.skipped) {
+      reel.stop(1, (final + 1) % SYMBOL_COUNT);
+      sfx.reelStop(1);
+      this.stopTick();
+      reel.title('', '');
+      if (sp) sp.querySelector('.sp-face')!.innerHTML = charaSvg('sweat');
+      await this.sleep(700);
+      this.overlay.classList.add('blackout');
+      reel.title('…', 't-dots');
+      await this.sleep(650);
+      this.overlay.classList.remove('blackout');
+      reel.title('復活!!', 't-revive');
+      sfx.revive();
+      this.pulse('shake', 450);
+      reel.spin(1);
+      await this.sleep(300);
+    }
     reel.stop(1, final);
     sfx.reelStop(1);
     this.stopTick();
+    if (sp) sp.querySelector('.sp-face')!.innerHTML = charaSvg(plan.hit ? 'grin' : 'sweat');
     if (plan.hit) {
       reel.hit();
       reel.title('当り', 't-hit');

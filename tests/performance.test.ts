@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONFIRMED_CUTINS, drawNotice, drawSuspense } from '../src/ui/effects/performance';
+import { CONFIRMED_CUTINS, drawCharaNotice, drawHoldDisguise, drawNotice, drawSuspense } from '../src/ui/effects/performance';
 
 function mulberry32(seed: number) {
   return () => {
@@ -69,5 +69,65 @@ describe('drawNotice', () => {
       expect(drawNotice(4, 10, true, 'off', rng)).toBe('none');
       expect(['none', 'text']).toContain(drawNotice(4, 10, true, 'lite', rng));
     }
+  });
+});
+
+describe('パチふとくんの演出', () => {
+  it('虹の吹き出しは当りのときだけ。オフでは出ない', () => {
+    const rng = mulberry32(11);
+    const seen = new Set<string>();
+    for (let i = 0; i < 4000; i++) {
+      const lamp = i % 5;
+      const miss = drawCharaNotice(lamp, false, i % 2 === 0, 'max', rng);
+      expect(miss).not.toBe('rainbow');
+      const hit = drawCharaNotice(lamp, true, false, 'max', rng);
+      if (hit) seen.add(hit);
+      expect(drawCharaNotice(lamp, true, true, 'off', rng)).toBe(null);
+    }
+    expect(seen).toContain('rainbow');
+    expect(seen).toContain('white');
+  });
+  it('当りのほうがパチふとくん予告が出やすい', () => {
+    const rng = mulberry32(5);
+    let hit = 0;
+    let miss = 0;
+    for (let i = 0; i < 4000; i++) {
+      if (drawCharaNotice(1, true, false, 'max', rng)) hit++;
+      if (drawCharaNotice(1, false, false, 'max', rng)) miss++;
+    }
+    expect(hit).toBeGreaterThan(miss * 2);
+  });
+  it('復活は当りのときだけ。スペシャルリーチと復活は全開のときだけ', () => {
+    const rng = mulberry32(3);
+    let revive = 0;
+    let sp = 0;
+    for (let i = 0; i < 3000; i++) {
+      const inp = { lamp: i % 5, highValue: false, streak: 0, kakuhen: false };
+      const miss = drawSuspense({ ...inp, correct: false, level: 'max' }, rng);
+      expect(miss.revive ?? false).toBe(false);
+      const hit = drawSuspense({ ...inp, correct: true, level: 'max' }, rng);
+      if (hit.revive) revive++;
+      if (hit.sp) sp++;
+      const lite = drawSuspense({ ...inp, correct: true, level: 'lite' }, rng);
+      expect(lite.sp ?? false).toBe(false);
+      expect(lite.revive ?? false).toBe(false);
+    }
+    expect(revive).toBeGreaterThan(0);
+    expect(sp).toBeGreaterThan(0);
+  });
+  it('保留変化は全開・赤以上の保留だけで、見せる色は本当の色より低い', () => {
+    const rng = mulberry32(9);
+    let changed = 0;
+    for (let i = 0; i < 2000; i++) {
+      const color = i % 5;
+      const shown = drawHoldDisguise(color, 'max', rng);
+      if (shown !== null) {
+        changed++;
+        expect(color).toBeGreaterThanOrEqual(2);
+        expect(shown).toBeLessThan(color);
+      }
+      expect(drawHoldDisguise(color, 'lite', rng)).toBe(null);
+    }
+    expect(changed).toBeGreaterThan(0);
   });
 });

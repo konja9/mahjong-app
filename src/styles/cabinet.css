@@ -1888,3 +1888,105 @@ body[data-phase='summary'] #exp-strip {
     line-height: 1.2;
   }
 }
+
+/* ============================================================ 液晶帯のパチふとくん（常駐）と一言 */
+#machine .m-chara {
+  position: relative;
+  width: 34px;
+  height: 36px;
+  margin: -12px 10px -4px auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+  transform-origin: 50% 100%;
+}
+#machine .m-chara svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+#machine .m-chara.bounce {
+  animation: chara-bounce 0.5s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+#machine .m-chara[data-face='sweat'].bounce {
+  animation: chara-droop 0.6s ease-out;
+}
+@keyframes chara-bounce {
+  0% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(-7px) scale(1.12, 0.92); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes chara-droop {
+  0% { transform: rotate(0); }
+  40% { transform: rotate(-10deg) translateY(2px); }
+  100% { transform: rotate(0); }
+}
+/* BONUS 中は賞金表に場所を譲る */
+#machine.bonus .m-chara {
+  visibility: hidden;
+}
+/* 一言は液晶帯の下に、パチふとくんから吊り下げる（台の表示を隠さない） */
+#machine .m-say {
+  position: absolute;
+  right: 40px;
+  top: calc(100% - 4px);
+  z-index: 3;
+  max-width: min(62%, 280px);
+  padding: 6px 10px;
+  border-radius: 12px 2px 12px 12px;
+  background: #fdf3d6;
+  color: #1a120a;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5), 0 0 0 1.5px #c9a227;
+  pointer-events: none;
+}
+#machine .m-say[hidden] {
+  display: none;
+}
+#machine .m-say.pop {
+  animation: say-pop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+@keyframes say-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.85); }
+  to { opacity: 1; transform: none; }
+}
+/* 保留変化：叩かれて揺れ、弾けて色が変わる */
+.hold.knock {
+  animation: hold-knock 0.38s ease-in-out;
+}
+.hold.change {
+  animation: hold-change 0.6s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+@keyframes hold-knock {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px) rotate(-12deg); }
+  75% { transform: translateX(3px) rotate(12deg); }
+}
+@keyframes hold-change {
+  0% { transform: scale(0.4); filter: brightness(3); }
+  60% { transform: scale(1.5); filter: brightness(1.8); }
+  100% { transform: scale(1); filter: none; }
+}
+@media (min-width: 641px) {
+  #machine .m-chara {
+    width: 42px;
+    height: 44px;
+  }
+  #machine .m-say {
+    right: 52px;
+    font-size: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #machine .m-chara.bounce,
+  #machine .m-say.pop,
+  .hold.knock,
+  .hold.change {
+    animation: none;
+  }
+}

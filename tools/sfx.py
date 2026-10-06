@@ -507,6 +507,51 @@ def tap_close():
     return mix(d, (body, 0, 0.8), (click, 0, 0.15))
 
 
+@sound('levelUp', 0.8)
+def level_up():
+    # Lv アップ：駆け上がる金管の3連と、最後に開く和音＋ベルのきらめき
+    x = np.zeros(1)
+    for i, n in enumerate([67, 72, 76]):
+        x = place(x, chord([n], 0.12), i * 0.1, 0.6)
+    x = place(x, chord([72, 76, 79, 84], 0.9, 0.006), 0.3, 0.8)
+    for i, n in enumerate([84, 88, 91, 96]):
+        x = place(x, bell(midi(n), 0.6, 0.2), 0.32 + i * 0.05, 0.25)
+    x = place(x, thump(110, 50, 0.4, 0.12), 0.3, 0.5)
+    sparkle = band(noise(0.8), 7000, 14000) * env_exp(0.8, 0.25)
+    x = place(x, sparkle, 0.32, 0.1)
+    return reverb(x, 1.1, 0.22)
+
+
+@sound('charaIn', 0.45)
+def chara_in():
+    # パチふとくんが顔を出す：ひょいっと上がる音と、小さなベル
+    d = 0.16
+    pop = np.sin(phase(glide(380, 1150, d))) * env_adsr(d, 0.005, 0.03, 0.7, 0.05)
+    x = mix(0.5, (pop, 0, 0.6), (bell(midi(88), 0.35, 0.12), 0.12, 0.3))
+    return reverb(x, 0.5, 0.15)
+
+
+@sound('holdChange', 0.6)
+def hold_change():
+    # 保留変化：コツンと叩く音 → パリンと弾けて上がる音
+    knock = mix(0.06, (thump(300, 160, 0.06, 0.02), 0, 0.8), (band(noise(0.01), 1500, 5000), 0, 0.4))
+    burst = band(noise(0.25), 3000, 11000) * env_exp(0.25, 0.06)
+    rise = additive(glide(600, 2000, 0.22), 0.22, [(1, 1), (2, 0.4), (3, 0.2)]) * env_adsr(0.22, 0.005, 0.05, 0.7, 0.06)
+    x = mix(0.7, (knock, 0, 0.9), (burst, 0.12, 0.35), (rise, 0.12, 0.4), (bell(midi(91), 0.4, 0.15), 0.3, 0.3))
+    return reverb(x, 0.6, 0.18)
+
+
+@sound('revive', 0.85)
+def revive():
+    # 復活：ガシャン（重い機械音）→ 一気に駆け上がる音
+    clank = mix(0.4, (thump(140, 45, 0.4, 0.1), 0, 1.0), (band(noise(0.3), 400, 4000) * env_exp(0.3, 0.07), 0, 0.7),
+                (metal(700, 0.3, 0.12), 0.01, 0.4))
+    d = 0.45
+    rise = band(additive(glide(220, 1800, d), d, saw_h(14)), 150, 6000) * env_adsr(d, 0.01, 0.05, 0.85, 0.05)
+    x = mix(1.2, (clank, 0, 1.0), (rise, 0.18, 0.4), (bell(midi(84), 0.6, 0.25), 0.6, 0.4))
+    return reverb(soft_clip(x, 1.3), 0.9, 0.2)
+
+
 # ------------------------------------------------------------ 書き出し
 
 def write_wav(path: str, x: np.ndarray) -> None:
