@@ -26,12 +26,13 @@ body.start-open {
   text-align: center;
 }
 .st-logo {
-  margin: 0;
-  font-weight: 900;
-  font-size: clamp(48px, 16vw, 72px);
-  line-height: 1.05;
-  letter-spacing: 0.02em;
-  text-shadow: 0 0 24px rgba(242, 201, 76, 0.45);
+  width: min(400px, 100%);
+  margin: 0 0 6px;
+  line-height: 0;
+}
+.st-logo svg {
+  width: 100%;
+  height: auto;
 }
 .st-logo .logo-pachi {
   color: #f2c94c;
@@ -55,8 +56,8 @@ body.start-open {
 }
 .st-face {
   flex: none;
-  width: 92px;
-  height: 110px;
+  width: 110px;
+  height: 120px;
 }
 .st-face svg {
   width: 100%;
@@ -256,6 +257,12 @@ body.start-open {
 /* ヘッダーのロゴはスタート画面へ戻るボタン */
 #top .logo {
   cursor: pointer;
+  align-items: center;
+}
+#top .logo svg {
+  height: 34px;
+  width: auto;
+  flex: none;
 }
 
 /* ============================================================ 物語（パチふとくんの記憶） */
