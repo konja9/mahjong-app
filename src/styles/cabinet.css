@@ -1,7 +1,7 @@
 /*
  * パチンコ：縦型筐体
  * 上から 液晶帯（台）→ 盤面（問題）→ ドック（計器と選択肢）。スマホの縦画面を基準に、PC も同じ並びを中央に置く。
- * 色の役割：UI は白とグレー / 期待度は保留の色（青・緑・赤・金・虹）/ 金は大当りと BONUS だけ /
+ * 色の役割：UI はシャンパンゴールドと暖かいグレー / 期待度は保留の色（青・緑・赤・金・虹）/ 濃い金は大当りと BONUS だけ /
  * 正誤は ✓ と ✕ の形（赤は線と文字だけ）
  */
 
@@ -9,10 +9,15 @@
 :root {
   --gold: #d4af37;
   --gold-hot: #ffd84a;
-  --line: rgba(255, 255, 255, 0.09);
+  --line: rgba(236, 210, 138, 0.13);
 }
+/* パチンコ：スタート画面と同じく、上に金の光・下にワインの赤をにじませる */
 :root[data-play='pachinko'] body {
-  background: var(--bg);
+  background:
+    radial-gradient(ellipse 85% 42% at 50% -8%, rgba(242, 201, 76, 0.11), transparent 70%),
+    radial-gradient(ellipse 95% 45% at 50% 108%, rgba(200, 50, 60, 0.11), transparent 70%),
+    var(--bg);
+  background-attachment: fixed;
 }
 /* RUSH 中と BONUS 中だけ背景に色を付ける */
 :root[data-play='pachinko'] body.kakuhen {
@@ -634,11 +639,11 @@ body.busy .bet-box .bar {
 
 /* 通常時の満貫・跳満（お金が入らない）：白い役名 */
 .bigtext.plain span {
-  background: linear-gradient(180deg, #ffffff 0%, #e6e8f0 50%, #a9aebf 100%);
+  background: linear-gradient(180deg, #fffaf0 0%, #f2e6c8 50%, #b8a07a 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 3px 0 #2a2d38) drop-shadow(0 0 24px rgba(255, 255, 255, 0.35));
+  filter: drop-shadow(0 3px 0 #2e2216) drop-shadow(0 0 24px rgba(255, 236, 190, 0.3));
 }
 
 /* ============================================================ 成績画面：大当り履歴 */
@@ -766,7 +771,7 @@ body.busy .bet-box .bar {
   height: 12px;
   border-radius: 50%;
   transform: none;
-  background: radial-gradient(circle at 40% 35%, #2c2c33, #09090b 70%);
+  background: radial-gradient(circle at 40% 35%, #32281b, #0a0705 70%);
   box-shadow: inset 0 1px 2px #000, 0 0 0 1px color-mix(in srgb, var(--gold) 30%, transparent);
 }
 #machine[data-skin='gold'] .hold.on {
@@ -846,17 +851,18 @@ body.busy .bet-box .bar {
 
 /* 計器と選択肢：上面の光と押し込み */
 .mt-cell {
-  background: linear-gradient(180deg, #1d1e25, #141519);
+  background: linear-gradient(180deg, #231b14, #15110d);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     inset 0 0 0 1px var(--line),
     0 2px 6px rgba(0, 0, 0, 0.3);
 }
 .choice {
-  background: linear-gradient(180deg, #1e1f26, #15161b);
+  background: linear-gradient(180deg, #261d15, #17120e);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 3px 0 #07080a,
+    inset 0 1px 0 rgba(255, 236, 190, 0.09),
+    inset 0 0 0 1px var(--line),
+    0 3px 0 #060403,
     0 8px 14px rgba(0, 0, 0, 0.3);
 }
 .choice:not([disabled]):active,
@@ -864,12 +870,12 @@ body.busy .bet-box .bar {
   transform: translateY(2px);
   box-shadow:
     inset 0 2px 6px rgba(0, 0, 0, 0.5),
-    0 1px 0 #07080a;
+    0 1px 0 #060403;
 }
 .choice kbd {
   padding: 1px 6px;
   border-radius: 4px;
-  background: linear-gradient(180deg, #3a3d48, #23252c);
+  background: linear-gradient(180deg, #4a3c2a, #2c2318);
   color: var(--text);
   box-shadow: 0 1px 0 #000, inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
@@ -1040,7 +1046,7 @@ body.busy .bet-box .bar {
   flex: none;
   padding: 6px 12px;
   border-radius: 8px;
-  background: linear-gradient(180deg, #2a2c35, #1d1f26);
+  background: linear-gradient(180deg, #2e251b, #1f1912);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 0 #07080a;
   font-family: 'Noto Sans JP', sans-serif;
   font-size: 13px;

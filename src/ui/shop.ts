@@ -243,7 +243,7 @@ export function itemsHtml(s: ShopState, balance: number, canPreview = true, tab:
     body = group('BGM（BONUS・RUSH の曲）', of('bgm')) + '<p class="help-note">BONUS と RUSH の間に流れる曲です。試聴は BONUS・RUSH 中以外にできます。</p>';
   else
     body =
-      '<p class="help-note top">装備すると、画面下の計器の「所持」の横にプレートで表示されます。色はレア度（コモン・レア・エピック・レジェンド）。</p>' +
+      '<p class="help-note top">装備すると、計器の上の経験値の帯（Lv の横）にプレートで表示されます。色はレア度（コモン・レア・エピック・レジェンド）。</p>' +
       group('称号', titles.filter((i) => !i.unlock)) +
       group(`実力の称号 <span class="muted small">${earnedCount}/${titles.filter((i) => i.unlock).length}</span>`, titles.filter((i) => i.unlock)) +
       '<p class="help-note">実力の称号は買えません。パチンコで条件を満たすと自動で手に入ります。</p>';
