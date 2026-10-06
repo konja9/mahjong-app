@@ -589,11 +589,27 @@ song('title', 96, {
 ], level=-17, rev=(1.8, 0.3))
 
 # パチンコの通常時：考える邪魔にならない、ゆったりしたホールの BGM
-song('normal', 100, {
+# 通常時の曲の楽譜。BONUS・RUSH のスタンダードは、これをアレンジした曲（通常時から入ると同じ曲が盛り上がって聞こえる）
+NORMAL = {
     'A': (['CM7', 'Am7', 'Dm7', 'G7'], 'E5 - - - G5 - - - | . . C5 - E5 - D5 - | F5 - - - A5 - G5 F5 | D5 - - - . . . .'),
     'A2': (['CM7', 'Am7', 'Dm7', 'G7'], 'E5 - - - G5 - - - | . . C5 - E5 - D5 - | F5 - - - A5 - G5 F5 | G5 - - - F5 - D5 -'),
     'B': (['FM7', 'Em7', 'Dm7', 'G7'], 'A5 - - - G5 - E5 - | G5 - - - . . . . | F5 - E5 - D5 - C5 - | B4 - - - D5 - - -'),
-}, ['A', 'A2', 'B', 'A2'], [
+}
+NORMAL_FORM = ['A', 'A2', 'B', 'A2']
+
+
+def stretch(sections: dict) -> dict:
+    """8分を4分に伸ばす（1小節を2小節に）。速いテンポでも旋律がせわしなくならない"""
+    out = {}
+    for k, (chords, mel) in sections.items():
+        toks = []
+        for t in parse_mel(mel):
+            toks += [t, '.' if t == '.' else '-']
+        out[k] = ([c for c in chords for _ in range(2)], toks)
+    return out
+
+
+song('normal', 100, NORMAL, NORMAL_FORM, [
     {'kind': 'drum', 'inst': 'kick', 'pat': 'x.......x.......', 'db': -6},
     {'kind': 'drum', 'inst': 'rim', 'pat': BACK, 'db': -12},
     {'kind': 'drum', 'inst': 'hat', 'pat': EIGHT, 'db': -20},
@@ -637,29 +653,22 @@ def drive(kick='kick', snare='snare', hat_db=-14, clap=False):
     return ls
 
 
-# スタンダード
-song('standard-rush', 150, {
-    'A': (['Am', 'F', 'G', 'E'], [81, None, 76, 81, 84, 83, 81, 76, 77, None, 81, 77, 84, 81, 77, 81, 79, None, 83, 79, 86, 83, 79, 83, 80, 83, 88, 83, 80, 76, 80, 83]),
-    'A2': (['Am', 'F', 'G', 'E'], [81, None, 76, 81, 84, 83, 81, 76, 77, None, 81, 77, 84, 81, 77, 81, 79, None, 83, 79, 86, 83, 79, 83] + parse_mel('G#5 B5 E6 - D6 - B5 G#5')),
-    'B': (['Dm', 'Am', 'F', 'E'], 'D6 - C6 A5 F5 - A5 C6 | E6 - C6 A5 E5 - A5 C6 | C6 - A5 F5 C6 - D6 E6 | E6 - D6 - B5 - G#5 -'),
-}, ['A', 'A2', 'B', 'A2'], drive() + [
-    {'kind': 'bass', 'inst': b_saw, 'pat': 'r.o.r.o.r.o.r.o.', 'base': 33, 'db': -2},
-    {'kind': 'arp', 'inst': i_square, 'pat': ARP16, 'range': (64, 84), 'gate': 0.6, 'db': -12},
-    {'kind': 'comp', 'inst': i_pad, 'pat': 'x' + '.' * 15, 'range': (57, 72), 'db': -12},
-    {'kind': 'lead', 'inst': i_square, 'db': 0},
-    {'kind': 'lead', 'inst': i_saw, 'shift': -12, 'db': -8},
+# スタンダード：通常時の曲（NORMAL）のアレンジ。旋律とコードはそのままで、テンポとリズムで盛り上げる
+song('standard-rush', 160, stretch(NORMAL), NORMAL_FORM, drive() + [
+    {'kind': 'bass', 'inst': b_saw, 'pat': 'r.o.r.o.r.o.r.o.', 'base': 36, 'db': -2},
+    {'kind': 'arp', 'inst': i_square, 'pat': ARP16, 'range': (64, 84), 'gate': 0.6, 'updown': True, 'db': -11},
+    {'kind': 'comp', 'inst': i_pad, 'pat': 'x' + '.' * 15, 'range': (55, 72), 'db': -12},
+    {'kind': 'lead', 'inst': i_square, 'shift': 12, 'db': 0},
+    {'kind': 'lead', 'inst': i_saw, 'db': -8},
 ], level=-15, rev=(1.2, 0.2))
 
-song('standard-bonus', 165, {
-    'A': (['C', 'Am', 'F', 'G'], [72, 76, 79, 76, 84, 79, 76, 79, 81, 79, 76, 72, 76, None, 81, None, 77, 81, 84, 81, 77, 72, 77, 81, 79, 83, 86, 83, 79, None, 86, 84]),
-    'A2': (['C', 'Am', 'F', 'G'], [72, 76, 79, 76, 84, 79, 76, 79, 81, 79, 76, 72, 76, None, 81, None, 77, 81, 84, 81, 77, 72, 77, 81] + parse_mel('G5 B5 D6 G6 - F6 D6 B5')),
-    'B': (['F', 'G', 'Em7', 'G'], 'A5 - C6 - F6 - E6 C6 | B5 - D6 - G6 - F6 D6 | E6 - D6 - B5 - G5 - | D6 - - - G5 - B5 D6'),
-}, ['A', 'A2', 'B', 'A2'], drive(clap=True) + [
+song('standard-bonus', 170, stretch(NORMAL), NORMAL_FORM, drive(clap=True) + [
     {'kind': 'bass', 'inst': b_saw, 'pat': 'r.r.o.r.r.r.o.r.', 'base': 36, 'db': -2},
     {'kind': 'comp', 'inst': i_brass, 'pat': 'x.....x...x.....', 'range': (60, 76), 'gate': 0.5, 'db': -7},
-    {'kind': 'arp', 'inst': i_bell, 'pat': 'a.a.a.a.a.a.a.a.', 'range': (79, 96), 'gate': 1, 'db': -15},
-    {'kind': 'lead', 'inst': i_brass, 'db': 0},
-    {'kind': 'lead', 'inst': i_square, 'shift': 12, 'db': -11},
+    {'kind': 'arp', 'inst': i_bell, 'pat': 'a.a.a.a.a.a.a.a.', 'range': (79, 96), 'gate': 1, 'db': -14},
+    {'kind': 'arp', 'inst': i_square, 'pat': ARP16, 'range': (67, 84), 'gate': 0.5, 'db': -16},
+    {'kind': 'lead', 'inst': i_brass, 'shift': 12, 'db': 0},
+    {'kind': 'lead', 'inst': i_square, 'shift': 12, 'db': -10},
 ], level=-15, rev=(1.2, 0.2))
 
 # ユーロビート
