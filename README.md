@@ -189,9 +189,9 @@ npm run build    # 型チェックと本番ビルド（dist/）
 
 ### アイコン
 
-- ホーム画面・タブのアイコンは `public/` にあります（絵柄：黒金の液晶の枠で赤五筒が3枚そろった大当り）。
+- ホーム画面・タブのアイコンは `public/` にあります（絵柄：パチふとくん（ニヤリ）だけを大きく。背景はスタート画面と同じ金と赤のフェードに金の集中線と金貨。タブのアイコンは顔を切り出したもの）。
 - スマホのホーム画面に追加すると「パチふと」の名前とアイコンで、全画面のアプリとして開きます（`public/manifest.webmanifest`）。
-- 絵柄を変えたら `npx -p playwright node scripts/icons.mjs` で SVG と PNG を作り直します。Android 用の元画像（`assets/`）も一緒に書き出されるので、続けて `npx @capacitor/assets generate --android --iconBackgroundColor '#0c0d11' --splashBackgroundColor '#0c0d11'` を実行します。
+- 絵柄を変えたら `npx -p playwright -p tsx tsx scripts/icons.mjs` で SVG と PNG を作り直します（パチふとくん・ロゴはアプリと同じ `charaSvg`・`logoSvg` を使う）。Android 用の元画像（`assets/`：アイコン・アダプティブアイコンの前景と背景・スプラッシュ）も一緒に書き出されるので、続けて `npx @capacitor/assets generate --android --iconBackgroundColor '#0b0a0e' --splashBackgroundColor '#0b0a0e'` を実行します。
 
 ### Android アプリ（Capacitor）
 
@@ -218,7 +218,7 @@ npm run android:open   # Android Studio で開く（実機・エミュレータ�
   - 起動のたびに Google Play に購入を問い合わせ、買ってあれば広告を出しません。返金されると次の起動から広告に戻ります。通信できないときは前回の結果を使います。
   - コンビニ払いなどの支払い待ちは購入済みにせず、支払いが済んでアプリに戻ったときに反映します。
   - 実機で試すには、AAB を Play Console の内部テストに一度アップロードし、自分の Google アカウントを**ライセンス テスター**に登録します（テスト用のカードで、実際には請求されません）。
-- **ストア掲載情報**：`store/listing.md`（アプリ名・説明文・分類）と、`store/` の画像（アイコン、フィーチャー グラフィック、スクリーンショット6枚）。画像は `npx -p playwright node scripts/store.mjs` で作り直します（元の画面は `store/raw/`）。
+- **ストア掲載情報**：`store/listing.md`（アプリ名・説明文・分類）と、`store/` の画像（アイコン、フィーチャー グラフィック、スクリーンショット6枚）。主役は「退屈な点数計算の練習がパチンコで楽しくできる」こと、世界観は味付け。スクリーンショットの並びは 1 ゲームの肝 → 2 世界観 → 3 パチンコ → 4 稽古 → 5 このゲームならではの仕様 → 6 締め。元の画面（`store/raw/`）は開発サーバーを立てて `npx -p playwright node scripts/store-raw.mjs http://localhost:5179/` で撮り、`npx -p playwright -p tsx tsx scripts/store.mjs` で見出しと絵を付けて書き出します。
 - バージョンは `package.json` の `version` から作ります（`1.2.3` → versionName `1.2.3`、versionCode `10203`）。Play に上げるたびに上げてください。
 
 ### 公開（GitHub Pages）
