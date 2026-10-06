@@ -11,6 +11,7 @@ import { blocksHtml, fuTable } from './explain';
 import { ECONOMY, costFor, fuScale, uwanoseMean } from './machine/economy';
 import { KAKUHEN_RATE, NORMAL_ODDS, RUSH_ODDS, ST_SPINS } from './machine/machine';
 import { MACHINE_IDS, SPECS } from './machine/specs';
+import { FINAL_LEVEL, KEIKO_EXP } from './level';
 
 export type HelpTab = 'basic' | 'fu' | 'bonus' | 'rush' | 'money' | 'terms';
 
@@ -62,7 +63,7 @@ const pips = (n: number, on: number, extra = 0) =>
   `<span class="b-pips">${Array.from({ length: n + extra }, (_, i) => `<i class="${i < on ? 'on' : ''}${i >= n ? ' ext' : ''}"></i>`).join('')}</span>`;
 
 function basic(): string {
-  const flow = `<div class="h-flow"><span class="iv-tag">正解</span><span class="iv-arrow">→</span>${holds(['blue', 'red', '', ''])}<span class="iv-arrow">→</span><span class="iv-reel"><b>7</b><b>7</b><b>7</b></span><span class="iv-arrow">→</span><span class="h-chip gold">BONUS<br><small>符で稼ぐ</small></span><span class="iv-arrow">→</span><span class="h-chip">yan</span><span class="iv-arrow">→</span><span class="h-chip">台・景品</span></div>`;
+  const flow = `<div class="h-flow"><span class="iv-tag">正解</span><span class="iv-arrow">→</span>${holds(['blue', 'red', '', ''])}<span class="iv-arrow">→</span><span class="iv-reel"><b>7</b><b>7</b><b>7</b></span><span class="iv-arrow">→</span><span class="h-chip gold">BONUS<br><small>符で稼ぐ</small></span><span class="iv-arrow">→</span><span class="h-chip">yan</span><span class="iv-arrow">→</span><span class="h-chip">台・景品<br><small>Lv・物語</small></span></div>`;
   return (
     card(
       'goal',
@@ -72,7 +73,7 @@ function basic(): string {
       <ul>
         <li><b>勝ち方</b>：正確に・速く答えるほど yan が増えます。速答で BET が割引、連続正解で電チュー（玉が2個）、BONUS は符が高い手ほど賞金。</li>
         <li><b>運と実力</b>：運で決まるのは大当りのタイミングだけ。長く遊ぶほど、計算の正確さと速さの差が収支に出ます。</li>
-        <li><b>やり込み</b>：yan で台（ミドル・MAX）・スキン・BGM・称号を集めます。実力でしか取れない称号と、毎日のミッションが目標です。</li>
+        <li><b>やり込み</b>：yan を稼ぐと経験値がたまり、Lv が上がるたびに<b>パチふとくんの記憶（物語）</b>が1話ずつ読めます。Lv ${FINAL_LEVEL} で物語は完結。yan では台（ミドル・MAX）・スキン・BGM・称号も集められます。</li>
         <li>数え方をじっくり身につけたいときは<b>稽古</b>（yan も演出もなし）。</li>
       </ul>`,
     ) +
@@ -269,21 +270,27 @@ function money(): string {
       bet,
       `<p>1問の BET は ${costFor(true, false)} yan。締切までに正解すると ${costFor(true, true)} yan に割引（${fastWindows()}）。不正解・パス・時間切れは −${costFor(false, false)} yan。初期所持金は ${ECONOMY.initial.toLocaleString()} yan。</p>`,
     ) +
-    card('meter', '計器', '', `<p>画面下に所持金・BET・収支を常に表示。BET は回答すると実際にかかった額に変わり、BONUS 中は収支の枠が出玉になります。</p>`) +
+    card('meter', '計器', '', `<p>画面下に<b>所持yan</b>・BET・<b>本日の収支</b>を常に表示。本日の収支は BET と BONUS の賞金だけを数え（交換所の買い物は含めない）、<b>朝5時</b>に0に戻ります。BET は回答すると実際にかかった額に変わり、BONUS 中は収支の枠が出玉になります。</p>`) +
     card('machine', '台選び', '', `<p>液晶帯の台の名前 ▾ をタップ。大当りは重いが BONUS が長く賞金の大きいミドル・MAX を yan で解放できます（ミドル以上は実戦のみ）。</p>`) +
     card(
       'shop',
       '交換所（称号・スキン・BGM）',
       plates,
-      `<p>右上の景品のアイコンから。<b>称号</b>は装備すると計器の「所持」の横にプレートで出ます（色はレア度）。<b>実力の称号</b>は買えず、連続正解や累計正解数などの条件で手に入ります。<b>スキン</b>は牌の背と液晶、<b>BGM</b> は BONUS・RUSH の曲（試聴できます）。</p>`,
+      `<p>右上の景品のアイコンから。<b>称号</b>は装備すると経験値の帯の Lv の横にプレートで出ます（色はレア度）。<b>実力の称号</b>は買えず、連続正解や累計正解数などの条件で手に入ります。<b>スキン</b>は牌の背と液晶、<b>BGM</b> は BONUS・RUSH の曲（試聴できます）。</p>`,
     ) +
     card(
-      'mission',
-      'ミッション',
-      `<div class="h-mission"><small>ミッション 1/3</small><span>実戦で10問正解 7/10</span></div>`,
-      `<p>計器の上の帯に今日のミッション。毎日3つ、実力で決まる条件だけです。達成すると yan がもらえます。帯をタップで一覧。</p>`,
+      'level',
+      '経験値と Lv',
+      `<div class="h-xp"><b class="xp-lv">Lv 7</b><span class="mt-title r-rare">符読み</span><span class="xp-bar"><i style="width:62%"></i></span><small class="xp-next">次まで 2,140</small></div>`,
+      `<p>計器の上の帯。<b>yan を稼ぐと経験値がたまり</b>（BONUS の賞金と同じ量）、BET や買い物、破産では減りません。稽古でも、正解すると少しだけ（1問 最大${KEIKO_EXP}）たまります。Lv1 から始まり、上限はありません。装備した称号もここに出ます。</p>`,
     ) +
-    card('settle', '成績と破産', '', `<p>出題設定の「成績を見る」で、ここまでの正答率・収支・大当り履歴を表示して区切ります（所持金と台はそのまま続きから）。所持金が尽きると破産で、${ECONOMY.initial.toLocaleString()} yan から再スタート。</p>`)
+    card(
+      'story',
+      '物語（パチふとくんの記憶）',
+      '',
+      `<p>パチふとで経験を積むほど、パチふとくんの失った記憶が流れ込んできます。<b>Lv が上がるたびに1話ずつ</b>読めるようになり、<b>Lv ${FINAL_LEVEL} の第${FINAL_LEVEL}話で完結</b>（事実上のクリア）。そこから先の Lv は自己満足です。右上の本のマーク、または経験値の帯をタップで読めます。</p>`,
+    ) +
+    card('settle', '成績と破産', '', `<p>出題設定の「成績を見る」で、ここまでの正答率・収支・大当り履歴を表示して区切ります（所持金と台はそのまま続きから。ここでの収支は今回の遊びの分）。所持金が尽きると破産で、${ECONOMY.initial.toLocaleString()} yan から再スタート。</p>`)
   );
 }
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { freshMissions, missionDef } from '../src/ui/missions';
-import { ITEMS, buyItem, checkUnlocks, equipItem, freshShop, loadShop, missionStrip, unlockMachine } from '../src/ui/shop';
+import { ITEMS, buyItem, checkUnlocks, equipItem, freshShop, loadShop, unlockMachine } from '../src/ui/shop';
 
 describe('交換所', () => {
   it('所持金が足りないと買えない。買うと装備される', () => {
@@ -20,22 +19,6 @@ describe('交換所', () => {
     expect(unlockMachine(s, 'middle', 2999)).toBe(0);
     expect(unlockMachine(s, 'middle', 3000)).toBe(3000);
     expect(s.machines).toContain('middle');
-  });
-});
-
-describe('ミッションの帯', () => {
-  it('未達成のうち最も進んでいるものを出し、全部達成で完了表示', () => {
-    const s = freshShop();
-    const m = freshMissions();
-    s.missions = m;
-    const [a, b] = m.ids;
-    m.progress[a] = 1;
-    m.progress[b] = missionDef(b).target - 1;
-    expect(missionStrip(s).text).toContain(missionDef(b).label);
-    m.done = [...m.ids];
-    const all = missionStrip(s);
-    expect(all.done).toBe(all.total);
-    expect(all.ratio).toBe(1);
   });
 });
 

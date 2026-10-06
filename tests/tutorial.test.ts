@@ -13,7 +13,7 @@ describe('チュートリアルの台本', () => {
     expect(lines[0]).toContain('クケケケ、久しぶりの新顔だな');
   });
   it('光らせる場所は画面にある要素を指す', () => {
-    const known = /^(#question|#choices|#machine|#meter|#steps|#mode-tabs|#cfg-toggle|#open-shop|#mission-strip|#open-help|#open-settings|\.play-tab)/;
+    const known = /^(#question|#choices|#machine|#meter|#steps|#mode-tabs|#cfg-toggle|#open-shop|#exp-strip|#open-story|#open-help|#open-settings|\.play-tab)/;
     for (const c of CHAPTERS) for (const s of c.steps) if (s.kind === 'spot') expect(s.target).toMatch(known);
   });
   it('第1章は大当りを待ち、BONUS が終わるまで通しで見せる', () => {

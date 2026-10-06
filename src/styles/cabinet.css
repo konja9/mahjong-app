@@ -690,10 +690,10 @@ body.busy .bet-box .bar {
 }
 
 /* 背の低いスマホ（〜820px。上部に広告が載ると実質さらに低い）：
-   BONUS 中は液晶帯の賞金の説明とミッションの帯を畳み、4択を下から持ち上げる余白も控えめにする */
+   BONUS 中は液晶帯の賞金の説明と経験値の帯を畳み、4択を下から持ち上げる余白も控えめにする */
 @media (max-width: 640px) and (max-height: 820px) {
   :root[data-play='pachinko'] body.bonus .b-note,
-  :root[data-play='pachinko'] body.bonus #dock #mission-strip {
+  :root[data-play='pachinko'] body.bonus #dock #exp-strip {
     display: none;
   }
   #dock,
@@ -702,11 +702,10 @@ body.busy .bet-box .bar {
   }
 }
 
-/* さらに低い画面（〜700px。iPhone SE ほどの大きさ）：通常時もミッションの帯を畳み、モードのタブを低くする。
-   ミッションは右上の交換所からいつでも見られる */
+/* さらに低い画面（〜700px。iPhone SE ほどの大きさ）：経験値の帯を細くし、モードのタブを低くする */
 @media (max-width: 640px) and (max-height: 700px) {
-  :root[data-play='pachinko'] body #mission-strip {
-    display: none;
+  body #exp-strip {
+    height: 20px;
   }
   body .mode-tabs {
     margin-bottom: 6px;
@@ -1278,17 +1277,14 @@ body.busy .bet-box .bar {
   }
 }
 
-/* ---- 計器の上の細い帯：今日のミッション（タップで一覧） */
-#mission-strip {
-  display: none;
-}
-:root[data-play='pachinko'] #mission-strip {
+/* ---- 計器の上の細い帯：Lv・称号・経験値のバー（タップで物語） */
+#exp-strip {
   position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  height: 24px;
+  height: 26px;
   padding: 0 10px;
   overflow: hidden;
   border: 0;
@@ -1301,39 +1297,67 @@ body.busy .bet-box .bar {
   text-align: left;
   cursor: pointer;
 }
-:root[data-play='pachinko'] body[data-phase='summary'] #mission-strip {
+body[data-phase='summary'] #exp-strip {
   display: none;
 }
-#mission-strip small {
+.xp-lv {
+  flex: none;
+  color: var(--main);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+#exp-strip .mt-title {
+  flex: 0 1 auto;
+  max-width: 40%;
+}
+.xp-bar {
+  position: relative;
+  flex: 1;
+  min-width: 40px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.xp-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--main) 55%, transparent), var(--main));
+  transition: width 0.6s;
+}
+.xp-next {
   flex: none;
   font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  color: var(--main);
-}
-#mission-strip span {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
   white-space: nowrap;
-  text-overflow: ellipsis;
 }
-#mission-strip i {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  background: var(--main);
-  opacity: 0.55;
-  transition: width 0.4s;
-}
-#mission-strip.all span {
+.xp-next em {
+  font-style: normal;
+  font-weight: 800;
   color: var(--main);
 }
-#mission-strip.flash {
-  animation: mission-flash 1.2s ease-out;
+.xp-new {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: #e2483d;
+  color: #fff;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 14px;
+  animation: xp-new 1.6s ease-in-out infinite;
 }
-@keyframes mission-flash {
+@keyframes xp-new {
+  50% {
+    opacity: 0.55;
+  }
+}
+#exp-strip.flash {
+  animation: xp-flash 1.4s ease-out;
+}
+@keyframes xp-flash {
   0%,
   30% {
     background: var(--main);
@@ -1343,11 +1367,18 @@ body.busy .bet-box .bar {
     background: var(--sub-bg);
   }
 }
-#mission-strip.flash small {
+#exp-strip.flash .xp-lv {
   color: inherit;
 }
+@media (max-width: 380px) {
+  /* 狭い画面では「次まで」を外して、バーと称号の場所を取る */
+  .xp-next {
+    display: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  #mission-strip.flash {
+  #exp-strip.flash,
+  .xp-new {
     animation: none;
   }
 }
@@ -1562,7 +1593,7 @@ body.busy .bet-box .bar {
   font-weight: 400;
 }
 
-/* ---- 計器：所持の横の称号のプレート（色はレア度。金は大当り・BONUS 専用なので使わない） */
+/* ---- 称号のプレート（経験値の帯に出す。色はレア度。金は大当り・BONUS 専用なので使わない） */
 .mt-top {
   display: flex;
   align-items: center;
@@ -1632,12 +1663,6 @@ body.busy .bet-box .bar {
   100% {
     filter: none;
     transform: none;
-  }
-}
-/* 狭い画面では、称号があるときは「所持」のラベルを隠してプレートだけにする */
-@media (max-width: 640px) {
-  #wallet.titled .mt-top small {
-    display: none;
   }
 }
 /* 交換所の一覧：レア度の印 */
@@ -1780,20 +1805,17 @@ body.busy .bet-box .bar {
   background-clip: text;
   color: transparent;
 }
-.h-mission {
+.h-xp {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 4px 10px;
+  padding: 5px 10px;
   border-radius: 7px;
+  background: var(--sub-bg);
   box-shadow: inset 0 0 0 1px var(--line);
   font-size: 11px;
   color: var(--sub);
-}
-.h-mission small {
-  font-weight: 800;
-  color: var(--main);
 }
 .h-plates {
   display: flex;

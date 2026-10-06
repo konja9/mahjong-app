@@ -1,10 +1,9 @@
 /**
- * yan の使い道：台の解放（液晶帯から開く台選び）・景品（交換所）・日替わりミッション（計器の上の帯）。
+ * yan の使い道：台の解放（液晶帯から開く台選び）・景品（交換所）。
  * 保存は tensu.shop.v1 にまとめる。破産しても消えない（購入は恒久的な yan の使い道）
  */
 import type { Mode } from '../core/generator';
 import { MACHINE_IDS, type MachineId, SPECS } from './machine/specs';
-import { type MissionState, ensureToday, missionDef } from './missions';
 import { load, save } from './storage';
 
 const KEY = 'tensu.shop.v1';
@@ -111,7 +110,6 @@ export interface ShopState {
   machines: MachineId[];
   owned: string[];
   equip: Record<ItemKind, string>;
-  missions?: MissionState;
   stats: PlayStats;
 }
 
@@ -132,7 +130,9 @@ export function loadShop(): ShopState {
   const stats = { ...f.stats, ...s.stats, correct: { ...f.stats.correct, ...s.stats?.correct } };
   // 後から増えた無料の景品（BGM のスタンダードなど）も持っていることにする
   const owned = [...new Set([...(s.owned ?? []), ...FREE])].filter((id) => ITEMS.some((i) => i.id === id));
-  return { ...f, ...s, owned, stats, equip: { ...f.equip, ...s.equip } };
+  // 廃止した日替わりミッションの記録は読み捨てる
+  const { missions: _old, ...rest } = s as Partial<ShopState> & { missions?: unknown };
+  return { ...f, ...rest, owned, stats, equip: { ...f.equip, ...s.equip } };
 }
 
 /** 実力の称号のうち、条件を満たしたのに未取得のものを取得し、新しく取れたものを返す */
@@ -169,8 +169,8 @@ export function unlockMachine(s: ShopState, id: MachineId, balance: number): num
   return p;
 }
 
-/** ダイアログの種類：台選び・交換所（景品）・ミッション */
-export type ShopView = 'machine' | 'items' | 'missions';
+/** ダイアログの種類：台選び・交換所（景品） */
+export type ShopView = 'machine' | 'items';
 
 const yen = (n: number) => `${n.toLocaleString()} yan`;
 
@@ -250,48 +250,15 @@ export function itemsHtml(s: ShopState, balance: number, canPreview = true, tab:
   return `<div class="cfg-group help-tabs items-tabs" role="tablist">${tabs}</div>${body}`;
 }
 
-/** 今日のミッションの一覧 */
-export function missionsHtml(s: ShopState): string {
-  const m = ensureToday(s.missions);
-  return (
-    m.ids
-      .map((id) => {
-        const d = missionDef(id);
-        const v = m.progress[id] ?? 0;
-        const done = m.done.includes(id);
-        return `<div class="shop-row${done ? ' cur' : ''}"><div class="mis"><div class="shop-name">${d.label}</div>
-          <div class="mis-bar"><i style="width:${(v / d.target) * 100}%"></i></div><div class="shop-desc">${done ? '達成' : `${v}/${d.target}`}</div></div>
-          <span class="shop-reward">+${d.reward.toLocaleString()}</span></div>`;
-      })
-      .join('') + '<p class="help-note">ミッションは毎日変わります（パチンコのみ）。達成すると yan がすぐに入ります。</p>'
-  );
-}
-
-const TITLES: Record<ShopView, string> = { machine: '台選び', items: '交換所', missions: '今日のミッション' };
+const TITLES: Record<ShopView, string> = { machine: '台選び', items: '交換所' };
 
 /** ダイアログの中身 */
 export function shopHtml(s: ShopState, view: ShopView, balance: number, canSwitch: boolean, tab: ItemsTab = 'title'): string {
   // canSwitch：台選びでは台を切り替えられるか、交換所では試聴できるか
   const body =
-    view === 'machine' ? machinesHtml(s, balance, canSwitch) : view === 'items' ? itemsHtml(s, balance, canSwitch, tab) : missionsHtml(s);
+    view === 'machine' ? machinesHtml(s, balance, canSwitch) : itemsHtml(s, balance, canSwitch, tab);
   return `<div class="settings help shop">
-    <div class="set-head"><span>${TITLES[view]}</span><span class="shop-wallet">所持 <b>${balance.toLocaleString()}</b> yan</span><button class="icon-btn" data-shop-close aria-label="閉じる">×</button></div>
+    <div class="set-head"><span>${TITLES[view]}</span><span class="shop-wallet">所持yan <b>${balance.toLocaleString()}</b> yan</span><button class="icon-btn" data-shop-close aria-label="閉じる">×</button></div>
     <div class="help-body">${body}</div>
   </div>`;
-}
-
-/** 計器の上の帯：未達成のうち最も進んでいるミッション（全部達成なら完了表示） */
-export function missionStrip(s: ShopState): { text: string; done: number; total: number; ratio: number } {
-  const m = ensureToday(s.missions);
-  const open = m.ids.filter((id) => !m.done.includes(id));
-  if (!open.length) return { text: '今日のミッションはすべて達成', done: m.ids.length, total: m.ids.length, ratio: 1 };
-  const ratio = (id: string) => (m.progress[id] ?? 0) / missionDef(id).target;
-  const id = open.reduce((a, b) => (ratio(b) > ratio(a) ? b : a));
-  const d = missionDef(id);
-  return {
-    text: `${d.label} ${m.progress[id] ?? 0}/${d.target}`,
-    done: m.done.length,
-    total: m.ids.length,
-    ratio: ratio(id),
-  };
 }

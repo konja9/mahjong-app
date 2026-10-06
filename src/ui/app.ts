@@ -38,9 +38,24 @@ import { type StartChoice, StartScreen } from './start';
 import { charaSvg } from './tutorial/chara';
 import type { ChapterId, TutorialAction } from './tutorial/script';
 import { SPECS } from './machine/specs';
-import { dateKey, ensureToday, recordAnswer } from './missions';
+import {
+  FINAL_LEVEL,
+  KEIKO_EXP,
+  type DailyNet,
+  addExp,
+  ensureDay,
+  keikoExp,
+  levelOf,
+  loadDaily,
+  loadLevel,
+  markRead,
+  saveDaily,
+  saveLevel,
+  unreadChapters,
+} from './level';
+import { STORY, storyChapterHtml, storyIndexHtml } from './story';
 import { renderOdometer } from './odometer';
-import { type ItemsTab, RARITY_LABEL, type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, missionStrip, saveShop, shopHtml, unlockMachine } from './shop';
+import { type ItemsTab, RARITY_LABEL, type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, saveShop, shopHtml, unlockMachine } from './shop';
 import { type TipId, Tips, tipLink, tipText } from './tips';
 import { TILE_DEFS, handHtml, tilesInline } from './tileView';
 import { PRIVACY_POLICY_URL } from './links';
@@ -61,8 +76,8 @@ interface Session {
   streak: number;
   maxStreak: number;
   times: number[];
-  /** セッション開始時の所持金（パチンコの収支表示用） */
-  startBalance: number;
+  /** この遊びの収支（BET と BONUS の賞金だけ。買い物は含めない） */
+  net: number;
   byCat: Record<string, { c: number; n: number }>;
   misses: Miss[];
   /** このセッションで復習に入った手の数 */
@@ -75,7 +90,7 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = 
   root.querySelector(sel) as T;
 
 function newSession(): Session {
-  return { answered: 0, correct: 0, streak: 0, maxStreak: 0, times: [], startBalance: 0, byCat: {}, misses: [], reviewAdded: 0 };
+  return { answered: 0, correct: 0, streak: 0, maxStreak: 0, times: [], net: 0, byCat: {}, misses: [], reviewAdded: 0 };
 }
 
 function questionMeta(q: Question): { dealer: boolean; tsumo: boolean } {
@@ -147,7 +162,11 @@ export class App {
   /** 回答を止めている理由（台の発展リーチ・大当り、ダイアログ） */
   private pauses = new Set<string>();
   private tips = new Tips();
-  private tipQueue: { text: string; link?: { tab: HelpTab; card: string } | null; chara?: boolean }[] = [];
+  private tipQueue: { text: string; link?: { tab: HelpTab; card: string } | null; chara?: boolean; story?: number }[] = [];
+  /** 経験値と Lv（物語の解放） */
+  private lv = loadLevel();
+  /** 本日の収支（朝5時で0に戻る） */
+  private daily: DailyNet = loadDaily();
   private tipTimer = 0;
   private tipShownAt = 0;
   /** まだ大当りしたことがない人向けのチュートリアル当り */
@@ -157,13 +176,13 @@ export class App {
   private tut!: Tutorial;
   /** スタート画面（起動するたびに出す） */
   private start!: StartScreen;
-  /** チュートリアル中は BET をとらず、ミッション・記録にも数えない */
+  /** チュートリアル中は BET をとらず、累計の記録にも数えない */
   private tutFree = false;
   /** チュートリアル：あと何問正解したら大当りにするか（0 はなし） */
   private tutJackpotIn = 0;
   private helpTab: HelpTab = 'basic';
   private tipsReset = false;
-  /** 交換所（台・景品・ミッション） */
+  /** 交換所（台・景品） */
   private shop = loadShop();
   private shopView: ShopView = 'items';
   /** 交換所で最後に開いたタブ */
@@ -195,7 +214,10 @@ export class App {
     this.startSession();
     this.tut = new Tutorial({ act: (a) => this.tutAct(a), onActive: (on) => this.tutActive(on), idle: () => !this.round });
     this.start = new StartScreen({
-      view: () => ({ first: this.firstRun, balance: this.wallet.balance }),
+      view: () => {
+        const { level } = levelOf(this.lv.exp);
+        return { first: this.firstRun, balance: this.wallet.balance, level, cleared: level >= FINAL_LEVEL };
+      },
       onShown: (on) => {
         this.pause('start', on);
         this.panel.hold(on);
@@ -393,7 +415,6 @@ export class App {
     }
     this.setBusy(false);
     this.session = newSession();
-    this.session.startBalance = this.wallet.balance;
     this.awaitingBankrupt = false;
     this.renderWallet(false);
     $('#summary').hidden = true;
@@ -590,7 +611,7 @@ export class App {
     if (r.perfect && r.total > 0) {
       const mult = drawUwanose(Math.random, r.premium);
       const add = Math.round(r.total * (mult - 1));
-      r.resolve({ total: r.total + add, uwanose: { mult, base: r.total, pay: () => this.changeBalance(add, 1200) } });
+      r.resolve({ total: r.total + add, uwanose: { mult, base: r.total, pay: () => this.earn(add, 1200) } });
     } else r.resolve({ total: r.total });
   }
 
@@ -649,15 +670,47 @@ export class App {
     el.innerHTML = `<small>BET${tag}</small><span class="bet-v"><b${correct ? '' : ' class="ng"'}>−${cost}</b></span>`;
   }
 
-  /** 計器の右枠：通常は今回の収支、BONUS 中はそのラウンドの出玉 */
+  /** 計器の右枠：通常は本日の収支（朝5時で0に戻る）、BONUS 中はそのラウンドの出玉 */
   private renderNet(): void {
     const el = $('#net');
     const r = this.isRoundQ ? this.round : null;
-    const v = r ? r.total : this.wallet.balance - this.session.startBalance;
+    this.daily = ensureDay(this.daily);
+    const v = r ? r.total : this.daily.net;
     el.classList.toggle('bonus', !!r);
     el.classList.toggle('minus', !r && v < 0);
-    el.querySelector('small')!.textContent = r ? '出玉' : '収支';
+    el.querySelector('small')!.textContent = r ? '出玉' : '本日の収支';
     renderOdometer(el.querySelector('b')!, `${v > 0 ? '+' : v < 0 ? '−' : '±'}${Math.abs(v).toLocaleString()}`);
+  }
+
+  /** 稼いだ yan（BONUS の賞金・上乗せ）：所持金・本日の収支・経験値に入れる */
+  private earn(amount: number, rollMs = 500): void {
+    this.addDaily(amount);
+    this.changeBalance(amount, rollMs);
+    this.gainExp(amount);
+  }
+
+  /** 本日の収支に足す（BET と BONUS の賞金だけ。買い物・破産・リセットは含めない） */
+  private addDaily(delta: number): void {
+    this.daily = ensureDay(this.daily);
+    this.daily.net += delta;
+    this.session.net += delta;
+    saveDaily(this.daily);
+  }
+
+  /** 経験値を足し、Lv が上がったら知らせる（物語が1話ずつ読めるようになる） */
+  private gainExp(n: number): void {
+    const ups = addExp(this.lv, n);
+    if (!n) return;
+    saveLevel(this.lv);
+    this.renderExpStrip(ups.length > 0);
+    if (!ups.length) return;
+    const lv = ups[ups.length - 1];
+    if (ups.includes(FINAL_LEVEL)) {
+      this.toast(`Lv ${FINAL_LEVEL}！ パチふとくんの記憶がすべて戻った。最終話「${STORY[FINAL_LEVEL - 1].title}」で物語は完結だ`, null, true, FINAL_LEVEL);
+    } else if (lv < FINAL_LEVEL) {
+      this.toast(`Lv ${lv}！ パチふとくんの記憶が戻ってきた。第${lv}話「${STORY[lv - 1].title}」が読める`, null, true, lv);
+    } else this.toast(`Lv ${lv}！`, null, true);
+    this.tip('levelUp');
   }
 
   /** 所持金の増減（計器の数字が回り、差額が浮き上がる） */
@@ -919,7 +972,7 @@ export class App {
           this.panel.roundUp(add);
           this.tip('roundUp');
         } else if (up) this.tip('ladder');
-        this.fx.roundWin(prize, answerEl, $('#net'), () => this.changeBalance(prize, 900));
+        this.fx.roundWin(prize, answerEl, $('#net'), () => this.earn(prize, 900));
       } else if (!this.keiko && elapsed <= ECONOMY.fastSeconds[this.s.mode]) {
         this.tip('fast');
         extra = '<span class="fast-tag">速答</span>';
@@ -971,13 +1024,17 @@ export class App {
         this.panel.missSpin();
       }
     }
-    // チュートリアルの問題は BET をとらず、ミッションにも数えない
+    // チュートリアルの問題は BET をとらず、累計の記録にも数えない
     if (!this.keiko && !this.isRoundQ && !this.tutFree) {
       const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
       this.settleBet(correct, fast);
-      this.changeBalance(-costFor(correct, correct && fast, this.spec));
+      const cost = costFor(correct, correct && fast, this.spec);
+      this.addDaily(-cost);
+      this.changeBalance(-cost);
     }
-    if (!this.keiko && !this.tutFree) this.recordMission(correct, elapsed <= ECONOMY.fastSeconds[this.s.mode], dealer, tsumo);
+    if (!this.keiko && !this.tutFree) this.recordStats(correct, elapsed <= ECONOMY.fastSeconds[this.s.mode], dealer, tsumo);
+    // 稽古は yan が動かないので、正解した分だけ少し経験値を入れる
+    if (this.keiko && !this.tutFree) this.gainExp(this.steps ? keikoExp(this.steps.okCount, this.steps.total) : correct ? KEIKO_EXP : 0);
     this.renderProgress();
     this.renderInput();
     this.hint(this.compact ? '' : correct ? 'クリック / 任意のキーで次へ' : 'クリック / Enter / Space で次へ');
@@ -1214,10 +1271,10 @@ export class App {
         stat('最大連続', String(ss.maxStreak)),
       ].join('');
     } else {
-      const diff = this.wallet.balance - ss.startBalance;
+      const diff = ss.net;
       const d = this.panel.machine.data;
       stats = [
-        stat('収支', `${diff >= 0 ? '+' : '−'}${Math.abs(diff).toLocaleString()}<small>yan</small>`, `hero ${diff >= 0 ? 'plus' : 'minus'}`),
+        stat('今回の収支', `${diff >= 0 ? '+' : '−'}${Math.abs(diff).toLocaleString()}<small>yan</small>`, `hero ${diff >= 0 ? 'plus' : 'minus'}`),
         stat('正答率', `${Math.round(acc)}<small>%</small>`),
         stat('大当り', `${d.hits}<small>回</small>`),
         stat('最大RUSH', `${d.maxChain}<small>連</small>`),
@@ -1356,8 +1413,10 @@ export class App {
     $('#open-settings').addEventListener('click', () => this.openSettings());
     $('#open-help').addEventListener('click', () => this.openHelp());
     $('#open-shop').addEventListener('click', () => this.openShop('items'));
-    $('#mission-strip').addEventListener('click', () => this.openShop('missions'));
-    this.renderMissionStrip();
+    $('#exp-strip').addEventListener('click', () => this.openStory());
+    $('#open-story').addEventListener('click', () => this.openStory());
+    this.bindStory();
+    this.renderExpStrip();
     this.bindShop();
     this.bindGuide();
     this.bindSettings();
@@ -1536,6 +1595,9 @@ export class App {
         const [tab, card] = more.dataset.tipMore!.split(':');
         this.openHelp(tab as HelpTab, card);
       }
+      // 「読む」は物語の該当の話へ
+      const story = (e.target as HTMLElement).closest<HTMLElement>('[data-tip-story]');
+      if (story) this.openStory(Number(story.dataset.tipStory));
       this.nextTip();
     });
   }
@@ -1663,8 +1725,8 @@ export class App {
   }
 
   /** 画面上端の一言。chara なら一言ガイド（パチふとくんの顔つき） */
-  private toast(text: string, link: { tab: HelpTab; card: string } | null = null, chara = false): void {
-    this.tipQueue.push({ text, link, chara });
+  private toast(text: string, link: { tab: HelpTab; card: string } | null = null, chara = false, story?: number): void {
+    this.tipQueue.push({ text, link, chara, story });
     if ($('#tip').hidden) this.nextTip();
     else {
       // 続けて起きたときは、今のガイドを最低限読める時間だけ出して次へ
@@ -1681,7 +1743,11 @@ export class App {
       el.hidden = true;
       return;
     }
-    const more = item.link ? `<button class="tip-more" type="button" data-tip-more="${item.link.tab}:${item.link.card}">詳しく</button>` : '';
+    const more = item.story
+      ? `<button class="tip-more" type="button" data-tip-story="${item.story}">読む</button>`
+      : item.link
+        ? `<button class="tip-more" type="button" data-tip-more="${item.link.tab}:${item.link.card}">詳しく</button>`
+        : '';
     const label = item.chara ? `<span class="tip-face">${charaSvg('neutral')}</span>` : '<span class="tip-label">TIPS</span>';
     el.innerHTML = `${label}<span class="tip-text">${item.text}</span>${more}`;
     el.hidden = false;
@@ -1700,7 +1766,7 @@ export class App {
     this.panel.machine.forceNextHit();
   }
 
-  // ------------------------------------------------------------ 台選び・交換所・ミッション
+  // ------------------------------------------------------------ 台選び・交換所
 
   private bindShop(): void {
     const dlg = $<HTMLDialogElement>('#shop-dialog');
@@ -1754,7 +1820,6 @@ export class App {
   }
 
   private renderShop(): void {
-    this.shop.missions = ensureToday(this.shop.missions);
     // 台選びは BONUS 中と台が回っている間はできない。試聴は BONUS・RUSH の曲が鳴っている間はできない
     const ok = this.shopView === 'items' ? !this.round && !this.panel.rush : !this.round && this.panel.idle;
     $('#shop-dialog').innerHTML = shopHtml(this.shop, this.shopView, this.wallet.balance, ok, this.shopItemsTab);
@@ -1788,17 +1853,8 @@ export class App {
     bgm.setTrack(equipped(this.shop, 'bgm').value as BgmTrack);
   }
 
-  /** ミッションの進み具合を更新し、達成したら報酬を渡す */
-  private recordMission(correct: boolean, fast: boolean, dealer: boolean, tsumo: boolean): void {
-    const m = (this.shop.missions = ensureToday(this.shop.missions, dateKey()));
-    const done = recordAnswer(m, {
-      mode: this.s.mode,
-      correct,
-      fast: correct && fast,
-      streak: this.session.streak,
-      splitTsumo: this.q.mode !== 'fu' && tsumo && !dealer,
-    });
-    // 実力の称号のための累計の記録
+  /** 実力の称号のための累計の記録 */
+  private recordStats(correct: boolean, fast: boolean, dealer: boolean, tsumo: boolean): void {
     const st = this.shop.stats;
     const ss = this.session;
     if (correct) {
@@ -1810,46 +1866,81 @@ export class App {
     if (ss.answered >= 100 && ss.correct / ss.answered >= 0.95) st.precise = 1;
     this.grantUnlocks();
     saveShop(this.shop);
-    for (const d of done) {
-      this.toast(`ミッション達成：${d.label}　+${d.reward.toLocaleString()} yan`, { tab: 'money', card: 'mission' });
-      this.changeBalance(d.reward, 900);
-    }
-    this.renderMissionStrip(done.length > 0);
-    if (done.length) this.tip('mission');
   }
 
   /** 実力の称号の条件を満たしていたら取得して知らせる */
   private grantUnlocks(): void {
     for (const it of checkUnlocks(this.shop)) {
-      this.toast(`称号を獲得：${it.name}（${RARITY_LABEL[it.rarity ?? 'common']}）。交換所で装備すると、計器の所持の横に表示されます`, { tab: 'money', card: 'shop' });
+      this.toast(`称号を獲得：${it.name}（${RARITY_LABEL[it.rarity ?? 'common']}）。交換所で装備すると、経験値のバーに表示されます`, { tab: 'money', card: 'shop' });
     }
   }
 
-  /** 計器の「所持」の横の称号のプレート（色はレア度）。flash で一瞬光らせる */
+  /** 経験値のバーの称号のプレート（色はレア度）。flash で一瞬光らせる */
   private renderTitlePlate(flash = false): void {
-    const t = equipped(this.shop, 'title');
-    const el = $('#wallet .mt-title');
-    el.hidden = !t.value;
-    el.textContent = t.value;
-    el.className = `mt-title r-${t.rarity ?? 'common'}`;
-    $('#wallet').classList.toggle('titled', !!t.value);
-    if (flash && t.value) {
+    this.renderExpStrip();
+    const el = $('#exp-strip .mt-title');
+    if (flash && el && !el.hidden) {
       void el.offsetWidth;
       el.classList.add('flash');
     }
   }
 
-  /** 計器の上の細い帯：今日のミッションの進み具合。達成した瞬間は光らせる */
-  private renderMissionStrip(flash = false): void {
-    const el = $('#mission-strip');
-    const m = missionStrip(this.shop);
-    el.innerHTML = `<small>ミッション ${m.done}/${m.total}</small><span>${m.text}</span><i style="width:${Math.round(m.ratio * 100)}%"></i>`;
-    el.classList.toggle('all', m.done === m.total);
+  /** 計器の上の帯：Lv・称号・経験値のバー・次の Lv まで。Lv が上がった瞬間は光らせる */
+  private renderExpStrip(flash = false): void {
+    const el = $('#exp-strip');
+    const { level, into, need } = levelOf(this.lv.exp);
+    const t = equipped(this.shop, 'title');
+    const unread = unreadChapters(this.lv).length;
+    const done = level >= FINAL_LEVEL;
+    const title = t.value ? `<span class="mt-title r-${t.rarity ?? 'common'}">${t.value}</span>` : '';
+    el.innerHTML = `<b class="xp-lv">Lv ${level}</b>${title}<span class="xp-bar"><i style="width:${Math.round((into / need) * 100)}%"></i></span><small class="xp-next">${done ? '<em>完結</em> ' : ''}次まで ${(need - into).toLocaleString()}</small>${unread ? '<em class="xp-new">NEW</em>' : ''}`;
+    el.setAttribute('aria-label', `Lv ${level}。次の Lv まで ${need - into}。タップで物語を読む`);
     if (flash) {
       el.classList.remove('flash');
       void el.offsetWidth;
       el.classList.add('flash');
     }
+  }
+
+  // ------------------------------------------------------------ 物語（パチふとくんの記憶）
+
+  private bindStory(): void {
+    const dlg = $<HTMLDialogElement>('#story-dialog');
+    dlg.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t === dlg || t.closest('[data-story-close]')) {
+        dlg.close();
+        return;
+      }
+      const b = t.closest<HTMLElement>('[data-story]');
+      if (!b) return;
+      const v = b.dataset.story!;
+      this.renderStory(v === 'index' ? 0 : Number(v));
+    });
+    dlg.addEventListener('close', () => {
+      this.pause('story', false);
+      this.renderExpStrip();
+    });
+  }
+
+  /** 物語の本を開く。chapter を渡すとその話を開く（0 で目次。読んでいない話があれば最初のその話） */
+  openStory(chapter = 0): void {
+    const dlg = $<HTMLDialogElement>('#story-dialog');
+    this.pause('story', true);
+    if (!dlg.open) dlg.showModal();
+    this.renderStory(chapter);
+  }
+
+  private renderStory(chapter: number): void {
+    const dlg = $<HTMLDialogElement>('#story-dialog');
+    const open = Math.min(levelOf(this.lv.exp).level, FINAL_LEVEL);
+    if (chapter >= 1 && chapter <= open) {
+      markRead(this.lv, chapter);
+      saveLevel(this.lv);
+      dlg.innerHTML = `<div class="story">${storyChapterHtml(chapter, this.lv)}</div>`;
+    } else dlg.innerHTML = `<div class="story">${storyIndexHtml(this.lv)}</div>`;
+    dlg.querySelector('.story-body')?.scrollTo(0, 0);
+    dlg.scrollTo(0, 0);
   }
 
   // ------------------------------------------------------------ 設定ダイアログ
@@ -2033,6 +2124,7 @@ const SHELL = `
   <div class="top-right">
     <button id="cfg-toggle" class="cfg-pill" type="button" aria-expanded="false" aria-controls="config"></button>
     <button id="open-shop" class="icon-btn" aria-label="交換所"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg></button>
+    <button id="open-story" class="icon-btn" aria-label="物語（パチふとくんの記憶）"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg></button>
     <button id="open-help" class="icon-btn" aria-label="遊び方"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
     <button id="open-settings" class="icon-btn" aria-label="設定">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -2049,11 +2141,11 @@ const SHELL = `
     <div id="question"></div>
     <div id="steps" hidden></div>
     <div id="dock">
-      <button id="mission-strip" type="button" aria-label="今日のミッション"></button>
+      <button id="exp-strip" type="button" aria-label="経験値"></button>
       <div id="meter">
-        <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><div class="mt-top"><small>所持</small><span class="mt-title" hidden></span></div><b>0</b></div>
+        <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><div class="mt-top"><small>所持yan</small></div><b>0</b></div>
         <div class="mt-cell mt-bet"><div id="bet" class="bet-box"></div></div>
-        <div class="mt-cell mt-net" id="net"><small>収支</small><b>±0</b></div>
+        <div class="mt-cell mt-net" id="net"><small>本日の収支</small><b>±0</b></div>
       </div>
       <div id="answer" aria-live="polite"></div>
       <div id="choices" role="group" aria-label="選択肢"></div>
@@ -2080,5 +2172,6 @@ const SHELL = `
 <dialog id="settings-dialog"></dialog>
 <dialog id="help-dialog"></dialog>
 <dialog id="shop-dialog"></dialog>
+<dialog id="story-dialog" aria-label="物語"></dialog>
 ${TILE_DEFS}
 `;

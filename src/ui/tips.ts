@@ -31,7 +31,7 @@ export type TipId =
   | 'rushMiss'
   | 'shop'
   | 'machine'
-  | 'mission';
+  | 'levelUp';
 
 export class Tips {
   private seen: Set<string>;
@@ -101,8 +101,8 @@ export function tipText(id: Exclude<TipId, 'firstHit'>, fastSec: number, spec: M
       return '交換所（右上の景品のアイコン）で称号・スキン・BGM が買えるぜ。格を見せつけな';
     case 'machine':
       return `ミドル台を解放できるだけ稼いだな（${SPECS.middle.price.toLocaleString()} yan）。液晶帯の台の名前をタップだ`;
-    case 'mission':
-      return 'ミッションは毎日3つ。計器の上の帯をタップすりゃ一覧が見られるぜ';
+    case 'levelUp':
+      return 'Lv が上がるたび、オレ様の記憶が1話ずつ戻ってくる。経験値のバーか、右上の本のマークで読めるぜ';
   }
 }
 
@@ -126,7 +126,7 @@ export function tipLink(id: Exclude<TipId, 'firstHit'>): { tab: HelpTab; card: s
     rushMiss: ['rush', 'rush-miss'],
     shop: ['money', 'shop'],
     machine: ['money', 'machine'],
-    mission: ['money', 'mission'],
+    levelUp: ['money', 'level'],
   };
   const v = map[id];
   return v ? { tab: v[0], card: v[1] } : null;

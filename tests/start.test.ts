@@ -53,14 +53,14 @@ describe('チュートリアルの吹き出しの置き場所', () => {
 
 describe('スタート画面', () => {
   it('初回はチュートリアルを大きく出し、とばすボタンも出す', () => {
-    const h = startHtml({ first: true, balance: 2000 });
+    const h = startHtml({ first: true, balance: 2000, level: 1, cleared: false });
     expect(h).toContain('st-btn st-tutorial big');
     expect(h).toContain('data-start="skip"');
     expect(h).toContain('2,000 yan');
   });
 
   it('2回目以降はチュートリアルを小さな文字ボタンにする', () => {
-    const h = startHtml({ first: false, balance: 500 });
+    const h = startHtml({ first: false, balance: 500, level: 3, cleared: false });
     expect(h).not.toContain('st-tutorial big');
     expect(h).not.toContain('data-start="skip"');
     expect(h).toContain('class="st-link" type="button" data-start="tutorial"');

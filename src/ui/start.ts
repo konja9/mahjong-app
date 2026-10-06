@@ -49,6 +49,9 @@ export interface StartView {
   /** 初めての起動（チュートリアルを大きく出す） */
   first: boolean;
   balance: number;
+  level: number;
+  /** 物語が完結したか（Lv20 以上） */
+  cleared: boolean;
 }
 
 export function startHtml(v: StartView): string {
@@ -62,6 +65,7 @@ export function startHtml(v: StartView): string {
   return `<div class="st-inner">
     <h1 class="st-logo"><span class="logo-pachi">パチ</span><span class="logo-futo">ふと</span></h1>
     <p class="st-sub">パチンコ符計算トレーニング</p>
+    ${v.first ? '' : `<p class="st-lv">Lv <b>${v.level}</b>${v.cleared ? '　物語 <b>完結</b>' : ''}</p>`}
     <div class="st-chara"><div class="st-face">${charaSvg('grin')}</div><p class="st-say">${say}</p></div>
     <div class="st-buttons">
       ${tutorial}
