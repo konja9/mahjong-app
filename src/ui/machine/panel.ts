@@ -176,8 +176,17 @@ export class MachinePanel {
     void this.loop(this.gen);
   }
 
+  /** スタート画面を出している間は、次の回転を始めない（回っている1回転は最後まで回す） */
+  private held = false;
+
+  hold(on: boolean): void {
+    this.held = on;
+  }
+
   private async loop(g: number): Promise<void> {
     while (g === this.gen && this.machine.holds.length) {
+      while (this.held && g === this.gen) await this.wait(200);
+      if (g !== this.gen) return;
       const r = this.machine.spin();
       if (!r) break;
       this.render();

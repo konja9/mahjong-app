@@ -1,0 +1,259 @@
+/* ============================================================ スタート画面・ローディング */
+#start {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  padding: calc(16px + env(safe-area-inset-top) + var(--ad-h, 0px)) 16px calc(16px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 30%, rgba(242, 201, 76, 0.22), transparent 70%),
+    radial-gradient(ellipse 90% 60% at 50% 110%, rgba(200, 50, 60, 0.18), transparent 70%),
+    #0b0a0e;
+  color: #f4eedc;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+body.start-open {
+  overflow: hidden;
+}
+.st-inner,
+.ld-inner {
+  width: min(420px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.st-logo {
+  margin: 0;
+  font-weight: 900;
+  font-size: clamp(48px, 16vw, 72px);
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 24px rgba(242, 201, 76, 0.45);
+}
+.st-logo .logo-pachi {
+  color: #f2c94c;
+}
+.st-logo .logo-futo {
+  color: #fff;
+}
+.st-sub {
+  margin: 4px 0 14px;
+  color: #b9b29c;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.st-chara {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 18px;
+}
+.st-face {
+  flex: none;
+  width: 92px;
+  height: 110px;
+}
+.st-face svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.5));
+  animation: tut-bob 2.4s ease-in-out infinite;
+}
+.st-say {
+  position: relative;
+  flex: 1;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fbf6e6;
+  color: #1b1206;
+  box-shadow: 0 0 0 2px #1b1206;
+  font-size: 14px;
+  line-height: 1.55;
+  text-align: left;
+}
+.st-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.st-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #1d1a22;
+  box-shadow: inset 0 0 0 2px rgba(242, 201, 76, 0.55), 0 6px 18px rgba(0, 0, 0, 0.4);
+  color: #fff;
+  transition: transform 0.1s;
+}
+.st-btn:active {
+  transform: scale(0.98);
+}
+.st-btn b {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+.st-btn small {
+  color: #b9b29c;
+  font-size: 12px;
+}
+.st-btn.st-pachinko {
+  background: linear-gradient(180deg, #4a1218, #2a0a0e);
+}
+.st-btn.st-keiko {
+  background: linear-gradient(180deg, #13281f, #0b1813);
+  box-shadow: inset 0 0 0 2px rgba(120, 200, 160, 0.5), 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+.st-btn.big {
+  padding: 18px 16px;
+  background: linear-gradient(180deg, #f2c94c, #c8961c);
+  box-shadow: 0 0 0 2px #1b1206, 0 0 26px rgba(242, 201, 76, 0.5);
+  color: #1b1206;
+}
+.st-btn.big b {
+  font-size: 26px;
+}
+.st-btn.big small {
+  color: #3a2a08;
+  font-weight: 700;
+}
+.st-btn:focus-visible,
+.st-link:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+.st-link {
+  margin-top: 14px;
+  padding: 6px 10px;
+  color: #b9b29c;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---- ローディング：リールが回り、バーが満ちたら「タップして進む」。自動では進まない */
+#start.st-loading {
+  cursor: pointer;
+}
+.ld-reels {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+.ld-reels i {
+  display: flex;
+  flex-direction: column;
+  width: 52px;
+  height: 60px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #f3efe2;
+  box-shadow: inset 0 0 0 2px #1b1206, 0 0 18px rgba(242, 201, 76, 0.35);
+}
+.ld-reels b {
+  flex: none;
+  height: 60px;
+  line-height: 60px;
+  color: #c8323c;
+  font-size: 34px;
+  font-weight: 900;
+  animation: ld-spin 0.45s linear infinite;
+}
+.ld-reels i:nth-child(2) b {
+  animation-duration: 0.38s;
+}
+.ld-reels i:nth-child(3) b {
+  animation-duration: 0.52s;
+}
+/* 止まると 7・7・7 がそろう */
+#start.ready .ld-reels b {
+  animation: none;
+  transform: translateY(-60px);
+}
+#start.ready .ld-reels i:nth-child(2) b {
+  transform: none;
+}
+#start.ready .ld-reels i:nth-child(3) b {
+  transform: translateY(-180px);
+}
+@keyframes ld-spin {
+  to {
+    transform: translateY(-240px);
+  }
+}
+.ld-bar {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.ld-bar i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #c8961c, #f2c94c);
+  animation: ld-fill 1.5s ease-in-out forwards;
+}
+#start.ready .ld-bar i {
+  width: 100%;
+  animation: none;
+}
+@keyframes ld-fill {
+  to {
+    width: 100%;
+  }
+}
+.ld-line {
+  min-height: 3.2em;
+  margin: 22px 0 18px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.7;
+  letter-spacing: 0.04em;
+  word-break: auto-phrase;
+  text-wrap: balance;
+}
+.ld-tap {
+  margin: 0;
+  color: #f2c94c;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  visibility: hidden;
+}
+#start.ready .ld-tap {
+  visibility: visible;
+  animation: ld-blink 1.2s ease-in-out infinite;
+}
+@keyframes ld-blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+/* 演出オフ・動きを減らす設定では動かさない */
+[data-effects='off'] #start *,
+[data-effects='off'] #start.ready .ld-tap {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  #start *,
+  #start.ready .ld-tap {
+    animation: none !important;
+  }
+}
+/* ヘッダーのロゴはスタート画面へ戻るボタン */
+#top .logo {
+  cursor: pointer;
+}

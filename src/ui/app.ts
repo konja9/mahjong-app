@@ -33,7 +33,8 @@ import { type Settings, loadSettings, saveSettings } from './settings';
 import { type ConfigView, configPanelHtml, configSummaryHtml, keikoTabsHtml } from './configPanel';
 import { type HelpTab, helpHtml } from './help';
 import { introSeen } from './intro';
-import { Tutorial, tutorialDone } from './tutorial/runner';
+import { Tutorial, skipAllTutorial, tutorialDone } from './tutorial/runner';
+import { type StartChoice, StartScreen } from './start';
 import { charaSvg } from './tutorial/chara';
 import type { ChapterId, TutorialAction } from './tutorial/script';
 import { SPECS } from './machine/specs';
@@ -154,6 +155,8 @@ export class App {
   private tutorialForced = false;
   /** パチふとくんのチュートリアル */
   private tut!: Tutorial;
+  /** スタート画面（起動するたびに出す） */
+  private start!: StartScreen;
   /** チュートリアル中は BET をとらず、ミッション・記録にも数えない */
   private tutFree = false;
   /** チュートリアル：あと何問正解したら大当りにするか（0 はなし） */
@@ -191,8 +194,17 @@ export class App {
     this.bind();
     this.startSession();
     this.tut = new Tutorial({ act: (a) => this.tutAct(a), onActive: (on) => this.tutActive(on), idle: () => !this.round });
-    // 初めて開いたときだけ、全部の章を自動で再生する（以前の導入を見た人は除く）
-    if (!introSeen() && !tutorialDone().length) this.playTutorial(['prologue', 'pachinko', 'keiko', 'tools']);
+    this.start = new StartScreen({
+      view: () => ({ first: this.firstRun, balance: this.wallet.balance }),
+      onShown: (on) => {
+        this.pause('start', on);
+        this.panel.hold(on);
+      },
+      enter: (c) => this.enterFromStart(c),
+      skipTutorial: () => skipAllTutorial(ALL_CHAPTERS),
+      still: () => this.s.effects === 'off' || matchMedia('(prefers-reduced-motion: reduce)').matches,
+    });
+    this.start.show();
   }
 
   // ------------------------------------------------------------ 設定
@@ -312,7 +324,8 @@ export class App {
       this.toggleConfigSheet(false);
       return true;
     }
-    return false;
+    // 閉じるものがなければスタート画面へ（スタート画面で押したらアプリを背面へ）
+    return this.showStart();
   }
 
   private toggleConfigSheet(open = !document.body.classList.contains('cfg-open')): void {
@@ -1278,6 +1291,19 @@ export class App {
   private bind(): void {
     addEventListener('keydown', (e) => this.onKey(e));
     addEventListener('mousemove', () => document.body.classList.remove('typing'));
+    // ロゴでスタート画面へ（BONUS 中などは戻れないことを一言で知らせる）
+    const logo = $('#top .logo');
+    const toStart = () => {
+      if (!this.showStart() && !this.tut.active) this.toast('BONUS や演出の間は、スタート画面に戻れません');
+    };
+    logo.addEventListener('click', toStart);
+    logo.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        toStart();
+      }
+    });
     document.querySelectorAll<HTMLElement>('[data-play]').forEach((b) =>
       b.addEventListener('click', () => {
         if (b.dataset.play !== this.s.playMode) this.update({ playMode: b.dataset.play as Settings['playMode'] });
@@ -1512,6 +1538,34 @@ export class App {
       }
       this.nextTip();
     });
+  }
+
+  // ------------------------------------------------------------ スタート画面
+
+  /** 初めての起動か（以前の導入もチュートリアルも見ていない） */
+  private get firstRun(): boolean {
+    return !introSeen() && !tutorialDone().length;
+  }
+
+  /** スタート画面に戻れるか（BONUS・大当りの演出中・チュートリアル中は戻らない） */
+  private get canReturnToStart(): boolean {
+    return !this.round && !this.pauses.has('machine') && !this.tut.active && !this.start.shown;
+  }
+
+  showStart(): boolean {
+    if (!this.canReturnToStart) return false;
+    for (const d of document.querySelectorAll<HTMLDialogElement>('dialog[open]')) d.close();
+    this.toggleConfigSheet(false);
+    this.start.show();
+    return true;
+  }
+
+  private enterFromStart(c: StartChoice): void {
+    if (c === 'tutorial') {
+      this.playTutorial(ALL_CHAPTERS);
+      return;
+    }
+    if (this.s.playMode !== c) this.update({ playMode: c });
   }
 
   // ------------------------------------------------------------ チュートリアル（パチふとくん）
@@ -1855,9 +1909,14 @@ export class App {
         this.tips.reset();
         this.tipsReset = true;
         return;
+      case 'start':
+        if (this.blockedInBonus()) return;
+        $<HTMLDialogElement>('#settings-dialog').close();
+        this.showStart();
+        return;
       case 'tutorial':
         if (this.blockedInBonus()) return;
-        this.playTutorial(v === 'all' ? ['prologue', 'pachinko', 'keiko', 'tools'] : [v as ChapterId]);
+        this.playTutorial(v === 'all' ? ALL_CHAPTERS : [v as ChapterId]);
         return;
       case 'keiko':
         if (confirm('稽古の記録（復習の手と、要素別の正答率）を消去しますか？')) {
@@ -1950,6 +2009,7 @@ export class App {
       <div class="set-sec">記録</div>
       <div class="set-row"><div><div class="set-label">所持金 ${this.wallet.balance.toLocaleString()} yan</div><div class="set-desc">パチンコの所持金を ${ECONOMY.initial}yan に戻す（破産 ${this.wallet.bankrupts}回）</div></div><div class="cfg-group"><button class="cfg danger" data-set="wallet" data-v="1">リセット</button></div></div>
       <div class="set-row"><div><div class="set-label">稽古の記録</div><div class="set-desc">復習の手 ${this.kd.reviews.length}問と、要素別の正答率を消去</div></div><div class="cfg-group"><button class="cfg danger" data-set="keiko" data-v="1">リセット</button></div></div>
+      <div class="set-row"><div><div class="set-label">スタート画面</div><div class="set-desc">タイトルに戻る（台と所持金はそのまま）</div></div><div class="cfg-group"><button class="cfg" data-set="start" data-v="1">戻る</button></div></div>
       <div class="set-row"><div><div class="set-label">チュートリアル</div><div class="set-desc">パチふとくんの案内をもう一度見る</div></div><div class="cfg-group"><button class="cfg" data-set="tutorial" data-v="all">全部</button><button class="cfg" data-set="tutorial" data-v="pachinko">パチンコ</button><button class="cfg" data-set="tutorial" data-v="keiko">稽古</button><button class="cfg" data-set="tutorial" data-v="tools">道具</button></div></div>
       <div class="set-row"><div><div class="set-label">一言ガイド</div><div class="set-desc">初めての人向けのヒントをもう一度表示する</div></div><div class="cfg-group"><button class="cfg${this.tipsReset ? ' on' : ''}" data-set="tips" data-v="1">${this.tipsReset ? '表示します' : 'もう一度'}</button></div></div>
       ${this.adSettingsHtml()}
@@ -1961,9 +2021,11 @@ export class App {
   }
 }
 
+const ALL_CHAPTERS: ChapterId[] = ['prologue', 'pachinko', 'keiko', 'tools'];
+
 const SHELL = `
 <header id="top">
-  <div class="logo" aria-label="パチふと"><span class="logo-pachi">パチ</span><span class="logo-futo">ふと</span><span class="sub">パチンコ符計算トレーニング</span></div>
+  <div class="logo" role="button" tabindex="0" aria-label="パチふと（スタート画面へ）"><span class="logo-pachi">パチ</span><span class="logo-futo">ふと</span><span class="sub">パチンコ符計算トレーニング</span></div>
   <div class="play-tabs" role="tablist" aria-label="モード">
     <button class="play-tab" role="tab" data-play="pachinko">パチンコ</button>
     <button class="play-tab" role="tab" data-play="keiko">稽古</button>

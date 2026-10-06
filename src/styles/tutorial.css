@@ -5,9 +5,25 @@
   z-index: 200;
   pointer-events: none;
   font-family: 'Noto Sans JP', sans-serif;
+  /* 暗さ：セリフだけ 0.62・光らせて説明 0.5・光らせて操作させる 0.3（画面の様子が見え、押してよいと分かる） */
+  --tut-dim: rgba(0, 0, 0, 0.5);
+  --tut-ring: var(--main);
+}
+#tut.tut-op {
+  --tut-dim: rgba(0, 0, 0, 0.3);
+  --tut-ring: #f2c94c;
 }
 #tut[hidden] {
   display: none;
+}
+/* ノッチ・広告・ホームバーを除いた範囲（吹き出しの置き場所の計算で測る） */
+.tut-probe {
+  position: fixed;
+  left: 0;
+  width: 0;
+  top: calc(env(safe-area-inset-top) + var(--ad-h, 0px));
+  bottom: env(safe-area-inset-bottom);
+  visibility: hidden;
 }
 /* セリフだけの場面は全体を暗くする */
 #tut.tut-say::before {
@@ -22,22 +38,55 @@
   position: fixed;
   display: none;
   border-radius: 10px;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62), 0 0 0 2px var(--main), 0 0 18px 4px color-mix(in srgb, var(--main) 55%, transparent);
+  box-shadow: 0 0 0 9999px var(--tut-dim), 0 0 0 2px var(--tut-ring), 0 0 18px 4px color-mix(in srgb, var(--tut-ring) 55%, transparent);
   transition: left 0.2s, top 0.2s, width 0.2s, height 0.2s;
   animation: tut-pulse 1.4s ease-in-out infinite;
 }
 #tut.tut-spot .tut-hole:not([hidden]) {
   display: block;
 }
+#tut.tut-op .tut-hole {
+  animation-name: tut-pulse-op;
+}
+/* 操作させる場面は、枠の上に「タップ！」の札を付ける */
+#tut.tut-op .tut-hole::after {
+  content: 'タップ！';
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translate(-50%, -4px);
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--tut-ring);
+  color: #1b1206;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+#tut.tut-op .tut-hole.badge-below::after {
+  bottom: auto;
+  top: 100%;
+  transform: translate(-50%, 4px);
+}
 @keyframes tut-pulse {
   50% {
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62), 0 0 0 3px var(--main), 0 0 26px 8px color-mix(in srgb, var(--main) 65%, transparent);
+    box-shadow: 0 0 0 9999px var(--tut-dim), 0 0 0 3px var(--tut-ring), 0 0 26px 8px color-mix(in srgb, var(--tut-ring) 65%, transparent);
+  }
+}
+@keyframes tut-pulse-op {
+  0%,
+  100% {
+    box-shadow: 0 0 0 9999px var(--tut-dim), 0 0 0 3px var(--tut-ring), 0 0 18px 4px color-mix(in srgb, var(--tut-ring) 60%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 9999px var(--tut-dim), 0 0 0 4px var(--tut-ring), 0 0 30px 10px color-mix(in srgb, var(--tut-ring) 75%, transparent);
   }
 }
 .tut-finger {
   position: fixed;
   display: none;
   font-size: 34px;
+  line-height: 1;
   transform: translateX(-50%);
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
   animation: tut-finger 0.9s ease-in-out infinite;
@@ -54,7 +103,7 @@
     opacity: 0.75;
   }
 }
-/* キャラと吹き出し：画面の下（対象が下半分にあるときは上） */
+/* キャラと吹き出し：セリフだけの場面は画面の下。光らせる場面は対象の上下の空いている側（runner が位置と高さを決める） */
 .tut-ui {
   position: fixed;
   left: 50%;
@@ -68,9 +117,7 @@
   cursor: pointer;
   animation: tut-in 0.25s ease-out;
 }
-.tut-ui.top {
-  top: calc(64px + env(safe-area-inset-top) + var(--ad-h, 0px));
-  bottom: auto;
+.tut-ui[data-side='below'] {
   align-items: flex-start;
 }
 @keyframes tut-in {
@@ -98,8 +145,10 @@
 .tut-bubble {
   position: relative;
   flex: 1;
-  min-height: 72px;
-  padding: 10px 14px 18px;
+  min-width: 0;
+  max-height: inherit;
+  overflow-y: auto;
+  padding: 8px 14px 16px;
   border-radius: 14px;
   background: #fbf6e6;
   color: #1b1206;
@@ -107,15 +156,31 @@
   font-size: 15px;
   line-height: 1.6;
 }
-.tut-name {
-  display: inline-block;
+.tut-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 2px;
+}
+.tut-name {
   padding: 0 8px;
   border-radius: 6px;
   background: #1b1206;
   color: #e8c45a;
   font-size: 11px;
   letter-spacing: 0.05em;
+}
+/* スキップは吹き出しの右上（吹き出しは対象を避けて置くので、光らせた場所に重ならない） */
+.tut-skip {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(27, 18, 6, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(27, 18, 6, 0.35);
+  color: #1b1206;
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: auto;
 }
 .tut-text {
   margin: 0;
@@ -124,11 +189,11 @@
 .tut-more {
   position: absolute;
   right: 12px;
-  bottom: 4px;
+  bottom: 2px;
   font-size: 11px;
   opacity: 0;
 }
-#tut.tut-typed:not(.tut-free):not(.tut-next-click):not(.tut-next-answered):not(.tut-next-stepAnswered) .tut-more {
+#tut.tut-typed:not(.tut-free):not(.tut-op) .tut-more {
   opacity: 1;
   animation: tut-more 0.8s ease-in-out infinite;
 }
@@ -137,40 +202,47 @@
     translate: 0 3px;
   }
 }
-/* 自由に遊ばせる場面は小さく出し、画面の操作を邪魔しない */
+/* 操作させる場面は ▼ の代わりに「光っているところを押してね」 */
+.tut-hint {
+  display: none;
+  margin-top: 2px;
+  color: #8a6a12;
+  font-size: 11px;
+  font-weight: 700;
+}
+#tut.tut-op.tut-typed .tut-hint {
+  display: block;
+}
+/* 自由に遊ばせる場面は、画面の上端に1行の小さな帯で出し、台や回答欄に重ねない */
 #tut.tut-free .tut-ui {
-  top: calc(64px + env(safe-area-inset-top) + var(--ad-h, 0px));
+  top: calc(6px + env(safe-area-inset-top) + var(--ad-h, 0px));
   bottom: auto;
-  width: min(420px, calc(100vw - 24px));
+  width: min(460px, calc(100vw - 16px));
+  align-items: center;
+  gap: 4px;
   pointer-events: none;
-  opacity: 0.95;
+  opacity: 0.96;
 }
 #tut.tut-free .tut-face {
-  width: 48px;
-  height: 58px;
+  width: 30px;
+  height: 36px;
 }
 #tut.tut-free .tut-bubble {
-  min-height: 0;
-  padding: 6px 10px 8px;
-  font-size: 13px;
-}
-.tut-skip {
-  position: fixed;
-  top: calc(10px + env(safe-area-inset-top) + var(--ad-h, 0px));
-  right: 12px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.6);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
-  color: #fff;
+  padding: 4px 10px;
   font-size: 12px;
-  font-weight: 700;
-  pointer-events: auto;
+  line-height: 1.45;
+}
+#tut.tut-free .tut-name,
+.tut-ui[data-side='bar'] .tut-name {
+  display: none;
+}
+#tut.tut-free .tut-head,
+.tut-ui[data-side='bar'] .tut-head {
+  float: right;
+  margin: 0 0 0 6px;
 }
 .tut-menu {
   position: fixed;
-  top: calc(46px + env(safe-area-inset-top) + var(--ad-h, 0px));
-  right: 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -179,6 +251,7 @@
   background: var(--sub-bg);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
+  z-index: 1;
 }
 .tut-menu[hidden] {
   display: none;
@@ -198,8 +271,25 @@
     width: 64px;
     height: 76px;
   }
+  /* 光らせる場面は顔だけ小さく出して、吹き出しの場所を空ける */
+  .tut-ui[data-side] .tut-face {
+    width: 40px;
+    height: 48px;
+  }
+  .tut-ui[data-side] {
+    width: calc(100vw - 16px);
+    gap: 4px;
+  }
   .tut-bubble {
     font-size: 14px;
+    line-height: 1.5;
+  }
+  .tut-ui[data-side] .tut-bubble {
+    padding: 6px 10px 12px;
+  }
+  .tut-ui[data-side='bar'] .tut-bubble {
+    padding: 4px 10px;
+    font-size: 12px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -220,4 +310,9 @@
 .tip-face svg {
   width: 100%;
   height: 100%;
+}
+
+/* チュートリアル中は画面上端の一言（称号の獲得など）を隠す。光らせた場所に重ならないように */
+body.tutorial #tip {
+  display: none;
 }

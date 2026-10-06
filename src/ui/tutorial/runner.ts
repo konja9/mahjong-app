@@ -1,5 +1,6 @@
 import { load, save } from '../storage';
 import { charaSvg } from './chara';
+import { layoutBubble } from './layout';
 import { type ChapterId, type Step, type TutorialAction, type TutorialEvent, chapter } from './script';
 
 /**
@@ -28,6 +29,8 @@ interface Saved {
 
 export const tutorialDone = (): ChapterId[] => load<Saved>(KEY, { done: [] }).done ?? [];
 const markDone = (id: ChapterId) => save(KEY, { done: [...new Set([...tutorialDone(), id])] });
+/** スタート画面の「チュートリアルをとばす」：全部の章を見たことにする */
+export const skipAllTutorial = (ids: ChapterId[]): void => ids.forEach(markDone);
 
 export class Tutorial {
   private queue: ChapterId[] = [];
@@ -41,6 +44,7 @@ export class Tutorial {
   private bubble: HTMLElement;
   private face: HTMLElement;
   private menu: HTMLElement;
+  private skip: HTMLElement;
   private raf = 0;
   private typing = 0;
   private fullText = '';
@@ -50,12 +54,11 @@ export class Tutorial {
     this.root = document.createElement('div');
     this.root.id = 'tut';
     this.root.hidden = true;
-    this.root.innerHTML = `<div class="tut-hole"></div><div class="tut-finger" aria-hidden="true">👆</div>
+    this.root.innerHTML = `<i class="tut-probe"></i><div class="tut-hole"></div><div class="tut-finger" aria-hidden="true">👆</div>
       <div class="tut-ui" role="dialog" aria-live="polite" aria-label="パチふとくんの案内">
         <div class="tut-face"></div>
-        <div class="tut-bubble"><b class="tut-name">パチふとくん</b><p class="tut-text"></p><span class="tut-more" aria-hidden="true">▼</span></div>
+        <div class="tut-bubble"><div class="tut-head"><b class="tut-name">パチふとくん</b><button class="tut-skip" type="button" data-tut-skip>スキップ</button></div><p class="tut-text"></p><span class="tut-hint">光っているところを押してね</span><span class="tut-more" aria-hidden="true">▼</span></div>
       </div>
-      <button class="tut-skip" type="button" data-tut-skip>スキップ</button>
       <div class="tut-menu" hidden>
         <button type="button" data-tut-menu="chapter">この章をとばす</button>
         <button type="button" data-tut-menu="all">全部とばす</button>
@@ -68,6 +71,7 @@ export class Tutorial {
     this.bubble = this.root.querySelector('.tut-text')!;
     this.face = this.root.querySelector('.tut-face')!;
     this.menu = this.root.querySelector('.tut-menu')!;
+    this.skip = this.root.querySelector('.tut-skip')!;
     // 光らせた場所以外の操作を止める。capture で、アプリより先に受ける
     document.addEventListener('pointerdown', (e) => this.guardPointer(e), true);
     document.addEventListener('click', (e) => this.guardClick(e), true);
@@ -138,7 +142,10 @@ export class Tutorial {
       this.advance();
       return;
     }
-    this.root.className = `tut-${s.kind}${s.kind === 'spot' ? ` tut-next-${s.next}` : ''}`;
+    // 光らせて操作させる場面（押す・答える）は tut-op：暗さを弱め、枠を目立たせる
+    const op = s.kind === 'spot' && s.next !== 'tap';
+    this.root.className = `tut-${s.kind}${s.kind === 'spot' ? ` tut-next-${s.next}` : ''}${op ? ' tut-op' : ''}`;
+    this.menu.hidden = true;
     this.face.innerHTML = charaSvg(s.face);
     this.say(s.text);
     // 対象が描かれるのを待ってから位置を追う
@@ -197,29 +204,54 @@ export class Tutorial {
     const visible = !!r && r.width > 0 && r.height > 0;
     this.hole.hidden = !visible;
     this.finger.hidden = !visible || (s?.kind === 'spot' && s.next === 'tap');
-    let top = false;
+    const ui = this.ui.style;
     if (visible && r && s?.kind === 'spot') {
       const pad = s.pad ?? 4;
-      Object.assign(this.hole.style, {
-        left: `${r.left - pad}px`,
-        top: `${r.top - pad}px`,
-        width: `${r.width + pad * 2}px`,
-        height: `${r.height + pad * 2}px`,
+      const box = { left: r.left - pad, top: r.top - pad, width: r.width + pad * 2, height: r.height + pad * 2 };
+      Object.assign(this.hole.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` });
+      // 「タップ！」の札：画面の上端に近い対象（ヘッダーのボタン）では枠の下に付ける
+      this.hole.classList.toggle('badge-below', box.top < 40);
+      // ノッチ・広告・ホームバーの分（CSS の env() を、画面の上下に張った見えない要素で測る）
+      const safe = this.root.querySelector('.tut-probe')!.getBoundingClientRect();
+      const mobile = innerWidth <= 640;
+      // 吹き出しは対象の上下の空いている側に、収まる高さで置く
+      const l = layoutBubble({
+        vh: innerHeight,
+        safeTop: safe.top,
+        safeBottom: innerHeight - safe.bottom,
+        target: { top: box.top, bottom: box.top + box.height },
+        want: mobile ? 104 : 128,
+        answer: s.next === 'answered' || s.next === 'stepAnswered',
       });
-      Object.assign(this.finger.style, { left: `${r.left + r.width / 2}px`, top: `${r.bottom + 2}px` });
-      // 対象が画面の下半分にあれば、キャラと吹き出しを上に出して重ならないようにする
-      top = r.top + r.height / 2 > innerHeight * 0.5;
-      // 指が画面の下からはみ出すなら、対象の上に出して下向きにする
-      const up = r.bottom + 60 > innerHeight;
-      this.finger.classList.toggle('up', up);
-      if (up) this.finger.style.top = `${r.top - 46}px`;
+      this.ui.dataset.side = l.side;
+      ui.top = l.top !== undefined ? `${l.top}px` : 'auto';
+      ui.bottom = l.bottom !== undefined ? `${l.bottom}px` : 'auto';
+      ui.maxHeight = `${l.maxH}px`;
+      // 指：吹き出しの反対側（空きがなければ対象の中）から対象を指す
+      const cx = r.left + r.width / 2;
+      const fy = l.finger === 'below' ? box.top + box.height + 2 : l.finger === 'above' ? box.top - 44 : r.top + r.height / 2 - 8;
+      Object.assign(this.finger.style, { left: `${cx}px`, top: `${fy}px` });
+      this.finger.classList.toggle('up', l.finger === 'above');
+    } else {
+      // セリフだけ・自由に遊ぶ場面は CSS の決まった場所に出す
+      delete this.ui.dataset.side;
+      ui.top = ui.bottom = ui.maxHeight = '';
     }
-    this.ui.classList.toggle('top', top);
+    if (!this.menu.hidden) {
+      // 中断メニューはスキップのボタンのそばに開く（下に入らなければ上）
+      const b = this.skip.getBoundingClientRect();
+      const h = this.menu.offsetHeight;
+      const below = b.bottom + 4 + h <= innerHeight - 8;
+      Object.assign(this.menu.style, {
+        right: `${Math.max(8, innerWidth - b.right)}px`,
+        top: `${below ? b.bottom + 4 : Math.max(8, b.top - 4 - h)}px`,
+      });
+    }
   }
 
   private inTutUi(t: EventTarget | null): boolean {
     const el = t as HTMLElement | null;
-    return !!el?.closest?.('.tut-ui, .tut-skip, .tut-menu');
+    return !!el?.closest?.('.tut-ui, .tut-menu');
   }
 
   /** 光らせた場所の中か（押してよい場所） */
