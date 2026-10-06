@@ -6,6 +6,7 @@ import { EAST } from '../core/tiles';
 import { adPrivacyRequired, showAdPrivacyOptions } from './ads';
 import { buyRemoveAds, onPurchaseChange, purchaseState, restoreRemoveAds } from './purchase';
 import { type TalkEvent, Talker, correctEvent } from './charaTalk';
+import { pickNews } from './news';
 import { type BgmTrack, bgm, configureAudio, sfx, suspendAudio, unlockAudio } from './audio';
 import { LevelUpFx } from './effects/levelup';
 import { Fx, type WinTier } from './effects/pachinko';
@@ -130,6 +131,11 @@ const volLabel = (v: number): string => (v <= 0 ? 'オフ' : String(Math.round(v
 
 /** 答えないままこの時間がたったら、パチふとくんが一言（ミリ秒） */
 const IDLE_TALK_MS = 20000;
+
+/** 世紀末ニュース：最初の1本までの時間・次の1本までの間・出せなかったときに見直す間（ミリ秒） */
+const NEWS_FIRST_MS = 8000;
+const NEWS_GAP_MS = 25000;
+const NEWS_RETRY_MS = 4000;
 export class App {
   private s: Settings = loadSettings();
   private session = newSession();
@@ -232,7 +238,7 @@ export class App {
     this.start = new StartScreen({
       view: () => {
         const { level } = levelOf(this.lv.exp);
-        return { first: this.firstRun, balance: this.wallet.balance, level, cleared: level >= FINAL_LEVEL };
+        return { first: this.firstRun, balance: this.wallet.balance, level, cleared: level >= FINAL_LEVEL, unread: unreadChapters(this.lv).length };
       },
       onShown: (on) => {
         this.pause('start', on);
@@ -244,6 +250,43 @@ export class App {
       still: () => this.s.effects === 'off' || matchMedia('(prefers-reduced-motion: reduce)').matches,
     });
     this.start.show();
+    this.scheduleNews(NEWS_FIRST_MS);
+  }
+
+  private newsTimer = 0;
+  private recentNews: string[] = [];
+
+  /** 液晶の世紀末ニュース：台が止まっている間に1本ずつ流す。出せないときは少しあとに見直す */
+  private scheduleNews(ms: number): void {
+    clearTimeout(this.newsTimer);
+    this.newsTimer = window.setTimeout(() => {
+      const ok =
+        !this.keiko &&
+        this.s.effects !== 'off' &&
+        !this.start.shown &&
+        !this.tut.active &&
+        !this.levelUp.shown &&
+        document.visibilityState === 'visible' &&
+        (this.phase === 'answering' || this.phase === 'result') &&
+        this.panel.canNews;
+      if (!ok) {
+        this.scheduleNews(NEWS_RETRY_MS);
+        return;
+      }
+      const text = pickNews(
+        {
+          level: levelOf(this.lv.exp).level,
+          balance: this.wallet.balance,
+          dayNet: ensureDay(this.daily).net,
+          machine: this.shop.machine,
+          rush: this.panel.rush,
+        },
+        this.recentNews,
+      );
+      this.recentNews = [text, ...this.recentNews].slice(0, 8);
+      this.panel.news(text, matchMedia('(prefers-reduced-motion: reduce)').matches);
+      this.scheduleNews(NEWS_GAP_MS);
+    }, ms);
   }
 
   // ------------------------------------------------------------ 設定

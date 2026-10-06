@@ -26,12 +26,14 @@ export interface MachineSpec {
   price: number;
   /** 出題を実戦に限る */
   jissenOnly: boolean;
+  /** 台選びに出す世界観の一言 */
+  flavor: string;
 }
 
 export const SPECS: Record<MachineId, MachineSpec> = {
-  ama: { id: 'ama', name: '甘デジ', odds: 20, rushOdds: 4, st: 6, kakuhenRate: 0.6, rounds: 6, prizeMult: 1, betMult: 1, price: 0, jissenOnly: false },
-  middle: { id: 'middle', name: 'ミドル', odds: 60, rushOdds: 6, st: 9, kakuhenRate: 0.6, rounds: 10, prizeMult: 2.89, betMult: 1.5, price: 3000, jissenOnly: true },
-  max: { id: 'max', name: 'MAX', odds: 150, rushOdds: 8, st: 12, kakuhenRate: 0.6, rounds: 15, prizeMult: 6.72, betMult: 2, price: 10000, jissenOnly: true },
+  ama: { id: 'ama', name: '甘デジ', odds: 20, rushOdds: 4, st: 6, kakuhenRate: 0.6, rounds: 6, prizeMult: 1, betMult: 1, price: 0, jissenOnly: false, flavor: '新顔の登竜門。負けても笑って帰れた、あの頃の名残' },
+  middle: { id: 'middle', name: 'ミドル', odds: 60, rushOdds: 6, st: 9, kakuhenRate: 0.6, rounds: 10, prizeMult: 2.89, betMult: 1.5, price: 3000, jissenOnly: true, flavor: '常連たちの主戦場。勝負の重みは、ここから一段上がる' },
+  max: { id: 'max', name: 'MAX', odds: 150, rushOdds: 8, st: 12, kakuhenRate: 0.6, rounds: 15, prizeMult: 6.72, betMult: 2, price: 10000, jissenOnly: true, flavor: 'ギャンブル王の椅子に一番近い台。座った者の半分は帰ってこない' },
 };
 
 export const MACHINE_IDS: MachineId[] = ['ama', 'middle', 'max'];

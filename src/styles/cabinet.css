@@ -1040,6 +1040,13 @@ body.busy .bet-box .bar {
   font-size: 12px;
   color: var(--sub);
 }
+/* 世界観の一言（台・景品） */
+.shop-flavor {
+  margin: 1px 0 2px;
+  font-size: 12px;
+  font-style: italic;
+  color: color-mix(in srgb, var(--main) 75%, var(--sub));
+}
 .shop-btn {
   flex: none;
   padding: 6px 12px;
@@ -1988,5 +1995,72 @@ body[data-phase='summary'] #exp-strip {
   .hold.knock,
   .hold.change {
     animation: none;
+  }
+}
+
+/* ============================================================ 液晶の世紀末ニュース（台が止まっている間に流れるテロップ） */
+#machine .m-row {
+  display: grid;
+  min-width: 0;
+}
+#machine .m-row > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+#machine .m-news {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* 右端は常駐のパチふとくんの頭とかぶるので空ける */
+  padding-right: 50px;
+  overflow: hidden;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 18px;
+  color: #ffb547;
+  text-shadow: 0 0 6px rgba(255, 140, 30, 0.7);
+  animation: lu-fade 0.4s ease-out both;
+}
+#machine .m-news[hidden] {
+  display: none;
+}
+#machine .m-news b {
+  flex: none;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #c8323c;
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-shadow: none;
+}
+#machine .m-news-track {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+#machine .m-news-track span {
+  display: inline-block;
+  padding-left: 100%;
+}
+#machine .m-news.still .m-news-track span {
+  padding-left: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+@keyframes news-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+@media (min-width: 641px) {
+  #machine .m-news {
+    font-size: 14px;
   }
 }

@@ -14,6 +14,8 @@ interface Line {
   text: string;
   /** その入り口で優先して出す（なければどこでも出す） */
   for?: 'pachinko' | 'keiko';
+  /** 物語に触れる文は、その話を読める Lv から出す（ネタばれ防止） */
+  minLevel?: number;
 }
 
 /** ローディングで見せる世界観の一文 */
@@ -36,13 +38,26 @@ export const START_LINES: Line[] = [
   { text: '副底20符。すべての計算は、ここから始まる。', for: 'keiko' },
   { text: '間違えた手は、何度でも目の前に現れる。', for: 'keiko' },
   { text: '一段ずつ数えた者だけが、速く数えられるようになる。', for: 'keiko' },
+  { text: '数えられる者は、食われない。' },
+  { text: '昼のホールで、笑って玉を弾いていた時代があった。', minLevel: 2 },
+  { text: '勝者法の下では、点数がそのまま身分になる。', minLevel: 7 },
+  { text: '手書きの早見表の一行目。「30符1翻、子ロン1000」', minLevel: 9 },
+  { text: '数え屋に三割取られるくらいなら、自分で数えな。', minLevel: 11 },
+  { text: 'ギャンブル王の椅子は、まだ誰も座っていない。', minLevel: 14 },
+  { text: '金の保留が灯った台には、人が集まる。', for: 'pachinko' },
+  { text: '符が高い手ほど、BONUS は高く跳ねる。', for: 'pachinko' },
+  { text: 'RUSH の間は、一問の重みが変わる。', for: 'pachinko' },
+  { text: '道場の壁に、古い早見表が貼ってある。', for: 'keiko' },
+  { text: '数え方は、誰にも奪えない財産だ。', for: 'keiko' },
+  { text: '店のすみの小さな机で、一段ずつ教わった者がいた。', for: 'keiko', minLevel: 11 },
 ];
 
 /** 入り口に合った一文を選ぶ（その入り口向けの文を優先し、ときどき共通の文も出す） */
-export function pickLine(choice: StartChoice, rng: () => number = Math.random): string {
+export function pickLine(choice: StartChoice, rng: () => number = Math.random, level = 1): string {
   const want = choice === 'keiko' ? 'keiko' : 'pachinko';
-  const own = START_LINES.filter((l) => l.for === want);
-  const common = START_LINES.filter((l) => !l.for);
+  const lines = START_LINES.filter((l) => (l.minLevel ?? 1) <= level);
+  const own = lines.filter((l) => l.for === want);
+  const common = lines.filter((l) => !l.for);
   const pool = rng() < 0.6 ? own : common;
   return pool[Math.floor(rng() * pool.length) % pool.length].text;
 }
@@ -54,10 +69,33 @@ export interface StartView {
   level: number;
   /** 物語が完結したか（Lv20 以上） */
   cleared: boolean;
+  /** 読める話のうち、まだ読んでいない数 */
+  unread?: number;
 }
 
+/** 2回目以降のスタート画面のパチふとくんの一言。Lv（物語の進み具合）で変わる */
+const SAY_BY_LEVEL: [number, string[]][] = [
+  [1, ['クケケ、今日も勝ちに来たか？', 'まずは甘デジで肩慣らしだ', '副底20符、忘れてねえな？']],
+  [5, ['常連の顔つきになってきたじゃねえか', '今日はどの台で勝負する？', 'オレ様の記憶、だいぶ戻ってきたぜ']],
+  [10, ['夜の賭場へようこそ。今夜も数えてこうぜ', 'お前の数え、ちょっとした評判だぜ', '地下の空気にも慣れたか？']],
+  [15, ['王の椅子が見えてきたな', 'あと少しで、全部思い出せる気がする', '数えられる奴は、食われねえ']],
+  [20, ['よう相棒。今日も数えにきたか', '物語は終わっても、勝負は続くぜ', '次の新顔に、数え方を教えてやりな']],
+];
+
+/** スタート画面の一言（初回・読んでいない話・所持金が少ない、を優先） */
+export function startSay(v: StartView, rng: () => number = Math.random): string {
+  if (v.first) return 'クケケケ、ようこそ新顔。まずはオレ様の案内を聞いていきな。';
+  if (v.unread) return 'クケケ、記憶がまた戻ってる。本を開いてみな';
+  if (v.balance < LOW_BALANCE) return '財布が軽そうだな。稽古で腕を磨くのもアリだぜ';
+  const lines = [...SAY_BY_LEVEL].reverse().find(([lv]) => v.level >= lv)![1];
+  return lines[Math.floor(rng() * lines.length) % lines.length];
+}
+
+/** スタート画面で「財布が軽い」と言う所持金 */
+const LOW_BALANCE = 300;
+
 export function startHtml(v: StartView): string {
-  const say = v.first ? 'クケケケ、ようこそ新顔。まずはオレ様の案内を聞いていきな。' : 'クケケ、今日も勝ちに来たか？';
+  const say = startSay(v);
   const tutorial = v.first
     ? `<button class="st-btn st-tutorial big" type="button" data-start="tutorial"><b>チュートリアル</b><small>はじめての人はこちら</small></button>`
     : '';
@@ -144,7 +182,7 @@ export class StartScreen {
     this.choice = choice;
     this.phase = 'loading';
     this.root.className = 'st-loading';
-    this.root.innerHTML = loadingHtml(pickLine(choice));
+    this.root.innerHTML = loadingHtml(pickLine(choice, Math.random, this.host.view().level));
     if (this.host.still()) this.ready();
     else this.timer = window.setTimeout(() => this.ready(), LOAD_MS);
   }

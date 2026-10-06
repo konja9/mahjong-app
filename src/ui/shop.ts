@@ -56,56 +56,58 @@ export interface ShopItem {
   unlock?: Unlock;
   /** 称号のレア度 */
   rarity?: Rarity;
+  /** 交換所に出す世界観の一言 */
+  flavor?: string;
 }
 
-const title = (id: string, name: string, price: number): ShopItem => ({ id: `title-${id}`, kind: 'title', name, price, value: name, rarity: rarityByPrice(price) });
-const earned = (id: string, name: string, rarity: Rarity, unlock: Unlock): ShopItem => ({ id: `title-${id}`, kind: 'title', name, price: 0, value: name, unlock, rarity });
+const title = (id: string, name: string, price: number, flavor?: string): ShopItem => ({ id: `title-${id}`, kind: 'title', name, price, value: name, rarity: rarityByPrice(price), flavor });
+const earned = (id: string, name: string, rarity: Rarity, unlock: Unlock, flavor?: string): ShopItem => ({ id: `title-${id}`, kind: 'title', name, price: 0, value: name, unlock, rarity, flavor });
 
 export const ITEMS: ShopItem[] = [
-  { id: 'back-green', kind: 'back', name: '深緑', price: 0, value: '#1f5c45' },
-  { id: 'back-indigo', kind: 'back', name: '藍', price: 1500, value: '#243a6b' },
-  { id: 'back-vermilion', kind: 'back', name: '朱', price: 1500, value: '#a8322a' },
-  { id: 'back-black', kind: 'back', name: '漆黒', price: 3000, value: '#16161a' },
-  { id: 'back-gold', kind: 'back', name: '金', price: 8000, value: '#c9a227' },
-  { id: 'skin-gold', kind: 'skin', name: '黒金', price: 0, value: 'gold' },
-  { id: 'skin-silver', kind: 'skin', name: '銀', price: 3500, value: 'silver' },
-  { id: 'skin-urushi', kind: 'skin', name: '朱漆', price: 5000, value: 'urushi' },
-  { id: 'skin-rainbow', kind: 'skin', name: '虹', price: 12000, value: 'rainbow' },
-  { id: 'bgm-standard', kind: 'bgm', name: 'スタンダード', price: 0, value: 'standard' },
-  { id: 'bgm-euro', kind: 'bgm', name: 'ユーロビート', price: 2500, value: 'euro' },
-  { id: 'bgm-wa', kind: 'bgm', name: '和風', price: 4000, value: 'wa' },
-  { id: 'bgm-chip', kind: 'bgm', name: 'チップチューン', price: 5000, value: 'chip' },
-  { id: 'bgm-enka', kind: 'bgm', name: '演歌', price: 6000, value: 'enka' },
-  { id: 'bgm-jazz', kind: 'bgm', name: 'ジャズ', price: 7500, value: 'jazz' },
-  { id: 'bgm-metal', kind: 'bgm', name: 'メタル', price: 9000, value: 'metal' },
+  { id: 'back-green', kind: 'back', name: '深緑', price: 0, value: '#1f5c45' , flavor: '昔ながらの雀卓の色。いちばん目にやさしい' },
+  { id: 'back-indigo', kind: 'back', name: '藍', price: 1500, value: '#243a6b' , flavor: '夜明け前の空の色。徹夜明けの雀士に人気' },
+  { id: 'back-vermilion', kind: 'back', name: '朱', price: 1500, value: '#a8322a' , flavor: '昔の賭場の卓の色。見るだけで血がたぎる' },
+  { id: 'back-black', kind: 'back', name: '漆黒', price: 3000, value: '#16161a' , flavor: 'ネオンの照り返しが映える。地下の常連御用達' },
+  { id: 'back-gold', kind: 'back', name: '金', price: 8000, value: '#c9a227' , flavor: '成り上がった者だけが許される輝き' },
+  { id: 'skin-gold', kind: 'skin', name: '黒金', price: 0, value: 'gold' , flavor: 'パチふとの標準仕様。デビューの日から変わらない' },
+  { id: 'skin-silver', kind: 'skin', name: '銀', price: 3500, value: 'silver' , flavor: '昼のホール時代の限定色。今では珍しい' },
+  { id: 'skin-urushi', kind: 'skin', name: '朱漆', price: 5000, value: 'urushi' , flavor: '職人が塗り重ねた漆。賭場の旦那衆が好んだ' },
+  { id: 'skin-rainbow', kind: 'skin', name: '虹', price: 12000, value: 'rainbow' , flavor: '大当りの光をそのまま閉じ込めた、と言われる' },
+  { id: 'bgm-standard', kind: 'bgm', name: 'スタンダード', price: 0, value: 'standard' , flavor: '通常時の曲を、BONUS 用に盛り上げたアレンジ' },
+  { id: 'bgm-euro', kind: 'bgm', name: 'ユーロビート', price: 2500, value: 'euro' , flavor: 'ネオン街の夜を駆け抜けるビート' },
+  { id: 'bgm-wa', kind: 'bgm', name: '和風', price: 4000, value: 'wa' , flavor: '祭り太鼓で大当りを祝う、昔ながらの賭場の音' },
+  { id: 'bgm-chip', kind: 'bgm', name: 'チップチューン', price: 5000, value: 'chip' , flavor: '初代の筐体を思い出す、懐かしい電子音' },
+  { id: 'bgm-enka', kind: 'bgm', name: '演歌', price: 6000, value: 'enka' , flavor: '泣きも笑いも、点棒といっしょに飲み込む' },
+  { id: 'bgm-jazz', kind: 'bgm', name: 'ジャズ', price: 7500, value: 'jazz' , flavor: '地下のバーで鳴っていた、大人の勝負の音' },
+  { id: 'bgm-metal', kind: 'bgm', name: 'メタル', price: 9000, value: 'metal' , flavor: 'BONUS の熱をそのまま音にした' },
   { id: 'title-none', kind: 'title', name: 'なし', price: 0, value: '' },
   // 買う称号（安い順）
-  title('hayami-new', '早見の新人', 500),
-  title('tenbou', '点棒係', 700),
-  title('fu-apprentice', '符の見習い', 800),
-  title('regular', '雀荘の常連', 1000),
-  title('night', '夜の雀士', 1500),
-  title('fu-reader', '符読み', 2000),
-  title('fast', '速答職人', 2500),
-  title('mangan', '満貫の申し子', 3000),
-  title('oni', '点数の鬼', 4000),
-  title('yakuman', '役満ハンター', 5000),
-  title('gambler', '鉄火場の勝負師', 7000),
-  title('legend', '伝説の打ち手', 12000),
-  title('master', 'パチふと名人', 20000),
+  title('hayami-new', '早見の新人', 500, '早見表を片手に、今日も卓へ'),
+  title('tenbou', '点棒係', 700, '点棒を数えるだけの係。だが数えられるだけマシだ'),
+  title('fu-apprentice', '符の見習い', 800, '副底20符から一段ずつ。誰もが通った道'),
+  title('regular', '雀荘の常連', 1000, '店員に顔を覚えられたら、一人前'),
+  title('night', '夜の雀士', 1500, 'ネオンが灯ってからが本番'),
+  title('fu-reader', '符読み', 2000, '手牌を見れば、符が透けて見える'),
+  title('fast', '速答職人', 2500, '迷わない指先。BET 半額は伊達じゃない'),
+  title('mangan', '満貫の申し子', 3000, '満貫の手前で止まらない'),
+  title('oni', '点数の鬼', 4000, '点数のことなら、鬼より怖い'),
+  title('yakuman', '役満ハンター', 5000, '一生に一度を、何度でも'),
+  title('gambler', '鉄火場の勝負師', 7000, '身分を賭けた勝負から、逃げない'),
+  title('legend', '伝説の打ち手', 12000, 'その名は、地下の賭場にも届いている'),
+  title('master', 'パチふと名人', 20000, 'パチふとを知り尽くした者の証'),
   // 実力で解放する称号（運の条件は入れない）
-  earned('first-perfect', '初陣', 'rare', { get: (s) => s.perfectBonus, target: 1, label: 'BONUS を初めて全問正解' }),
-  earned('perfect10', '完全試合', 'epic', { get: (s) => s.perfectBonus, target: 10, label: 'BONUS の全問正解 10 回' }),
-  earned('streak20', '連チャン職人', 'rare', { get: (s) => s.maxStreak, target: 20, label: '20 連続正解' }),
-  earned('streak50', '不動心', 'epic', { get: (s) => s.maxStreak, target: 50, label: '50 連続正解' }),
-  earned('streak100', '無双', 'legend', { get: (s) => s.maxStreak, target: 100, label: '100 連続正解' }),
-  earned('fu500', '符の求道者', 'rare', { get: (s) => s.correct.fu, target: 500, label: '符計算で累計 500 問正解' }),
-  earned('fu2000', '符の達人', 'legend', { get: (s) => s.correct.fu, target: 2000, label: '符計算で累計 2,000 問正解' }),
-  earned('hayami1000', '早見の鬼', 'epic', { get: (s) => s.correct.hayami, target: 1000, label: '早見で累計 1,000 問正解' }),
-  earned('jissen500', '実戦派', 'rare', { get: (s) => s.correct.jissen, target: 500, label: '実戦で累計 500 問正解' }),
-  earned('fast300', '電光石火', 'rare', { get: (s) => s.fast, target: 300, label: '速答で累計 300 問正解' }),
-  earned('tsumo200', 'ツモ計算士', 'rare', { get: (s) => s.splitTsumo, target: 200, label: '子のツモを累計 200 問正解' }),
-  earned('precise', '精密機械', 'epic', { get: (s) => s.precise, target: 1, label: '1回の遊びで 100 問以上を正解率 95% 以上' }),
+  earned('first-perfect', '初陣', 'rare', { get: (s) => s.perfectBonus, target: 1, label: 'BONUS を初めて全問正解' }, '初めての BONUS 全問正解。忘れられない夜'),
+  earned('perfect10', '完全試合', 'epic', { get: (s) => s.perfectBonus, target: 10, label: 'BONUS の全問正解 10 回' }, '数え間違いを知らない'),
+  earned('streak20', '連チャン職人', 'rare', { get: (s) => s.maxStreak, target: 20, label: '20 連続正解' }, '波に乗ったら、降りない'),
+  earned('streak50', '不動心', 'epic', { get: (s) => s.maxStreak, target: 50, label: '50 連続正解' }, '何が来ても、表情ひとつ変えない'),
+  earned('streak100', '無双', 'legend', { get: (s) => s.maxStreak, target: 100, label: '100 連続正解' }, 'ここまで来ると、もはや伝説'),
+  earned('fu500', '符の求道者', 'rare', { get: (s) => s.correct.fu, target: 500, label: '符計算で累計 500 問正解' }, '符の道は、まだ半ば'),
+  earned('fu2000', '符の達人', 'legend', { get: (s) => s.correct.fu, target: 2000, label: '符計算で累計 2,000 問正解' }, '符を数えることが、呼吸と同じになった'),
+  earned('hayami1000', '早見の鬼', 'epic', { get: (s) => s.correct.hayami, target: 1000, label: '早見で累計 1,000 問正解' }, '早見表は、もう頭の中にある'),
+  earned('jissen500', '実戦派', 'rare', { get: (s) => s.correct.jissen, target: 500, label: '実戦で累計 500 問正解' }, '机上の計算より、卓の上の手牌'),
+  earned('fast300', '電光石火', 'rare', { get: (s) => s.fast, target: 300, label: '速答で累計 300 問正解' }, '考えるより先に、答えが出る'),
+  earned('tsumo200', 'ツモ計算士', 'rare', { get: (s) => s.splitTsumo, target: 200, label: '子のツモを累計 200 問正解' }, '子のツモの「子-親」で迷わない'),
+  earned('precise', '精密機械', 'epic', { get: (s) => s.precise, target: 1, label: '1回の遊びで 100 問以上を正解率 95% 以上' }, '百問打って、ほとんど外さない'),
 ];
 
 export interface ShopState {
@@ -191,6 +193,7 @@ export function machinesHtml(s: ShopState, balance: number, canSwitch: boolean):
           : `<button class="shop-btn buy" data-unlock="${id}"${balance >= sp.price ? '' : ' disabled'}>${yen(sp.price)}で解放</button>`;
       return `<div class="shop-row${cur ? ' cur' : ''}">
         <div><div class="shop-name">${sp.name}${sp.jissenOnly ? '<em>実戦のみ</em>' : ''}</div>
+        <div class="shop-flavor">${sp.flavor}</div>
         <div class="shop-desc">大当り 1/${sp.odds}・RUSH 1/${sp.rushOdds}（${sp.st}回転）・BONUS ${sp.rounds}問・BET ×${sp.betMult}・賞金 ×${sp.prizeMult}</div></div>${btn}</div>`;
     }).join('') +
     (canSwitch ? '' : '<p class="help-note">BONUS 中と台が回っている間は、台を切り替えられません。</p>') +
@@ -228,7 +231,8 @@ export function itemsHtml(s: ShopState, balance: number, canPreview = true, tab:
     } else if (i.unlock) cond = `<div class="shop-desc">${i.unlock.label}</div>`;
     const rar = i.rarity && i.value ? `<span class="rar r-${i.rarity}">${RARITY_LABEL[i.rarity]}</span>` : '';
     const name = `<div class="shop-name">${swatch}${i.name}${rar}${i.unlock ? '<em>実力</em>' : ''}</div>`;
-    return `<div class="shop-row${on ? ' cur' : ''}${i.unlock && !have ? ' locked' : ''}"><div class="mis">${name}${cond}</div><div class="shop-acts">${preview}${btn}</div></div>`;
+    const flavor = i.flavor ? `<div class="shop-flavor">${i.flavor}</div>` : '';
+    return `<div class="shop-row${on ? ' cur' : ''}${i.unlock && !have ? ' locked' : ''}"><div class="mis">${name}${flavor}${cond}</div><div class="shop-acts">${preview}${btn}</div></div>`;
   };
   const group = (title: string, items: ShopItem[]) => `<div class="set-sec">${title}</div>${items.map(row).join('')}`;
   const of = (kind: ItemKind) => ITEMS.filter((i) => i.kind === kind);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GAP, MIN_H, layoutBubble } from '../src/ui/tutorial/layout';
-import { START_LINES, loadingHtml, pickLine, startHtml } from '../src/ui/start';
+import { START_LINES, loadingHtml, pickLine, startHtml, startSay } from '../src/ui/start';
 
 describe('チュートリアルの吹き出しの置き場所', () => {
   const base = { vh: 700, safeTop: 0, safeBottom: 0, want: 104 };
@@ -68,9 +68,9 @@ describe('スタート画面', () => {
     expect(h).toContain('data-start="keiko"');
   });
 
-  it('世界観の一文は15〜20本で、入り口に合った文を選ぶ', () => {
-    expect(START_LINES.length).toBeGreaterThanOrEqual(15);
-    expect(START_LINES.length).toBeLessThanOrEqual(20);
+  it('世界観の一文は25〜35本で、入り口に合った文を選ぶ', () => {
+    expect(START_LINES.length).toBeGreaterThanOrEqual(25);
+    expect(START_LINES.length).toBeLessThanOrEqual(35);
     for (const l of START_LINES) expect(l.text.length).toBeLessThanOrEqual(40);
     const keiko = START_LINES.filter((l) => l.for === 'keiko').map((l) => l.text);
     const pachi = START_LINES.filter((l) => l.for === 'pachinko').map((l) => l.text);
@@ -80,6 +80,29 @@ describe('スタート画面', () => {
     expect(pachi).toContain(pickLine('tutorial', () => 0.1));
     // 大きいときは共通の文
     expect(START_LINES.find((l) => l.text === pickLine('keiko', () => 0.99))?.for).toBeUndefined();
+  });
+
+  it('物語に触れる一文は、その話を読める Lv になるまで出ない', () => {
+    const gated = START_LINES.filter((l) => (l.minLevel ?? 1) > 1).map((l) => l.text);
+    expect(gated.length).toBeGreaterThan(0);
+    for (let i = 0; i < 200; i++) {
+      const r = i / 200;
+      expect(gated).not.toContain(pickLine('pachinko', () => r, 1));
+      expect(gated).not.toContain(pickLine('keiko', () => r, 1));
+    }
+    const all = new Set(Array.from({ length: 400 }, (_, i) => pickLine('keiko', () => (i * 0.618) % 1, 20)));
+    expect([...all].some((t) => gated.includes(t))).toBe(true);
+  });
+
+  it('スタート画面の一言は Lv で変わり、読んでいない話・所持金が少ないときを優先する', () => {
+    const v = { first: false, balance: 1000, level: 1, cleared: false };
+    const low = startSay(v, () => 0);
+    const mid = startSay({ ...v, level: 12 }, () => 0);
+    const done = startSay({ ...v, level: 22, cleared: true }, () => 0);
+    expect(new Set([low, mid, done]).size).toBe(3);
+    expect(startSay({ ...v, unread: 2 })).toContain('本を開いてみな');
+    expect(startSay({ ...v, balance: 100 })).toContain('財布が軽そう');
+    expect(startSay({ ...v, first: true })).toContain('ようこそ新顔');
   });
 
   it('ローディングは「タップして進む」を持ち、文を出す', () => {
