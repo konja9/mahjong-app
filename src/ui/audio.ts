@@ -19,7 +19,7 @@ let bgmVolume = 0.5;
 /** 効果音の音量（0〜1） */
 const SFX_GAIN = 0.6;
 /** BGM のファイルの音量（効果音とのつり合い。BGM は後ろで鳴る音なので一段下げる） */
-const BGM_GAIN = 0.45;
+const BGM_GAIN = 0.15;
 
 /**
  * 音量を決める。sfx・music は 0〜1（0 で鳴らさない）。

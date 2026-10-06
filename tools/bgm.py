@@ -34,6 +34,8 @@ ROOT = os.path.join(os.path.dirname(__file__), '..')
 OUT = os.path.join(ROOT, 'public', 'assets', 'bgm')
 TS_OUT = os.path.join(ROOT, 'src', 'ui', 'bgmLoops.ts')
 PAD = 0.5
+# BONUS・RUSH の曲を下げる量（dB）
+OVERLAY_TRIM = 3
 RNG = np.random.default_rng(11)
 
 
@@ -538,10 +540,13 @@ def render(song: Song) -> np.ndarray:
     for k in range(0, len(mixed), n):
         seg = mixed[k:k + n]
         loop[: len(seg)] += seg
-    loop = loop / rms(loop) * 10 ** (song.level / 20)
+    # BONUS・RUSH の曲は、通常時から入ったときに跳ね上がりすぎないよう一段下げる
+    level = song.level - (OVERLAY_TRIM if song.name.endswith(('-bonus', '-rush')) else 0)
+    loop = loop / rms(loop) * 10 ** (level / 20)
     peak = np.max(np.abs(loop))
     if peak > 0.85:
-        loop = soft_clip(loop / peak * 1.1, 1.2) * 0.85
+        # 大きいところだけ丸めて 0.85 に収める（小さい音の大きさは変えない）
+        loop = 0.85 * np.tanh(loop / 0.85)
     return loop
 
 
