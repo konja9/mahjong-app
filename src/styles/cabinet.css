@@ -11,12 +11,9 @@
   --gold-hot: #ffd84a;
   --line: rgba(236, 210, 138, 0.13);
 }
-/* パチンコ：スタート画面と同じく、上に金の光・下にワインの赤をにじませる */
+/* パチンコ：スタート画面と同じ金と赤のフェード */
 :root[data-play='pachinko'] body {
-  background:
-    radial-gradient(ellipse 85% 42% at 50% -8%, rgba(242, 201, 76, 0.11), transparent 70%),
-    radial-gradient(ellipse 95% 45% at 50% 108%, rgba(200, 50, 60, 0.11), transparent 70%),
-    var(--bg);
+  background: var(--fade-bg);
   background-attachment: fixed;
 }
 /* RUSH 中と BONUS 中だけ背景に色を付ける */

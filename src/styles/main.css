@@ -7,6 +7,11 @@
   --main: #ecd28a;
   --sub: #8e8370;
   --text: #f0e8d6;
+  /* 背景の金と赤のフェード。スタート画面とゲーム画面で同じものを使う */
+  --fade-bg:
+    radial-gradient(ellipse 70% 45% at 50% 30%, rgba(242, 201, 76, 0.22), transparent 70%),
+    radial-gradient(ellipse 90% 60% at 50% 110%, rgba(200, 50, 60, 0.18), transparent 70%),
+    #0b0a0e;
   --error: #ff5a6e;
   --tile-face: #f3efe2;
   --tile-edge: #b9b29c;
@@ -2248,15 +2253,13 @@ body.chou::before {
 }
 
 /* 稽古：パチンコ要素を出さない */
-/* 稽古：翡翠の緑を基調に */
+/* 稽古：タブやボタンは翡翠の緑（背景はパチンコと同じ金と赤のフェード） */
 :root[data-play='keiko'] {
   --main: #9fdcbc;
   --sub-bg: #141a16;
 }
 :root[data-play='keiko'] body {
-  background:
-    radial-gradient(ellipse 90% 45% at 50% -8%, rgba(80, 200, 150, 0.1), transparent 70%),
-    var(--bg);
+  background: var(--fade-bg);
   background-attachment: fixed;
 }
 [data-play='keiko'] #machine,
