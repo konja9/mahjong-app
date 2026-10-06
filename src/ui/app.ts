@@ -1639,6 +1639,8 @@ export class App {
   }
 
   private enterFromStart(c: StartChoice): void {
+    // スタート画面のタップはユーザー操作なので、ここで音を起こす（効果音のファイルも最初の問題までに読み込んでおく）
+    unlockAudio();
     if (c === 'tutorial') {
       this.playTutorial(ALL_CHAPTERS);
       return;

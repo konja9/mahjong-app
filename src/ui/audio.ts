@@ -1,4 +1,8 @@
-/** Web Audio によるパチンコ風の合成効果音 */
+/**
+ * パチンコ風の効果音と BGM。
+ * 効果音は public/assets/sfx/*.mp3（tools/sfx.py で合成した音）を鳴らす。
+ * 読み込み前・読み込めないときは、Web Audio の合成音（下の各関数の後半）で鳴らす
+ */
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -22,6 +26,7 @@ export function unlockAudio(): void {
       master.gain.value = volume * 0.6;
       const comp = ctx.createDynamicsCompressor();
       master.connect(comp).connect(ctx.destination);
+      loadSamples(ctx);
     }
     // iOS は画面ロックや別アプリから戻ると 'interrupted' になる
     if (ctx.state !== 'running') void ctx.resume();
@@ -126,34 +131,92 @@ function noise(start: number, dur: number, gain: number, freq = 3000, toBgm = fa
 
 const note = (n: number) => 440 * 2 ** ((n - 69) / 12);
 
+// ------------------------------------------------------------ 効果音のファイル
+
+/** public/assets/sfx/ にある効果音（ファイル名＝名前） */
+const SAMPLE_NAMES = [
+  'key', 'back', 'reelStop0', 'reelStop1', 'reelStop2', 'reelTick', 'reach', 'gekiatsu', 'hit',
+  'coin0', 'coin1', 'coin2', 'coin3', 'fanfare', 'yakuman', 'kakuhen', 'lampUp', 'miss', 'gyuin',
+  'pushAppear', 'push', 'align', 'shatter', 'comboHit', 'glitch', 'swarm', 'step', 'stamp',
+  'kakuhenEnd', 'god', 'register', 'chucker', 'round', 'gimmick', 'end',
+] as const;
+type SampleName = (typeof SAMPLE_NAMES)[number];
+
+const samples = new Map<SampleName, AudioBuffer>();
+/** ファイルの効果音の音量（合成音のころと同じくらいの大きさにそろえ、BGM とのつり合いを保つ） */
+const SAMPLE_GAIN = 0.35;
+let samplesRequested = false;
+
+/** 効果音のファイルを読み込む（初めて音を鳴らせるようになったときに1回だけ） */
+function loadSamples(c: AudioContext): void {
+  if (samplesRequested) return;
+  samplesRequested = true;
+  for (const name of SAMPLE_NAMES) {
+    fetch(`assets/sfx/${name}.mp3`)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((b) => c.decodeAudioData(b))
+      .then((buf) => samples.set(name, buf))
+      .catch(() => undefined);
+  }
+}
+
+/**
+ * 効果音のファイルを鳴らす。鳴らせたら（または音が出せない設定なら）true、
+ * まだ読み込めていなければ false（呼び出し側で合成音に切り替える）
+ */
+function play(name: SampleName, o: { rate?: number; gain?: number; start?: number } = {}): boolean {
+  const c = ready();
+  if (!c || !master) return true;
+  const buf = samples.get(name);
+  if (!buf) return false;
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  src.playbackRate.value = o.rate ?? 1;
+  const g = c.createGain();
+  g.gain.value = SAMPLE_GAIN * (o.gain ?? 1);
+  src.connect(g).connect(master);
+  src.start(c.currentTime + (o.start ?? 0));
+  return true;
+}
+
+/** 半音 n 個ぶん高くする再生速度 */
+const semis = (n: number) => 2 ** (n / 12);
+
 export const sfx = {
   key(): void {
+    if (play('key')) return;
     tone({ type: 'triangle', freq: 1800, dur: 0.03, gain: 0.04 });
   },
   back(): void {
+    if (play('back')) return;
     tone({ type: 'triangle', freq: 900, dur: 0.04, gain: 0.04 });
   },
   reelStop(i = 0): void {
+    if (play(`reelStop${Math.min(Math.max(i, 0), 2)}` as SampleName)) return;
     tone({ type: 'square', freq: 520 + i * 90, dur: 0.07, gain: 0.12, filter: 2500 });
     noise(0, 0.05, 0.08, 2000);
   },
   reach(): void {
+    if (play('reach')) return;
     tone({ type: 'sawtooth', freq: 300, to: 1200, dur: 0.45, gain: 0.14, filter: 3000 });
     tone({ type: 'square', freq: note(81), start: 0.45, dur: 0.12, gain: 0.12 });
     tone({ type: 'square', freq: note(81), start: 0.6, dur: 0.12, gain: 0.12 });
   },
   gekiatsu(): void {
+    if (play('gekiatsu')) return;
     // キュイーン
     tone({ type: 'sawtooth', freq: 400, to: 2400, dur: 0.6, gain: 0.16, filter: 5000 });
     tone({ type: 'square', freq: 800, to: 3200, start: 0.05, dur: 0.55, gain: 0.08 });
     noise(0, 0.6, 0.05, 6000);
   },
   hit(): void {
+    if (play('hit')) return;
     [72, 76, 79, 84].forEach((n, i) =>
       tone({ type: 'square', freq: note(n), start: i * 0.05, dur: 0.18, gain: 0.1, filter: 4000 }),
     );
   },
   coin(): void {
+    if (play(`coin${Math.floor(Math.random() * 4)}` as SampleName, { rate: 0.97 + Math.random() * 0.06 })) return;
     const f = 1800 + Math.random() * 1400;
     tone({ type: 'sine', freq: f, dur: 0.12, gain: 0.06 });
     tone({ type: 'sine', freq: f * 1.5, start: 0.04, dur: 0.14, gain: 0.04 });
@@ -166,6 +229,7 @@ export const sfx = {
     }
   },
   fanfare(): void {
+    if (play('fanfare')) return;
     const seq: [number, number, number][] = [
       [67, 0, 0.12],
       [72, 0.12, 0.12],
@@ -181,6 +245,10 @@ export const sfx = {
     }
   },
   yakuman(): void {
+    if (play('yakuman')) {
+      sfx.coins(24, 2);
+      return;
+    }
     tone({ type: 'sine', freq: 60, to: 40, dur: 0.6, gain: 0.4 });
     const chords = [
       [60, 64, 67],
@@ -196,71 +264,87 @@ export const sfx = {
     sfx.coins(24, 2);
   },
   kakuhen(): void {
+    if (play('kakuhen')) return;
     for (let i = 0; i < 12; i++) {
       tone({ type: 'square', freq: note(72 + ((i * 5) % 24)), start: i * 0.045, dur: 0.08, gain: 0.08 });
     }
     tone({ type: 'sawtooth', freq: 200, to: 1600, start: 0.55, dur: 0.5, gain: 0.1, filter: 3000 });
   },
   lampUp(): void {
+    if (play('lampUp')) return;
     tone({ type: 'sine', freq: note(88), dur: 0.1, gain: 0.1 });
     tone({ type: 'sine', freq: note(93), start: 0.08, dur: 0.18, gain: 0.1 });
   },
   miss(): void {
+    if (play('miss')) return;
     tone({ type: 'square', freq: 160, to: 110, dur: 0.35, gain: 0.12, filter: 900 });
   },
   reelTick(): void {
+    if (play('reelTick', { rate: 0.94 + Math.random() * 0.14 })) return;
     tone({ type: 'square', freq: 1400 + Math.random() * 300, dur: 0.02, gain: 0.03, filter: 3000 });
   },
   gyuin(): void {
+    if (play('gyuin')) return;
     tone({ type: 'sawtooth', freq: 180, to: 1400, dur: 0.35, gain: 0.14, filter: 2600 });
     tone({ type: 'sawtooth', freq: 1400, to: 300, start: 0.35, dur: 0.2, gain: 0.1, filter: 2600 });
     noise(0, 0.5, 0.06, 1200);
   },
   pushAppear(): void {
+    if (play('pushAppear')) return;
     [0, 0.09, 0.18].forEach((t, i) => tone({ type: 'square', freq: note(84 + i * 2), start: t, dur: 0.08, gain: 0.1 }));
   },
   push(): void {
+    if (play('push')) return;
     tone({ type: 'sine', freq: 90, to: 40, dur: 0.3, gain: 0.5 });
     noise(0, 0.15, 0.2, 800);
   },
   align(): void {
+    if (play('align')) return;
     tone({ type: 'square', freq: note(96), dur: 0.08, gain: 0.12 });
     tone({ type: 'square', freq: note(100), start: 0.08, dur: 0.08, gain: 0.12 });
     tone({ type: 'square', freq: note(103), start: 0.16, dur: 0.3, gain: 0.12 });
   },
   shatter(): void {
+    if (play('shatter')) return;
     noise(0, 0.5, 0.35, 5000);
     noise(0.02, 0.35, 0.2, 9000);
     tone({ type: 'sine', freq: 70, to: 35, dur: 0.5, gain: 0.5 });
   },
   /** 連チャン数に応じて音程が上がるヒット音 */
   comboHit(streak: number): void {
+    if (play('comboHit', { rate: semis(Math.min(streak, 24)) })) return;
     const n = 72 + Math.min(streak, 24);
     tone({ type: 'square', freq: note(n), dur: 0.09, gain: 0.1, filter: 5000 });
     tone({ type: 'square', freq: note(n + 7), start: 0.06, dur: 0.12, gain: 0.08, filter: 5000 });
     tone({ type: 'sine', freq: note(n + 12), start: 0.06, dur: 0.25, gain: 0.06 });
   },
   glitch(): void {
+    if (play('glitch')) return;
     noise(0, 0.12, 0.2, 400);
     tone({ type: 'square', freq: 90, dur: 0.18, gain: 0.1, filter: 600 });
     noise(0.14, 0.08, 0.15, 2500);
   },
   swarm(): void {
+    if (play('swarm')) return;
     noise(0, 0.8, 0.12, 1500);
     tone({ type: 'sawtooth', freq: 200, to: 800, dur: 0.8, gain: 0.05, filter: 1500 });
   },
   step(i: number): void {
+    if (play('step', { rate: semis(i * 3) })) return;
     tone({ type: 'square', freq: note(76 + i * 3), dur: 0.1, gain: 0.1 });
   },
   stamp(): void {
+    if (play('stamp')) return;
     tone({ type: 'sine', freq: 140, to: 60, dur: 0.2, gain: 0.4 });
     tone({ type: 'square', freq: note(88), start: 0.02, dur: 0.1, gain: 0.08 });
   },
   kakuhenEnd(): void {
+    if (play('kakuhenEnd')) return;
     [79, 74, 70, 67].forEach((n, i) => tone({ type: 'triangle', freq: note(n), start: i * 0.12, dur: 0.18, gain: 0.1 }));
     noise(0, 0.3, 0.12, 3000);
   },
   god(): void {
+    if (play('god')) return;
     [60, 64, 67, 72, 76, 79, 84, 88].forEach((n, i) =>
       tone({ type: 'sawtooth', freq: note(n), start: i * 0.06, dur: 0.9 - i * 0.05, gain: 0.05, filter: 5000 }),
     );
@@ -268,25 +352,36 @@ export const sfx = {
   },
   /** 払い出し：レジのチャリーン */
   register(): void {
+    if (play('register')) {
+      sfx.coins(10, 1.2);
+      return;
+    }
     tone({ type: 'square', freq: note(88), dur: 0.08, gain: 0.1 });
     tone({ type: 'square', freq: note(93), start: 0.08, dur: 0.25, gain: 0.1 });
     noise(0.05, 0.3, 0.12, 7000);
     sfx.coins(10, 1.2);
   },
   chucker(): void {
+    if (play('chucker')) return;
     tone({ type: 'square', freq: 1200, dur: 0.04, gain: 0.08 });
     tone({ type: 'triangle', freq: 700, start: 0.04, dur: 0.1, gain: 0.1 });
   },
   round(r: number): void {
+    if (play('round', { rate: semis(r) })) {
+      sfx.coin();
+      return;
+    }
     tone({ type: 'square', freq: note(72 + r), dur: 0.08, gain: 0.08 });
     sfx.coin();
   },
   gimmick(): void {
+    if (play('gimmick')) return;
     tone({ type: 'sawtooth', freq: 900, to: 120, dur: 0.4, gain: 0.12, filter: 2000 });
     tone({ type: 'sine', freq: 80, to: 30, start: 0.38, dur: 0.5, gain: 0.5 });
     noise(0.38, 0.3, 0.3, 600);
   },
   end(): void {
+    if (play('end')) return;
     tone({ type: 'triangle', freq: note(67), dur: 0.15, gain: 0.1 });
     tone({ type: 'triangle', freq: note(72), start: 0.15, dur: 0.3, gain: 0.1 });
   },

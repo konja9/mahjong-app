@@ -236,5 +236,12 @@ src/core/   点数計算エンジン（DOM に依存しない）
   score.ts       翻・符から点数を計算
   evaluate.ts    高点法による評価
   generator.ts   問題生成
-src/ui/     画面・入力・演出（SVG 牌、Canvas パーティクル、Web Audio 効果音）
+src/ui/     画面・入力・演出（SVG 牌、Canvas パーティクル、効果音と BGM）
+public/assets/sfx/  効果音（MP3。tools/sfx.py で合成して書き出したもの）
+tools/sfx.py        効果音の合成スクリプト
 ```
+
+### 効果音
+- 効果音 35本（`public/assets/sfx/*.mp3`、合わせて約420KB）は `tools/sfx.py` で合成しています。玉やコインは整数倍にならない倍音の金属音、リールの停止は低いドンとカチッという機械音、ファンファーレは金管風の和音とティンパニ・シンバル、それぞれにホールの残響をかけています。
+- 作り直すとき：`pip install numpy` と ffmpeg を用意して `python3 tools/sfx.py`（`--wav` で確認用の WAV も残す）。音を足すときは `tools/sfx.py` に `@sound('名前', ピーク)` の関数を足し、`src/ui/audio.ts` の `SAMPLE_NAMES` に名前を加えます。
+- アプリは最初のタップ（スタート画面からゲームに入るとき）で音を有効にし、ファイルを読み込みます。読み込み前・読み込めないときは、以前の Web Audio の合成音で鳴ります。音の高さを変える音（連続正解・段階・ラウンド）は再生速度で変えています。iPhone・Android・PC のどれでも再生できるよう MP3 にしています。
