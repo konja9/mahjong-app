@@ -4,7 +4,7 @@ const config: CapacitorConfig = {
   appId: 'io.github.konja9.pachifuto',
   appName: 'パチふと',
   webDir: 'dist',
-  backgroundColor: '#0c0d11',
+  backgroundColor: '#0b0a0e',
   plugins: {
     SystemBars: {
       // 画面いっぱいに描き、ノッチやナビゲーションバーの分は CSS の env(safe-area-inset-*) で避ける
