@@ -5,10 +5,10 @@
  *   - store/icon-512.png：アプリのアイコン（512×512）
  *
  * 主役は「退屈な麻雀の点数計算のトレーニングが、パチンコで楽しくできる」こと。世界観（ギャンブル世紀末）は味付け。
- * 並び：1 ゲームの肝 → 2 世界観 → 3 パチンコ → 4 稽古 → 5 このゲームならではの仕様 → 6 締め
+ * 並び：1 ゲームの肝 → 2 実戦で困らない → 3 パチンコ → 4 稽古（初心者から上級者まで）→ 5 上達が見える → 6 世界観と締め
  *
  * 使い方：npx -p playwright -p tsx tsx scripts/store.mjs
- *   store/raw/ の画面は scripts/store-raw.mjs で撮る（360×640、3倍）。
+ *   store/raw/ の画面は scripts/store-raw.mjs で撮る（412×732、3倍）。
  *   PLAYWRIGHT_FROM（playwright のある node_modules）・CHROME（ブラウザの実行ファイル）で場所を指定できる。
  */
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -98,65 +98,57 @@ function page(body, w = 1080, h = 1920) {
   return `<!doctype html><html><head><meta charset="utf-8">${FONTS}<style>${BASE}body{width:${w}px;height:${h}px;background:${FADE}}</style></head><body>${body}</body></html>`;
 }
 
+/** 大きなスマホの画面（中央）。画面の情報が読めるよう、キャンバスの幅の 3/4 ほどで見せる */
+const bigPhone = (raw, top = 440, w = 800) => phone(raw, (1080 - w) / 2, top, w, 0, 1);
+
 const SHOTS = [
   // 1. ゲームの肝
   {
     name: '1-core',
     html: page(`${rays(1080, 1920, 540, 1100, 44, 0.08)}
-      ${caption('麻雀の点数計算を、<br><em>パチンコ</em>で覚える', '正解すると台が回り、大当りで BONUS。<br>退屈な暗記が、ゲームになる。')}
-      ${phone('1-pachinko', 70, 600, 560, -5, 1)}
-      ${phone('1b-jackpot', 450, 680, 560, 5, 2)}`),
+      ${caption('麻雀の点数計算を、<br><em>パチンコ</em>で覚える', '正解で台が回り、大当りで BONUS。暗記がゲームに。', 82)}
+      ${bigPhone('1-jackpot')}`),
   },
-  // 2. 世界観
+  // 2. 実戦で困らない
   {
-    name: '2-world',
-    html: page(`${rays(1080, 1920, 300, 1250, 40, 0.1)}
-      ${skyline(1080, 560, 1360)}
-      <div style="position:absolute;top:110px;left:60px;right:60px;text-align:center">
-        <h1 class="flavor" style="font-size:96px;font-weight:400">ここは、<br>ギャンブル世紀末</h1>
-        <p class="sub" style="margin-top:30px;font-size:38px">人の値打ちは、勝ち取った点数で決まる。<br>数えられない者から、食われていく。</p>
-      </div>
-      ${phone('2-story', 640, 720, 380, 6, 1)}
-      ${chara('grin', 30, 900, 600, -6)}
-      ${bubble('クケケ、<br>久しぶりの新顔だな', 90, 690, 44, 'down')}`),
+    name: '2-real',
+    html: page(`${rays(1080, 1920, 540, 1100, 44, 0.06)}
+      ${caption('「何点？」と聞かれても<br><em>もう困らない</em>', '符と翻の内訳を、図解ですぐ確認できる。', 70)}
+      ${bigPhone('2-explain')}`),
   },
   // 3. パチンコモード
   {
     name: '3-pachinko',
-    html: page(`${rays(1080, 1920, 540, 1150, 44, 0.08)}
-      ${caption('飽きずに、<br>何問でも解ける', 'リーチ・大当り・BONUS・RUSH。<br>答えるたびに台が動く。')}
-      ${phone('3-bonus', 200, 600, 680, 0, 1)}
-      ${chara('surprise', 790, 1420, 280, 8)}
-      ${bubble('符が高いほど<br>賞金がデカいぜ', 640, 1240, 36, 'down')}`),
+    html: page(`${rays(1080, 1920, 540, 1100, 44, 0.08)}
+      ${caption('飽きずに、<br>何問でも解ける', 'リーチ・大当り・BONUS・RUSH で飽きさせない。', 82)}
+      ${bigPhone('3-bonus')}
+      ${chara('surprise', 800, 1560, 300, 8)}
+      ${bubble('符が高いほど<br>賞金がデカいぜ', 610, 1400, 36, 'down')}`),
   },
-  // 4. 稽古モード
+  // 4. 稽古モード（初心者から上級者まで）
   {
     name: '4-keiko',
-    html: page(`${rays(1080, 1920, 540, 1150, 44, 0.06)}
-      ${caption('点数計算を、<br><em>一から</em>習得', '副底から一段ずつ。図解の解説・<br>間違えた手の復習・苦手ドリル。')}
-      ${phone('4-keiko', 200, 600, 680, 0, 1)}
-      ${chara('neutral', 20, 1420, 280, -8)}
-      ${bubble('道場で<br>叩き込んでやる', 40, 1250, 36, 'down')}`),
+    html: page(`${rays(1080, 1920, 540, 1100, 44, 0.06)}
+      ${caption('点数計算を、<br><em>一から</em>習得', '初心者は点数表から、上級者は符計算の速さを。', 82)}
+      ${bigPhone('4-keiko')}
+      ${chara('neutral', 0, 1580, 280, -8)}
+      ${bubble('道場で<br>叩き込んでやる', 40, 1420, 36, 'down')}`),
   },
-  // 5. このゲームならではの仕様
+  // 5. 上達が見える
   {
-    name: '5-skill',
-    html: page(`${rays(1080, 1920, 540, 1150, 44, 0.08)}
-      ${caption('運じゃない。<br><em>腕</em>で回す台', '速く・正しく答えるほど得をする。')}
-      <div style="position:absolute;top:500px;left:0;right:0;display:flex;justify-content:center;gap:18px;font-size:32px">
-        <span class="tag">速答で BET 半額</span><span class="tag">連続正解で電チュー</span><span class="tag">符が高いほど高配当</span>
-      </div>
-      ${phone('5-fast', 230, 640, 620, 0, 1)}
-      <div style="position:absolute;left:0;right:0;bottom:70px;text-align:center"><span class="tag" style="font-size:34px;color:${C.ivory}">Lv が上がるたび、物語が1話ずつ解放（全20話）</span></div>`),
+    name: '5-progress',
+    html: page(`${rays(1080, 1920, 540, 1100, 44, 0.08)}
+      ${caption('苦手が分かる。<br><em>伸び</em>が見える。', '正答率・速さ・苦手を記録。苦手ドリルで克服。', 82)}
+      ${bigPhone('5-summary')}`),
   },
-  // 6. 締め
+  // 6. 世界観と締め
   {
     name: '6-survive',
     html: page(`${rays(1080, 1920, 540, 760, 48, 0.12)}
       <div style="position:absolute;left:270px;top:90px;width:540px">${logoSvg({ layout: 'stack' })}</div>
       <div style="position:absolute;top:530px;left:50px;right:50px;text-align:center">
         <h1 class="flavor" style="font-size:66px;font-weight:400;white-space:nowrap">お前は、ギャンブル世紀末を<br>生き残れるか</h1>
-        <p class="sub" style="margin-top:28px;font-size:38px">全20話の物語・称号・台。数えて、成り上がれ。</p>
+        <p class="sub" style="margin-top:28px;font-size:40px">数えて、成り上がれ。</p>
       </div>
       ${skyline(1080, 520, 1400)}
       ${phone('6-start', 620, 1000, 400, 5, 1)}
@@ -172,7 +164,7 @@ function featureHtml() {
       <h1 style="font-size:44px">麻雀の点数計算を、<br><em>パチンコ</em>で楽しく。</h1>
       <p class="flavor" style="margin-top:16px;font-size:24px">ギャンブル世紀末を、数えて成り上がれ。</p>
     </div>
-    ${phone('1b-jackpot', 610, 40, 220, -6, 1).replace('border-radius:48px', 'border-radius:22px').replace('0 0 0 7px #1a140c,0 0 0 11px', '0 0 0 3px #1a140c,0 0 0 5px')}
+    ${phone('1-jackpot', 610, 40, 220, -6, 1).replace('border-radius:48px', 'border-radius:22px').replace('0 0 0 7px #1a140c,0 0 0 11px', '0 0 0 3px #1a140c,0 0 0 5px')}
     ${chara('proud', 760, 150, 330, 6)}`,
     1024,
     500,
