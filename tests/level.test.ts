@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FINAL_LEVEL,
   KEIKO_EXP,
+  PACHINKO_EXP,
   addExp,
   dayKey,
   ensureDay,
@@ -63,6 +64,11 @@ describe('経験値と Lv', () => {
     expect(unreadChapters(s)).toEqual([1, 3]);
   });
 
+  it('パチンコの正解の exp は、BONUS の稼ぎ（1問あたり約38）よりずっと小さい', () => {
+    expect(PACHINKO_EXP).toBeGreaterThan(0);
+    expect(PACHINKO_EXP).toBeLessThanOrEqual(5);
+  });
+
   it('中級者・甘デジ（正解85%・速答5割）の稼ぎで、Lv20 は 4,000〜6,000 問', () => {
     let won = 0;
     let n = 0;
@@ -72,7 +78,8 @@ describe('経験値と Lv', () => {
         won += d.won;
         n += d.questions;
       }
-    const questions = expForLevel(FINAL_LEVEL) / (won / n);
+    // BONUS の賞金に、通常の問題の正解（85%）ごとの exp を足す
+    const questions = expForLevel(FINAL_LEVEL) / (won / n + 0.85 * PACHINKO_EXP);
     expect(questions).toBeGreaterThan(4000);
     expect(questions).toBeLessThan(6000);
   });

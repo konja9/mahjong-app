@@ -11,7 +11,7 @@ import { blocksHtml, fuTable } from './explain';
 import { ECONOMY, costFor, fuScale, uwanoseMean } from './machine/economy';
 import { KAKUHEN_RATE, NORMAL_ODDS, RUSH_ODDS, ST_SPINS } from './machine/machine';
 import { MACHINE_IDS, SPECS } from './machine/specs';
-import { FINAL_LEVEL, KEIKO_EXP } from './level';
+import { FINAL_LEVEL, KEIKO_EXP, PACHINKO_EXP } from './level';
 
 export type HelpTab = 'basic' | 'fu' | 'bonus' | 'rush' | 'money' | 'terms';
 
@@ -282,7 +282,7 @@ function money(): string {
       'level',
       '経験値と Lv',
       `<div class="h-xp"><b class="xp-lv">Lv 7</b><span class="mt-title r-rare">符読み</span><span class="xp-bar"><i style="width:62%"></i></span><small class="xp-next">次まで 2,140</small></div>`,
-      `<p>計器の上の帯。<b>yan を稼ぐと経験値がたまり</b>（BONUS の賞金と同じ量）、BET や買い物、破産では減りません。稽古でも、正解すると少しだけ（1問 最大${KEIKO_EXP}）たまります。Lv1 から始まり、上限はありません。装備した称号もここに出ます。</p>`,
+      `<p>計器の上の帯。<b>yan を稼ぐと経験値がたまり</b>（BONUS の賞金と同じ量）、BET や買い物、破産では減りません。通常の問題の正解でも ${PACHINKO_EXP}、稽古でも正解すると少しだけ（1問 最大${KEIKO_EXP}）たまります。Lv1 から始まり、上限はありません。装備した称号もここに出ます。</p>`,
     ) +
     card(
       'story',

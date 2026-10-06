@@ -17,6 +17,8 @@ const KEY = 'tensu.level.v1';
 export const FINAL_LEVEL = 20;
 /** 稽古で1問を全部正解したときの exp（パチンコの中級者の1問あたり約38の4分の1ほど） */
 export const KEIKO_EXP = 10;
+/** パチンコの通常の問題で正解したときの exp（BONUS の賞金とは別に少しだけ） */
+export const PACHINKO_EXP = 3;
 
 export const freshLevel = (): LevelState => ({ exp: 0, read: [] });
 

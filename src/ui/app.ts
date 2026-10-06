@@ -41,6 +41,7 @@ import { SPECS } from './machine/specs';
 import {
   FINAL_LEVEL,
   KEIKO_EXP,
+  PACHINKO_EXP,
   type DailyNet,
   addExp,
   ensureDay,
@@ -150,6 +151,8 @@ export class App {
     /** ここまで全問正解か（上乗せ抽選の条件） */
     perfect: boolean;
     premium: boolean;
+    /** チュートリアルの BONUS（短く2問で終える） */
+    short: boolean;
     resolve: (r: JackpotResult) => void;
   } | null = null;
   /** 今出ている問題がラウンド問題か */
@@ -560,13 +563,14 @@ export class App {
 
   /** この BONUS の問題数（台のラウンド数＋満貫以上での上乗せ） */
   private get roundCount(): number {
+    if (this.round?.short) return TUTORIAL_ROUNDS;
     return this.spec.rounds + (this.round?.extra ?? 0);
   }
 
   /** 大当り：ラウンド問題を出題し、終わったら出玉合計（と上乗せ）を返す */
   private startRound(premium: boolean): Promise<JackpotResult> {
     return new Promise((resolve) => {
-      this.round = { n: 0, total: 0, combo: 0, extra: 0, perfect: true, premium, resolve };
+      this.round = { n: 0, total: 0, combo: 0, extra: 0, perfect: true, premium, short: this.tutFree, resolve };
       queueMicrotask(() => this.tut.notify('bonusStart'));
       this.tips.first('firstHit');
       // 回答待ちの問題があれば、その問題を ROUND 1 にする（BET なし・賞金あり）。
@@ -979,6 +983,8 @@ export class App {
       }
       $('#result').innerHTML = `<div class="verdict ok"><span class="mark">正解</span><span class="ans">${this.correctText()}</span><span class="muted">${elapsed.toFixed(1)}s</span>${extra}</div>${explain}`;
       const streak = ss.streak;
+      // パチンコの通常の問題の正解でも、経験値を少しだけ入れる（BONUS は賞金の分が入る）
+      if (!this.keiko && !this.isRoundQ) this.gainExp(PACHINKO_EXP);
       if (!this.keiko) {
         this.fx.hit(streak, answerEl);
         // 正解＝始動口入賞。ラウンド中は台に玉を入れない
@@ -1015,7 +1021,9 @@ export class App {
       const diagHtml = diag.length ? `<div class="diagnosis">${diagnosisText(diag)}</div>` : '';
       // 通常時のお金は計器だけで見せる。BONUS の外れはパンク
       const penalty = this.isRoundQ ? '<span class="punk">パンク（賞金なし）</span>' : '';
-      $('#result').innerHTML = `<div class="verdict ng"><span class="mark">不正解</span><span class="${this.steps ? 'muted' : 'yours'}">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${diagHtml}${explain}`;
+      // 稽古：途中の段階を間違えても、最後の点数が合っていれば「おしい！」（記録は不正解のまま）
+      const close = this.steps && !timeout && this.steps.answered.at(-1)?.step.element === 'score' && this.steps.answered.at(-1)?.ok;
+      $('#result').innerHTML = `<div class="verdict ${close ? 'close' : 'ng'}"><span class="mark">${close ? 'おしい！' : '不正解'}</span><span class="${this.steps ? 'muted' : 'yours'}">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${diagHtml}${explain}`;
       this.fx.lose(this.isChoice ? $('#choices') : answerEl, false);
       if (!this.keiko && !this.isRoundQ) {
         this.tip('miss');
@@ -2111,6 +2119,9 @@ export class App {
     if (el) el.scrollTop = scroll;
   }
 }
+
+/** チュートリアルの BONUS の問題数（長く待たせないよう短くする） */
+const TUTORIAL_ROUNDS = 2;
 
 const ALL_CHAPTERS: ChapterId[] = ['prologue', 'pachinko', 'keiko', 'tools'];
 

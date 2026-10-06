@@ -5,7 +5,7 @@
   z-index: 300;
   display: grid;
   place-items: center;
-  padding: calc(16px + env(safe-area-inset-top) + var(--ad-h, 0px)) 16px calc(16px + env(safe-area-inset-bottom));
+  padding: calc(16px + env(safe-area-inset-top) + var(--ad-h, 0px)) 16px calc(env(safe-area-inset-bottom) + clamp(24px, 6vh, 56px));
   overflow-y: auto;
   background:
     radial-gradient(ellipse 70% 45% at 50% 30%, rgba(242, 201, 76, 0.22), transparent 70%),

@@ -5,6 +5,8 @@
   z-index: 200;
   pointer-events: none;
   font-family: 'Noto Sans JP', sans-serif;
+  /* 画面の下端との間。ナビゲーションバーのあるスマホでも被らないよう、回答欄と同じだけ持ち上げる */
+  --tut-bottom-gap: clamp(24px, 6vh, 56px);
   /* 暗さ：セリフだけ 0.62・光らせて説明 0.5・光らせて操作させる 0.3（画面の様子が見え、押してよいと分かる） */
   --tut-dim: rgba(0, 0, 0, 0.5);
   --tut-ring: var(--main);
@@ -22,7 +24,7 @@
   left: 0;
   width: 0;
   top: calc(env(safe-area-inset-top) + var(--ad-h, 0px));
-  bottom: env(safe-area-inset-bottom);
+  bottom: calc(env(safe-area-inset-bottom) + var(--tut-bottom-gap));
   visibility: hidden;
 }
 /* セリフだけの場面は全体を暗くする */
@@ -107,7 +109,7 @@
 .tut-ui {
   position: fixed;
   left: 50%;
-  bottom: calc(16px + env(safe-area-inset-bottom));
+  bottom: calc(env(safe-area-inset-bottom) + var(--tut-bottom-gap));
   transform: translateX(-50%);
   width: min(620px, calc(100vw - 24px));
   display: flex;

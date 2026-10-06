@@ -589,6 +589,14 @@ body.busy .bet-box .bar {
 .verdict.ng .mark::before {
   content: '✕ ';
 }
+.verdict.close .mark::before {
+  content: '△ ';
+}
+.verdict.close .mark {
+  background: transparent;
+  color: #f2a93b;
+  box-shadow: inset 0 0 0 1.5px #f2a93b;
+}
 .verdict.ok .mark {
   background: transparent;
   color: var(--main);
