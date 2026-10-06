@@ -371,13 +371,15 @@ body.start-open {
 .story-body h3 {
   margin: 4px 0 10px;
   color: #f2c94c;
-  font-family: 'Noto Serif JP', serif;
+  font-family: 'Noto Sans JP', sans-serif;
   font-size: 20px;
+  font-weight: 900;
 }
 .story-body p {
   margin: 0 0 0.9em;
-  font-family: 'Noto Serif JP', serif;
+  font-family: 'Noto Sans JP', sans-serif;
   font-size: 15px;
+  font-weight: 400;
   line-height: 1.9;
 }
 .story-end {

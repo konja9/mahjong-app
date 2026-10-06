@@ -611,6 +611,14 @@ export class App {
       this.grantUnlocks();
       saveShop(this.shop);
     }
+    // チュートリアルの BONUS は、終わった瞬間に演出を打ち切る（PAYOUT・V入賞・確変突入が説明に重ならないように）。
+    // 台もリセットして、残った保留や RUSH で説明の途中に次の大当りが起きないようにする
+    if (r.short) {
+      r.resolve({ total: r.total });
+      this.fx.reset();
+      this.panel.reset();
+      return;
+    }
     // 全問正解なら上乗せ抽選。上乗せ分は演出のあとで所持金に入る
     if (r.perfect && r.total > 0) {
       const mult = drawUwanose(Math.random, r.premium);
