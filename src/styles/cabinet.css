@@ -13,7 +13,7 @@
 }
 /* パチンコ：スタート画面と同じ金と赤のフェード */
 :root[data-play='pachinko'] body {
-  background: var(--fade-bg);
+  background: var(--fade-bg-game);
   background-attachment: fixed;
 }
 /* RUSH 中と BONUS 中だけ背景に色を付ける */
@@ -168,7 +168,8 @@
   }
   :root[data-play='pachinko'] #dock {
     padding: 14px 0 12px;
-    background: linear-gradient(to bottom, transparent, var(--bg) 16px);
+    background: var(--fade-bg-game);
+    background-attachment: fixed;
   }
 }
 

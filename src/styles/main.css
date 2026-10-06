@@ -12,6 +12,11 @@
     radial-gradient(ellipse 70% 45% at 50% 30%, rgba(242, 201, 76, 0.22), transparent 70%),
     radial-gradient(ellipse 90% 60% at 50% 110%, rgba(200, 50, 60, 0.18), transparent 70%),
     #0b0a0e;
+  /* ゲーム画面：下の赤を強め、少し上まで広げる（下の計器と選択肢の周りにも赤が見えるように） */
+  --fade-bg-game:
+    radial-gradient(ellipse 70% 45% at 50% 30%, rgba(242, 201, 76, 0.22), transparent 70%),
+    radial-gradient(ellipse 120% 75% at 50% 104%, rgba(200, 50, 60, 0.3), transparent 72%),
+    #0b0a0e;
   --error: #ff5a6e;
   --tile-face: #f3efe2;
   --tile-edge: #b9b29c;
@@ -1966,7 +1971,9 @@ body.chou::before {
     margin: auto -16px 0;
     padding: 12px 16px calc(env(safe-area-inset-bottom) + clamp(20px, 6vh, 56px));
     gap: 8px;
-    background: linear-gradient(to bottom, transparent, var(--bg) 14px);
+    /* 背景と同じ画面固定のフェードで塗る（下の赤を隠さず、後ろを流れる内容は隠す） */
+    background: var(--fade-bg-game);
+    background-attachment: fixed;
     z-index: 5;
   }
   #hint:empty {
@@ -2259,7 +2266,7 @@ body.chou::before {
   --sub-bg: #141a16;
 }
 :root[data-play='keiko'] body {
-  background: var(--fade-bg);
+  background: var(--fade-bg-game);
   background-attachment: fixed;
 }
 [data-play='keiko'] #machine,
