@@ -6,7 +6,8 @@ import type { EffectLevel } from '../effects/performance';
 import { Reel } from '../effects/reel';
 import { type Face, charaSvg } from '../tutorial/chara';
 import { ECONOMY } from './economy';
-import { MAX_HOLDS, Machine, PREMIUM_SYMBOL, type SpinResult } from './machine';
+import { Machine, PREMIUM_SYMBOL, type SpinResult, maxHolds } from './machine';
+import { mods } from './mods';
 
 export interface PanelHooks {
   /** 発展リーチ・大当り中は回答を止める */
@@ -80,7 +81,7 @@ export class MachinePanel {
             <div class="m-news" aria-hidden="true" hidden><b>NEWS</b><div class="m-news-track"><span></span></div></div>
           </div>
           <div class="m-bottom">
-            <div class="m-holds" aria-label="保留">${Array.from({ length: MAX_HOLDS }, () => '<span class="hold"></span>').join('')}</div>
+            <div class="m-holds" aria-label="保留">${Array.from({ length: maxHolds() }, () => '<span class="hold"></span>').join('')}</div>
             <button class="m-chara" type="button" aria-label="パチふとくん" data-silent></button>
             <div class="m-chucker" title="始動口"><span></span></div>
           </div>
@@ -278,7 +279,7 @@ export class MachinePanel {
     this.msg('', '');
     // 回転開始時の予告（先読み）
     // パチふとくん予告（出なければ、いつもの予告）
-    const chara = drawCharaNotice(r.color, r.hit, r.rush, this.level());
+    const chara = drawCharaNotice(r.color, r.hit, r.rush, this.level(), Math.random, mods.noticeBoost);
     if (chara) {
       this.fx.charaNotice(chara);
       this.face(chara === 'white' ? 'neutral' : 'surprise', 1800);
@@ -507,6 +508,9 @@ export class MachinePanel {
         ? `RUSH${m.data.rushChain > 1 ? ` ${m.data.rushChain}連` : ''}`
         : '通常';
     this.root.querySelector('.m-st')!.textContent = !bonus && m.rush ? `残り${m.stLeft}/${m.spec.st}` : '';
+    // 保留タンク（改造）で上限が変わったらランプの数を合わせる
+    const box = this.root.querySelector<HTMLElement>('.m-holds')!;
+    if (box.children.length !== maxHolds()) box.innerHTML = Array.from({ length: maxHolds() }, () => '<span class="hold"></span>').join('');
     const holds = this.root.querySelectorAll<HTMLElement>('.hold');
     holds.forEach((h, i) => {
       const hold = m.holds[i];

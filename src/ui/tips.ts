@@ -1,6 +1,6 @@
 import type { Mode } from '../core/generator';
 import type { HelpTab } from './help';
-import { ECONOMY, costFor } from './machine/economy';
+import { ECONOMY, costFor, denchuFor } from './machine/economy';
 import { type MachineSpec, SPECS } from './machine/specs';
 import { load, save } from './storage';
 
@@ -82,7 +82,7 @@ export function tipText(id: Exclude<TipId, 'firstHit'>, fastSec: number, spec: M
     case 'low':
       return '所持金がヤバいぜ。稽古なら yan を使わずに数え方を叩き込めるぞ';
     case 'denchuSoon':
-      return `あと2連で電チュー開放だ。${MODE_NAME[mode]}は ${ECONOMY.denchu[mode]}連から、正解1回で玉が2個入るぜ`;
+      return `あと2連で電チュー開放だ。${MODE_NAME[mode]}は ${denchuFor(mode)}連から、正解1回で玉が2個入るぜ`;
     case 'denchu':
       return '電チュー開放！ 外すまで正解1回で玉2個だ。問題数の横の ●● が目印だぜ';
     case 'bonusFu':

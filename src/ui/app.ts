@@ -18,8 +18,11 @@ import {
   comboMult,
   costFor,
   ballsFor,
+  denchuFor,
+  fastSecondsFor,
   drawUwanose,
   extraRoundsFor,
+  extraRoundsMax,
   freshWallet,
   fuRate,
   fuScale,
@@ -42,6 +45,9 @@ import { charaSvg } from './tutorial/chara';
 import { logoSvg } from './brand/logo';
 import type { ChapterId, TutorialAction } from './tutorial/script';
 import { SPECS } from './machine/specs';
+import { effectiveSpec } from './machine/mods';
+import { PARTS, type PartId, applyParts, equipPart, loadParts, rewardsFor, saveParts, slotsFor, unequipPart } from './machine/parts';
+import { type Rank, canTakeExam, examResultHtml, judge, loadExam, nextRank, rankName, recordPass, saveExam } from './exam';
 import {
   FINAL_LEVEL,
   KEIKO_EXP,
@@ -62,7 +68,7 @@ import {
 } from './level';
 import { STORY, storyChapterHtml, storyIndexHtml } from './story';
 import { renderOdometer } from './odometer';
-import { type ItemsTab, RARITY_LABEL, type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, saveShop, shopHtml, unlockMachine } from './shop';
+import { type ItemsTab, type MachineTab, RARITY_LABEL, type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, saveShop, shopHtml, unlockMachine } from './shop';
 import { type TipId, Tips, tipLink, tipText } from './tips';
 import { TILE_DEFS, handHtml, tilesInline } from './tileView';
 import { PRIVACY_POLICY_URL } from './links';
@@ -207,9 +213,21 @@ export class App {
   private shopView: ShopView = 'items';
   /** 交換所で最後に開いたタブ */
   private shopItemsTab: ItemsTab = 'title';
+  /** 台選びのダイアログのタブ（台・改造） */
+  private machineTab: MachineTab = 'machines';
+  /** 昇段試験の段位 */
+  private exam = loadExam();
+  /** 台の改造パーツ（Lv アップで手に入る） */
+  private parts = loadParts(levelOf(this.lv.exp).level);
+  /** 受験中の昇段試験（null なら受けていない） */
+  private examRun: { rank: Rank; idx: number; correct: number; times: number[]; missed: number[] } | null = null;
+  /** Lv アップの演出で見せる報酬（演出を出すまで貯めておく） */
+  private pendingRewards: { parts: PartId[]; cash: number } = { parts: [], cash: 0 };
 
   constructor(private root: HTMLElement) {
     this.root.innerHTML = SHELL;
+    // 改造パーツの効き目を、台と経済に反映しておく
+    applyParts(this.parts, slotsFor(this.exam.rank));
     this.fx = new Fx($('#overlay'), $('#notice'), $('#combo'), $<HTMLCanvasElement>('#fx'), document.body, () => this.fxLevel);
     this.panel = new MachinePanel($('#machine'), this.fx, () => this.fxLevel, {
       onBusy: (b) => this.setBusy(b),
@@ -238,7 +256,14 @@ export class App {
     this.start = new StartScreen({
       view: () => {
         const { level } = levelOf(this.lv.exp);
-        return { first: this.firstRun, balance: this.wallet.balance, level, cleared: level >= FINAL_LEVEL, unread: unreadChapters(this.lv).length };
+        return {
+          first: this.firstRun,
+          balance: this.wallet.balance,
+          level,
+          cleared: level >= FINAL_LEVEL,
+          unread: unreadChapters(this.lv).length,
+          exam: canTakeExam(this.exam.rank, level) ? nextRank(this.exam.rank)!.name : null,
+        };
       },
       onShown: (on) => {
         this.pause('start', on);
@@ -262,6 +287,7 @@ export class App {
     this.newsTimer = window.setTimeout(() => {
       const ok =
         !this.keiko &&
+        !this.examRun &&
         this.s.effects !== 'off' &&
         !this.start.shown &&
         !this.tut.active &&
@@ -296,8 +322,9 @@ export class App {
   }
 
   /** 今の台 */
+  /** 今の台（改造パーツ込み） */
   private get spec() {
-    return SPECS[this.shop.machine];
+    return effectiveSpec(SPECS[this.shop.machine]);
   }
 
   /** 稽古では演出を一切出さない */
@@ -410,7 +437,7 @@ export class App {
 
   /** 液晶帯のパチふとくんを反応させる（パチンコの通常時だけ。演出がオフなら表情だけ） */
   private talk(ev: TalkEvent): void {
-    if (this.keiko || this.tut?.active || this.start?.shown || !this.panel) return;
+    if (this.keiko || this.examRun || this.tut?.active || this.start?.shown || !this.panel) return;
     const r = this.talker.react(ev, performance.now(), this.s.effects !== 'off');
     if (r.line) this.panel.say(r.line, r.face);
     else this.panel.face(r.face);
@@ -513,6 +540,10 @@ export class App {
       this.hint('保留の抽選結果を待っています…');
       return;
     }
+    if (this.examRun && this.examRun.idx >= this.examRun.rank.modes.length) {
+      void this.finishExam();
+      return;
+    }
     const count = this.keiko ? this.s.count : 0;
     if (count && this.session.answered >= count) {
       this.showSummary();
@@ -526,7 +557,7 @@ export class App {
     this.renderBonus();
     // BONUS・RUSH の出題は通常時と同じ分布。超大当りの BONUS だけ役満が出やすい
     const premium = this.isRoundQ && !!this.round?.premium;
-    this.q = this.pickQuestion(premium);
+    this.q = this.examRun ? this.examQuestion() : this.pickQuestion(premium);
     this.input = '';
     this.picked = -1;
     // BONUS・RUSH の4択は、誤答を同じ翻で符だけ違う点数にして符を試す
@@ -536,6 +567,7 @@ export class App {
     this.choices = this.steps ? this.stepChoices() : this.isChoice ? makeChoices(this.q, this.s.rules, Math.random, fuFocus) : [];
     this.syncAnswerAttr();
     this.renderSteps();
+    this.renderExamBar();
     this.setPhase('answering');
     this.startedAt = performance.now();
     this.renderQuestion();
@@ -732,7 +764,7 @@ export class App {
       el.innerHTML = '<small>BET<em class="gold">BONUS</em></small><span class="bet-v"><b>0</b></span>';
       return;
     }
-    const fastSec = ECONOMY.fastSeconds[this.s.mode];
+    const fastSec = fastSecondsFor(this.s.mode);
     const full = costFor(true, false, this.spec);
     const half = costFor(true, true, this.spec);
     el.style.setProperty('--half', `${fastSec}s`);
@@ -799,6 +831,11 @@ export class App {
     saveLevel(this.lv);
     this.renderExpStrip(ups.length > 0);
     if (!ups.length) return;
+    // Lv アップの報酬：改造パーツ（なければ祝い金）
+    const rw = rewardsFor(this.parts, ups);
+    saveParts(this.parts);
+    if (rw.cash) this.changeBalance(rw.cash);
+    this.pendingRewards = { parts: [...this.pendingRewards.parts, ...rw.parts], cash: this.pendingRewards.cash + rw.cash };
     // 演出があるときは、全画面の Lv アップ演出を、台が落ち着いたところで出す
     if (this.s.effects !== 'off') {
       this.pendingLevel = mergeLevelUp(this.pendingLevel, ups);
@@ -811,6 +848,11 @@ export class App {
     } else if (lv < FINAL_LEVEL) {
       this.toast(`Lv ${lv}！ パチふとくんの記憶が戻ってきた。第${lv}話「${STORY[lv - 1].title}」が読める`, null, true, lv);
     } else this.toast(`Lv ${lv}！`, null, true);
+    for (const id of rw.parts) this.toast(`改造パーツ「${PARTS[id].name}」を手に入れた。台選びの「改造」で台に付けられるぜ`, null, true);
+    if (rw.cash) this.toast(`祝い金 +${rw.cash.toLocaleString()} yan`, null, true);
+    this.pendingRewards = { parts: [], cash: 0 };
+    const r = nextRank(this.exam.rank);
+    if (r && ups.includes(r.level)) this.toast(`${r.name}の昇段試験が受けられるようになった。スタート画面から挑戦しな`, null, true);
     this.tip('levelUp');
   }
 
@@ -829,6 +871,7 @@ export class App {
       }
       const blocked =
         !!this.round ||
+        !!this.examRun ||
         this.busy ||
         this.phase === 'suspense' ||
         this.start.shown ||
@@ -850,11 +893,143 @@ export class App {
     const final = p.from < FINAL_LEVEL && p.to >= FINAL_LEVEL;
     const n = Math.min(p.to, FINAL_LEVEL);
     const chapter = p.to <= FINAL_LEVEL || final ? { n, title: STORY[n - 1].title } : null;
+    const rw = this.pendingRewards;
+    this.pendingRewards = { parts: [], cash: 0 };
+    const r = nextRank(this.exam.rank);
+    const exam = r && r.level > p.from && r.level <= p.to ? r.name : null;
     this.pause('levelup', true);
-    const read = await this.levelUp.show({ from: p.from, to: p.to, chapter, final });
+    const act = await this.levelUp.show(
+      {
+        from: p.from,
+        to: p.to,
+        chapter,
+        final,
+        parts: rw.parts.map((id) => ({ id, name: PARTS[id].name, desc: PARTS[id].desc })),
+        cash: rw.cash,
+        canEquip: this.canChangeParts && this.parts.equip.length < this.slots,
+        exam,
+      },
+      (id) => this.equipPart(id as PartId),
+    );
     this.pause('levelup', false);
-    if (read && chapter) this.openStory(chapter.n);
+    if (act === 'read' && chapter) this.openStory(chapter.n);
+    else if (act === 'exam') this.startExam();
     else this.tip('levelUp');
+  }
+
+  /** 台に付けられる改造パーツの枠 */
+  private get slots(): number {
+    return slotsFor(this.exam.rank);
+  }
+
+  /** 改造パーツを付け替えられるか（BONUS 中・台が回っている間はできない） */
+  private get canChangeParts(): boolean {
+    return !this.round && this.panel.idle;
+  }
+
+  /** 改造パーツを台に付ける・外す。台と経済の数値を作り直す */
+  private equipPart(id: PartId, on = true): boolean {
+    if (!this.canChangeParts) return false;
+    if (on) {
+      if (!equipPart(this.parts, id, this.slots)) return false;
+    } else unequipPart(this.parts, id);
+    saveParts(this.parts);
+    applyParts(this.parts, this.slots);
+    this.panel.machine.spec = this.spec;
+    this.panel.render();
+    this.renderShop();
+    return true;
+  }
+
+  // ------------------------------------------------------------ 昇段試験
+
+  /** 次の昇段試験を始める（受けられなければ何もしない） */
+  private startExam(): void {
+    const rank = nextRank(this.exam.rank);
+    if (!rank || !canTakeExam(this.exam.rank, levelOf(this.lv.exp).level)) return;
+    if (this.keiko) this.update({ playMode: 'pachinko' });
+    this.endRound();
+    this.fx.reset();
+    this.panel.hold(true);
+    this.examRun = { rank, idx: 0, correct: 0, times: [], missed: [] };
+    document.body.classList.add('exam');
+    this.setBusy(false);
+    $('#summary').hidden = true;
+    $('#stage').hidden = false;
+    bgm.scene('keiko');
+    this.next();
+  }
+
+  /** 試験中の上の帯 */
+  private renderExamBar(): void {
+    const el = $('#exam-bar');
+    const x = this.examRun;
+    el.hidden = !x;
+    if (!x) return;
+    const n = Math.min(x.idx, x.rank.modes.length);
+    el.innerHTML = `<span class="eb-title">昇段試験 <b>${x.rank.name}</b></span><span class="eb-n">${n}/${x.rank.modes.length}問</span><span class="eb-ok">正解 ${x.correct}</span><button class="eb-quit" type="button" data-exam-quit>やめる</button>`;
+  }
+
+  /** 試験の問題（段位の出題の順に） */
+  private examQuestion(): Question {
+    const x = this.examRun!;
+    const mode = x.rank.modes[x.idx];
+    const filters = { ...this.s.filters, seat: 'any' as const, win: 'any' as const, ...x.rank.filters };
+    const c: HandConstraints = { call: 'any', shape: 'any', dist: 'real', want: (q) => !q.ev.yakuman, ...x.rank.constraints };
+    return generateQuestion(mode, this.s.rules, filters, Math.random, false, c);
+  }
+
+  /** 試験の1問の答え合わせ（yan・台・経験値は動かさない） */
+  private revealExam(correct: boolean, elapsed: number, timeout: boolean): void {
+    const x = this.examRun!;
+    this.setPhase('result');
+    this.lastCorrect = correct;
+    $('#stage').classList.add(correct ? 'correct' : 'wrong');
+    x.times.push(elapsed);
+    if (correct) x.correct++;
+    else x.missed.push(x.idx + 1);
+    x.idx++;
+    const explain = this.q.mode === 'hayami' ? hayamiExplain(this.q) : handExplain(this.q, this.s.rules);
+    const yours = timeout ? '時間切れ' : this.isChoice ? this.choices[this.picked].label : this.input;
+    $('#result').innerHTML = correct
+      ? `<div class="verdict ok"><span class="mark">正解</span><span class="ans">${this.correctText()}</span><span class="muted">${elapsed.toFixed(1)}s</span></div>${explain}`
+      : `<div class="verdict ng"><span class="mark">不正解</span><span class="yours">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span></div>${explain}`;
+    if (correct) sfx.comboHit(x.correct);
+    else this.fx.lose(this.isChoice ? $('#choices') : this.answerAnchor(), false);
+    this.renderExamBar();
+    this.renderInput();
+    this.hint(this.compact ? '' : 'クリック / Enter で次へ');
+  }
+
+  /** 試験の終わり：合否を出し、合格なら段位を上げる */
+  private async finishExam(): Promise<void> {
+    const x = this.examRun!;
+    const j = judge(x.rank, { correct: x.correct, times: x.times });
+    const before = this.slots;
+    if (j.pass) {
+      recordPass(this.exam, new Date().toISOString().slice(0, 10));
+      saveExam(this.exam);
+      applyParts(this.parts, this.slots);
+      this.renderExpStrip(true);
+    }
+    const slotUp = this.slots > before;
+    const html = examResultHtml(x.rank, j, slotUp ? this.slots : 0, x.missed);
+    if (j.pass) sfx.levelUp();
+    else sfx.miss();
+    const act = await this.levelUp.showHtml(j.pass ? 'exam-pass' : 'exam-fail', html);
+    this.endExam();
+    if (act === 'exam') this.startExam();
+  }
+
+  /** 試験を終えて、ふだんのパチンコに戻る（途中でやめたときも） */
+  private endExam(): void {
+    if (!this.examRun) return;
+    this.examRun = null;
+    document.body.classList.remove('exam');
+    this.renderExamBar();
+    this.panel.hold(false);
+    this.syncScene();
+    this.startSession(false);
   }
 
   /** 所持金の増減（計器の数字が回り、差額が浮き上がる） */
@@ -966,6 +1141,7 @@ export class App {
   }
 
   private get isChoice(): boolean {
+    if (this.examRun) return !this.examRun.rank.input;
     if (this.steps) return !this.stepTyped;
     return this.s.answerStyle !== 'input';
   }
@@ -1053,6 +1229,10 @@ export class App {
   }
 
   private reveal(correct: boolean, elapsed: number, timeout: boolean): void {
+    if (this.examRun) {
+      this.revealExam(correct, elapsed, timeout);
+      return;
+    }
     const ss = this.session;
     const { dealer, tsumo } = questionMeta(this.q);
     const cat = situationLabel(dealer, tsumo);
@@ -1089,7 +1269,7 @@ export class App {
         const mult = comboMult(r.combo);
         r.combo++;
         const h = handFu(this.q);
-        const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
+        const fast = elapsed <= fastSecondsFor(this.s.mode);
         const prize = roundPrize({
           mode: this.s.mode,
           fu: h.fu,
@@ -1109,7 +1289,7 @@ export class App {
         ].filter(Boolean);
         // 満貫以上はラウンド上乗せ（1回の BONUS で上限あり）
         const limit = scoreOf(this.q).limit;
-        const add = Math.min(extraRoundsFor(limit), ECONOMY.extraRounds.max - r.extra);
+        const add = Math.min(extraRoundsFor(limit), extraRoundsMax() - r.extra);
         if (add > 0) r.extra += add;
         const ext = add > 0 ? `<span class="round-up">${limit} → +${add}R</span>` : '';
         extra = `<span class="prize">+${prize.toLocaleString()} yan</span>${ext}<span class="muted breakdown">${factors.join(' ')}</span>`;
@@ -1120,14 +1300,14 @@ export class App {
           this.tip('roundUp');
         } else if (up) this.tip('ladder');
         this.fx.roundWin(prize, answerEl, $('#net'), () => this.earn(prize, 900));
-      } else if (!this.keiko && elapsed <= ECONOMY.fastSeconds[this.s.mode]) {
+      } else if (!this.keiko && elapsed <= fastSecondsFor(this.s.mode)) {
         this.tip('fast');
         extra = '<span class="fast-tag">速答</span>';
       }
       $('#result').innerHTML = `<div class="verdict ok"><span class="mark">正解</span><span class="ans">${this.correctText()}</span><span class="muted">${elapsed.toFixed(1)}s</span>${extra}</div>${explain}`;
       const streak = ss.streak;
       if (!this.isRoundQ) {
-        this.talk(correctEvent({ streak, big: !!scoreOf(this.q).limit, fast: elapsed <= ECONOMY.fastSeconds[this.s.mode] }));
+        this.talk(correctEvent({ streak, big: !!scoreOf(this.q).limit, fast: elapsed <= fastSecondsFor(this.s.mode) }));
       }
       // パチンコの通常の問題の正解でも、経験値を少しだけ入れる（BONUS は賞金の分が入る）
       if (!this.keiko && !this.isRoundQ) this.gainExp(PACHINKO_EXP);
@@ -1146,7 +1326,7 @@ export class App {
           const opened = balls > ballsFor(this.s.mode, ss.streak - 1);
           void this.panel.enter(balls, answerEl, opened);
           if (opened) this.tip('denchu');
-          else if (ss.streak === ECONOMY.denchu[this.s.mode] - 2) this.tip('denchuSoon');
+          else if (ss.streak === denchuFor(this.s.mode) - 2) this.tip('denchuSoon');
         }
         // BONUS の出玉演出は符の高さで決める（難しい手ほど派手）。通常時は打点の役名と火花だけ
         const w = this.isRoundQ ? this.fuTier() : { tier, label };
@@ -1181,13 +1361,13 @@ export class App {
     }
     // チュートリアルの問題は BET をとらず、累計の記録にも数えない
     if (!this.keiko && !this.isRoundQ && !this.tutFree) {
-      const fast = elapsed <= ECONOMY.fastSeconds[this.s.mode];
+      const fast = elapsed <= fastSecondsFor(this.s.mode);
       this.settleBet(correct, fast);
       const cost = costFor(correct, correct && fast, this.spec);
       this.addDaily(-cost);
       this.changeBalance(-cost);
     }
-    if (!this.keiko && !this.tutFree) this.recordStats(correct, elapsed <= ECONOMY.fastSeconds[this.s.mode], dealer, tsumo);
+    if (!this.keiko && !this.tutFree) this.recordStats(correct, elapsed <= fastSecondsFor(this.s.mode), dealer, tsumo);
     // 稽古は yan が動かないので、正解した分だけ少し経験値を入れる
     if (this.keiko && !this.tutFree) this.gainExp(this.steps ? keikoExp(this.steps.okCount, this.steps.total) : correct ? KEIKO_EXP : 0);
     this.renderProgress();
@@ -1605,6 +1785,13 @@ export class App {
       unlockAudio();
       this.syncBgm();
     });
+    // 昇段試験をやめる（不合格扱い。記録は残さない）
+    $('#exam-bar').addEventListener('click', (e) => {
+      if (!(e.target as HTMLElement).closest('[data-exam-quit]')) return;
+      e.stopPropagation();
+      this.endExam();
+      this.toast('昇段試験をやめました。いつでも受け直せます');
+    });
     $('#numpad').addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-key]');
       if (!b) return;
@@ -1784,6 +1971,8 @@ export class App {
     if (!this.canReturnToStart) return false;
     for (const d of document.querySelectorAll<HTMLDialogElement>('dialog[open]')) d.close();
     this.toggleConfigSheet(false);
+    // 昇段試験の途中ならやめる（記録は残さない）
+    this.endExam();
     this.start.show();
     return true;
   }
@@ -1793,6 +1982,10 @@ export class App {
     unlockAudio();
     if (c === 'tutorial') {
       this.playTutorial(ALL_CHAPTERS);
+      return;
+    }
+    if (c === 'exam') {
+      this.startExam();
       return;
     }
     if (this.s.playMode !== c) this.update({ playMode: c });
@@ -1889,7 +2082,7 @@ export class App {
     if (this.keiko || !this.tips.first(id)) return;
     // チュートリアル中はパチふとくんが直接案内しているので、一言ガイドは出さない（見たことにする）
     if (this.tut?.active) return;
-    this.toast(tipText(id, ECONOMY.fastSeconds[this.s.mode], this.spec, this.s.mode), tipLink(id), true);
+    this.toast(tipText(id, fastSecondsFor(this.s.mode), this.spec, this.s.mode), tipLink(id), true);
   }
 
   /** 画面上端の一言。chara なら一言ガイド（パチふとくんの顔つき） */
@@ -1952,6 +2145,15 @@ export class App {
         this.renderShop();
         return;
       }
+      if (d.machineTab) {
+        this.machineTab = d.machineTab as MachineTab;
+        this.renderShop();
+        return;
+      }
+      if (d.partOn || d.partOff) {
+        this.equipPart((d.partOn ?? d.partOff) as PartId, !!d.partOn);
+        return;
+      }
       if (d.preview) {
         // 試聴：本番の BGM（BONUS・RUSH）が鳴っている間はしない
         unlockAudio();
@@ -1990,7 +2192,18 @@ export class App {
   private renderShop(): void {
     // 台選びは BONUS 中と台が回っている間はできない。試聴は BONUS・RUSH の曲が鳴っている間はできない
     const ok = this.shopView === 'items' ? !this.round && !this.panel.rush : !this.round && this.panel.idle;
-    $('#shop-dialog').innerHTML = shopHtml(this.shop, this.shopView, this.wallet.balance, ok, this.shopItemsTab);
+    const nextSlot = [1, 3, 5, 7, 10].find((r) => r > this.exam.rank);
+    const parts = {
+      view: {
+        state: this.parts,
+        slots: this.slots,
+        rank: rankName(this.exam.rank),
+        nextSlotRank: nextSlot ? rankName(nextSlot) : null,
+        canChange: this.canChangeParts,
+      },
+      tab: this.machineTab,
+    };
+    $('#shop-dialog').innerHTML = shopHtml(this.shop, this.shopView, this.wallet.balance, ok, this.shopItemsTab, parts);
   }
 
   /** 台の解放・景品の支払い（0 なら何もしない） */
@@ -2003,7 +2216,7 @@ export class App {
     if (!this.shop.machines.includes(id) || this.round || !this.panel.idle) return;
     this.shop.machine = id;
     saveShop(this.shop);
-    this.panel.machine.spec = SPECS[id];
+    this.panel.machine.spec = this.spec;
     if (SPECS[id].jissenOnly && this.s.mode !== 'jissen') {
       this.s = { ...this.s, mode: 'jissen' };
       saveSettings(this.s);
@@ -2061,7 +2274,9 @@ export class App {
     const unread = unreadChapters(this.lv).length;
     const done = level >= FINAL_LEVEL;
     const title = t.value ? `<span class="mt-title r-${t.rarity ?? 'common'}">${t.value}</span>` : '';
-    el.innerHTML = `<b class="xp-lv">Lv ${level}</b>${title}<span class="xp-bar"><i style="width:${Math.round((into / need) * 100)}%"></i></span><small class="xp-next">${done ? '<em>完結</em> ' : ''}次まで ${(need - into).toLocaleString()}</small>${unread ? '<em class="xp-new">NEW</em>' : ''}`;
+    const rank = rankName(this.exam.rank);
+    const rankTag = rank ? `<span class="xp-rank">${rank}</span>` : '';
+    el.innerHTML = `<b class="xp-lv">Lv ${level}</b>${rankTag}${title}<span class="xp-bar"><i style="width:${Math.round((into / need) * 100)}%"></i></span><small class="xp-next">${done ? '<em>完結</em> ' : ''}次まで ${(need - into).toLocaleString()}</small>${unread ? '<em class="xp-new">NEW</em>' : ''}`;
     el.setAttribute('aria-label', `Lv ${level}。次の Lv まで ${need - into}。タップで物語を読む`);
     if (flash) {
       el.classList.remove('flash');
@@ -2320,6 +2535,7 @@ const SHELL = `
 <main>
   <aside id="machine" data-skin="gold" aria-label="パチンコ台"></aside>
   <section id="stage">
+    <div id="exam-bar" hidden></div>
     <div id="progress"></div>
     <div id="question"></div>
     <div id="steps" hidden></div>

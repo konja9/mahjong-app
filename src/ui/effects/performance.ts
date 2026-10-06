@@ -107,9 +107,10 @@ export function drawCharaNotice(
   kakuhen: boolean,
   level: EffectLevel,
   rng: Rng = Math.random,
+  boost = 1,
 ): CharaColor | null {
   if (level === 'off') return null;
-  const p = (hit ? 0.3 : 0.06) + lamp * 0.04 + (kakuhen ? 0.05 : 0);
+  const p = ((hit ? 0.3 : 0.06) + lamp * 0.04 + (kakuhen ? 0.05 : 0)) * boost;
   if (rng() >= p) return null;
   return hit
     ? weighted(rng, [
@@ -129,8 +130,8 @@ export function drawCharaNotice(
  * 保留変化：赤以上の保留を、ときどき低い色で点けておく（回る直前に本当の色に変える）。
  * 低く見せる色を返す。変化させないときは null
  */
-export function drawHoldDisguise(color: number, level: EffectLevel, rng: Rng = Math.random): number | null {
-  if (level !== 'max' || color < 2 || rng() >= 0.35) return null;
+export function drawHoldDisguise(color: number, level: EffectLevel, rng: Rng = Math.random, boost = 1): number | null {
+  if (level !== 'max' || color < 2 || rng() >= 0.35 * boost) return null;
   return rng() < 0.6 ? color - 1 : 0;
 }
 

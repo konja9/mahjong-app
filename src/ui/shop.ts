@@ -4,6 +4,7 @@
  */
 import type { Mode } from '../core/generator';
 import { MACHINE_IDS, type MachineId, SPECS } from './machine/specs';
+import { PARTS, PART_ORDER, type PartsState } from './machine/parts';
 import { load, save } from './storage';
 
 const KEY = 'tensu.shop.v1';
@@ -259,11 +260,64 @@ export function itemsHtml(s: ShopState, balance: number, canPreview = true, tab:
 
 const TITLES: Record<ShopView, string> = { machine: '台選び', items: '交換所' };
 
+/** 台の改造（パーツの一覧と枠）。canChange：付け替えできるか（BONUS 中・回転中はできない） */
+export interface PartsView {
+  state: PartsState;
+  slots: number;
+  /** 今の段位の名前（なしは空） */
+  rank: string;
+  /** 次に枠が増える段位（最大なら null） */
+  nextSlotRank: string | null;
+  canChange: boolean;
+}
+
+export function partsHtml(v: PartsView): string {
+  const used = v.state.equip.length;
+  const slotPips = Array.from({ length: v.slots }, (_, i) => `<i class="${i < used ? 'on' : ''}"></i>`).join('');
+  const head = `<div class="parts-head"><div><b>改造の枠 ${used}/${v.slots}</b><span class="parts-pips">${slotPips}</span></div>
+    <div class="shop-desc">${v.rank ? `段位 ${v.rank}。` : ''}${v.nextSlotRank ? `${v.nextSlotRank}の昇段試験に受かると枠が増えます` : '枠は最大です'}</div></div>`;
+  const rows = PART_ORDER.map((id, i) => {
+    const p = PARTS[id];
+    const have = v.state.owned.includes(id);
+    const on = v.state.equip.includes(id);
+    let btn: string;
+    if (!have) btn = `<span class="shop-lock">Lv ${i + 2}</span>`;
+    else if (on) btn = `<button class="shop-btn" data-part-off="${id}"${v.canChange ? '' : ' disabled'}>外す</button>`;
+    else btn = `<button class="shop-btn buy" data-part-on="${id}"${v.canChange && used < v.slots ? '' : ' disabled'}>付ける</button>`;
+    return `<div class="shop-row${on ? ' cur' : ''}${have ? '' : ' locked'}"><div class="mis"><div class="shop-name">${have ? p.name : '？？？'}${on ? '<em>装着中</em>' : ''}</div>${have ? `<div class="shop-flavor">${p.flavor}</div><div class="shop-desc">${p.desc}</div>` : `<div class="shop-desc">Lv ${i + 2} で手に入る</div>`}</div><div class="shop-acts">${btn}</div></div>`;
+  }).join('');
+  const note = v.canChange ? '' : '<p class="help-note">BONUS 中と台が回っている間は、付け替えできません。</p>';
+  return head + rows + note + `<p class="help-note">改造パーツは Lv が上がるたびに1つ手に入ります（Lv ${PART_ORDER.length + 1} まで）。付けると台が少し有利になります。</p>`;
+}
+
+/** 台選びのダイアログのタブ */
+export type MachineTab = 'machines' | 'parts';
+
 /** ダイアログの中身 */
-export function shopHtml(s: ShopState, view: ShopView, balance: number, canSwitch: boolean, tab: ItemsTab = 'title'): string {
+export function shopHtml(
+  s: ShopState,
+  view: ShopView,
+  balance: number,
+  canSwitch: boolean,
+  tab: ItemsTab = 'title',
+  parts?: { view: PartsView; tab: MachineTab },
+): string {
   // canSwitch：台選びでは台を切り替えられるか、交換所では試聴できるか
-  const body =
-    view === 'machine' ? machinesHtml(s, balance, canSwitch) : itemsHtml(s, balance, canSwitch, tab);
+  let body: string;
+  if (view === 'machine') {
+    const t = parts?.tab ?? 'machines';
+    const tabs = parts
+      ? `<div class="cfg-group help-tabs items-tabs" role="tablist">${(
+          [
+            ['machines', '台'],
+            ['parts', '改造'],
+          ] as [MachineTab, string][]
+        )
+          .map(([k, l]) => `<button class="cfg${k === t ? ' on' : ''}" role="tab" aria-selected="${k === t}" data-machine-tab="${k}">${l}${k === 'parts' ? `<small>${parts.view.state.equip.length}/${parts.view.slots}</small>` : ''}</button>`)
+          .join('')}</div>`
+      : '';
+    body = tabs + (parts && t === 'parts' ? partsHtml(parts.view) : machinesHtml(s, balance, canSwitch));
+  } else body = itemsHtml(s, balance, canSwitch, tab);
   return `<div class="settings help shop">
     <div class="set-head"><span>${TITLES[view]}</span><span class="shop-wallet">所持yan <b>${balance.toLocaleString()}</b> yan</span><button class="icon-btn" data-shop-close aria-label="閉じる">×</button></div>
     <div class="help-body">${body}</div>

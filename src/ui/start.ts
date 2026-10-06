@@ -8,7 +8,7 @@ import { charaSvg } from './tutorial/chara';
  * 文を読めるように自動では進まず、タップでゲーム画面へ移る
  */
 
-export type StartChoice = 'pachinko' | 'keiko' | 'tutorial';
+export type StartChoice = 'pachinko' | 'keiko' | 'tutorial' | 'exam';
 
 interface Line {
   text: string;
@@ -71,6 +71,8 @@ export interface StartView {
   cleared: boolean;
   /** 読める話のうち、まだ読んでいない数 */
   unread?: number;
+  /** 受けられる昇段試験の段位（なければ null） */
+  exam?: string | null;
 }
 
 /** 2回目以降のスタート画面のパチふとくんの一言。Lv（物語の進み具合）で変わる */
@@ -110,6 +112,7 @@ export function startHtml(v: StartView): string {
       ${tutorial}
       <button class="st-btn st-pachinko" type="button" data-start="pachinko"><b>パチンコ</b><small>所持金 ${v.balance.toLocaleString()} yan</small></button>
       <button class="st-btn st-keiko" type="button" data-start="keiko"><b>稽古</b><small>yan を使わずに練習</small></button>
+      ${v.exam && !v.first ? `<button class="st-btn st-exam" type="button" data-start="exam"><b>昇段試験</b><small>${v.exam}に挑戦できる</small></button>` : ''}
     </div>
     ${sub}
   </div>`;

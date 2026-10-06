@@ -1,6 +1,6 @@
 import { generateQuestion, type Mode } from '../src/core/generator';
 import { DEFAULT_RULES } from '../src/core/rules';
-import { ECONOMY, ballsFor, costFor, drawUwanose, extraRoundsFor, roundPrize } from '../src/ui/machine/economy';
+import { ballsFor, costFor, drawUwanose, extraRoundsFor, extraRoundsMax, roundPrize } from '../src/ui/machine/economy';
 import { Machine, PREMIUM_SYMBOL } from '../src/ui/machine/machine';
 import { type MachineSpec, SPECS } from '../src/ui/machine/specs';
 
@@ -54,7 +54,7 @@ export function simulateDetail(
       const q = pool[Math.floor(rng() * pool.length)];
       if (rng() < accuracy) {
         combo++;
-        extra += Math.min(q.ext, ECONOMY.extraRounds.max - extra);
+        extra += Math.min(q.ext, extraRoundsMax() - extra);
         total += roundPrize({ mode, fu: q.fu, yakuman: q.yakuman, fast: rng() < fastRate, combo, premium, spec });
       } else {
         combo = 0;

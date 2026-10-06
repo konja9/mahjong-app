@@ -4,6 +4,7 @@
  * 抽選結果は入賞時に確定し（先読み）、保留の色と演出はその結果から決める。
  */
 import { type EffectLevel, type Rng, type Suspense, drawHoldDisguise, drawSuspense } from '../effects/performance';
+import { mods } from './mods';
 import { type MachineSpec, SPECS } from './specs';
 
 // 甘デジ（最初の台）の値。ほかの台は specs.ts を参照
@@ -11,7 +12,9 @@ export const NORMAL_ODDS = SPECS.ama.odds; // 通常時 1/20
 export const RUSH_ODDS = SPECS.ama.rushOdds; // 確変（ST）中 1/3
 export const ST_SPINS = SPECS.ama.st; // 確変の回転数
 export const KAKUHEN_RATE = SPECS.ama.kakuhenRate; // 大当りのうち確変になる割合
+/** 保留の上限（改造前）。改造パーツの保留タンクで増える：maxHolds() */
 export const MAX_HOLDS = 4;
+export const maxHolds = (): number => mods.holds;
 
 /**
  * 図柄 index 0〜8 は 1〜9、9〜11 は白發中（src/ui/effects/reel.ts の SYMBOLS と対応）。
@@ -95,9 +98,9 @@ export class Machine {
   /** 入賞。追加できた保留の数を返す */
   enter(n = 1): number {
     let added = 0;
-    for (let i = 0; i < n && this.holds.length < MAX_HOLDS; i++) {
+    for (let i = 0; i < n && this.holds.length < maxHolds(); i++) {
       const h = this.draw();
-      const shown = drawHoldDisguise(h.color, this.level(), this.rng);
+      const shown = drawHoldDisguise(h.color, this.level(), this.rng, mods.noticeBoost);
       if (shown !== null) h.shown = shown;
       this.holds.push(h);
       added++;
@@ -152,7 +155,9 @@ export class Machine {
     let symbols: [number, number, number];
     if (hold.hit) {
       const pool = Array.from({ length: SYMBOL_COUNT }, (_, i) => i).filter((s) => isKakuhenSymbol(s) === hold.kakuhen);
-      const s = pool[Math.floor(this.rng() * pool.length)];
+      let s = pool[Math.floor(this.rng() * pool.length)];
+      // 改造パーツの赤五筒センサー：確変当りのうち PREMIUM になりやすい
+      if (hold.kakuhen && mods.premiumPlus > 0 && this.rng() < mods.premiumPlus) s = PREMIUM_SYMBOL;
       symbols = [s, s, s];
     } else if (reach) {
       const s = Math.floor(this.rng() * SYMBOL_COUNT);

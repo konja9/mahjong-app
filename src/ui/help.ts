@@ -8,7 +8,7 @@ import { DEFAULT_RULES } from '../core/rules';
 import { formatAnswer } from '../core/score';
 import { parseTiles, windName } from '../core/tiles';
 import { blocksHtml, fuTable } from './explain';
-import { ECONOMY, costFor, fuScale, uwanoseMean } from './machine/economy';
+import { ECONOMY, costFor, denchuFor, fastSecondsFor, fuScale, uwanoseMean } from './machine/economy';
 import { KAKUHEN_RATE, NORMAL_ODDS, RUSH_ODDS, ST_SPINS } from './machine/machine';
 import { MACHINE_IDS, SPECS } from './machine/specs';
 import { FINAL_LEVEL, KEIKO_EXP, PACHINKO_EXP } from './level';
@@ -28,7 +28,7 @@ export const MODE_LABELS: Record<Mode, string> = { hayami: '早見', fu: '符計
 
 /** 速答の締切「早見 6秒・符計算 12秒・実戦 20秒」 */
 export function fastWindows(): string {
-  return (Object.keys(MODE_LABELS) as Mode[]).map((m) => `${MODE_LABELS[m]} ${ECONOMY.fastSeconds[m]}秒`).join('・');
+  return (Object.keys(MODE_LABELS) as Mode[]).map((m) => `${MODE_LABELS[m]} ${fastSecondsFor(m)}秒`).join('・');
 }
 
 /** 流れの3ステップ（初回導入と遊び方で共通） */
@@ -101,7 +101,7 @@ function basic(): string {
       'コンボと電チュー開放',
       `<div class="h-progress"><span>19連</span><span class="balls b2"><i></i><i></i></span></div>`,
       `<p>連続正解が続くと<b>電チュー開放</b>。正解1回で玉が2個入り、大当りまでが早くなります。外すと1個に戻ります。</p>
-      <p>必要な連続数：${modeList((m) => `${ECONOMY.denchu[m]}連`)}（早見は連続正解しやすいので多め）。問題数の横の ●● が目印です。</p>
+      <p>必要な連続数：${modeList((m) => `${denchuFor(m)}連`)}（早見は連続正解しやすいので多め）。問題数の横の ●● が目印です。</p>
       <p>10連・20連…の節目には大きな表示が出ます。</p>`,
     ) +
     card(
@@ -289,6 +289,12 @@ function money(): string {
       '物語（パチふとくんの記憶）',
       '',
       `<p>パチふとで経験を積むほど、パチふとくんの失った記憶が流れ込んできます。<b>Lv が上がるたびに1話ずつ</b>読めるようになり、<b>Lv ${FINAL_LEVEL} の第${FINAL_LEVEL}話で完結</b>（事実上のクリア）。そこから先の Lv は自己満足です。右上の本のマーク、または経験値の帯をタップで読めます。</p>`,
+    ) +
+    card(
+      'exam',
+      '昇段試験と台の改造',
+      '',
+      `<p><b>昇段試験</b>：Lv 2 ごとに次の段位の試験（10問）が受けられます。5級（早見）から始まり、符計算・実戦と進んで、Lv 20 で<b>名人</b>。上の段位ほど正確さと速さが求められます。何度でも受け直せて、受かると経験値の帯に段位の札が付きます。スタート画面の「昇段試験」から。</p><p><b>台の改造</b>：Lv が上がるたびに<b>改造パーツ</b>が1つ手に入ります（保留タンク・速答センサー・確変ユニットなど）。台選びの「改造」タブで台に付けると、台が少し有利になります。付けられる枠は最初1つで、<b>昇段試験に受かるほど増えます</b>（名人で6つ）。</p>`,
     ) +
     card('settle', '成績と破産', '', `<p>出題設定の「成績を見る」で、ここまでの正答率・収支・大当り履歴を表示して区切ります（所持金と台はそのまま続きから。ここでの収支は今回の遊びの分）。所持金が尽きると破産で、${ECONOMY.initial.toLocaleString()} yan から再スタート。</p>`)
   );

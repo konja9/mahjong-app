@@ -2,6 +2,7 @@
 import type { Mode } from '../../core/generator';
 import type { LimitName } from '../../core/score';
 import { load, save } from '../storage';
+import { mods } from './mods';
 import { type MachineSpec, SPECS } from './specs';
 
 export const ECONOMY = {
@@ -58,8 +59,19 @@ export const ECONOMY = {
   lowWarn: 200,
 };
 
+/** 速答の締切（秒）。改造パーツの速答センサーを含む */
+export function fastSecondsFor(mode: Mode): number {
+  return ECONOMY.fastSeconds[mode] + mods.fastBonus[mode];
+}
+
+/** 電チュー開放に必要な連続正解数（改造込み） */
+export function denchuFor(mode: Mode): number {
+  return Math.max(2, ECONOMY.denchu[mode] - mods.denchuMinus);
+}
+
 export function costFor(correct: boolean, fast: boolean, spec: MachineSpec = SPECS.ama): number {
-  const base = (!correct ? ECONOMY.cost + ECONOMY.missPenalty : fast ? ECONOMY.fastCost : ECONOMY.cost) * spec.betMult;
+  const miss = mods.missPenalty ?? ECONOMY.missPenalty;
+  const base = (!correct ? ECONOMY.cost + miss : fast ? ECONOMY.fastCost : ECONOMY.cost) * spec.betMult;
   return Math.round(base);
 }
 
@@ -92,7 +104,8 @@ export function fuRate(mode: Mode, premium: boolean, spec: MachineSpec = SPECS.a
 /** 次に正解したときの連続正解の倍率（combo はここまでの連続正解数） */
 export function comboMult(combo: number): number {
   const l = ECONOMY.comboLadder;
-  return l[Math.min(Math.max(0, combo), l.length - 1)];
+  const i = Math.min(Math.max(0, combo), l.length - 1);
+  return i === l.length - 1 && mods.comboTop !== null ? mods.comboTop : l[i];
 }
 
 /** ラウンド問題の賞金 */
@@ -105,7 +118,12 @@ export function roundPrize(p: RoundPrizeInput): number {
 
 /** 連続正解数（今回を含む）から、正解1回で台に入る玉の数 */
 export function ballsFor(mode: Mode, streak: number): number {
-  return streak >= ECONOMY.denchu[mode] ? 2 : 1;
+  return streak >= denchuFor(mode) ? 2 : 1;
+}
+
+/** 1回の BONUS のラウンド上乗せの上限（改造込み） */
+export function extraRoundsMax(): number {
+  return ECONOMY.extraRounds.max + mods.extraMaxPlus;
 }
 
 /** 満貫以上を正解したときのラウンド上乗せ数（満貫未満は 0。4翻40符などの満貫も含む） */
@@ -117,9 +135,17 @@ export function extraRoundsFor(limit: LimitName): number {
   return e.yakuman;
 }
 
+/** 上乗せの抽選表（改造パーツの上乗せ強化で良い倍率が出やすくなる） */
+function uwanoseTable(premium: boolean): [number, number][] {
+  const t = premium ? ECONOMY.uwanosePremium : ECONOMY.uwanose;
+  if (!mods.uwanoseUp) return t;
+  // 最低の倍率の重みを減らし、上の倍率に回す
+  return t.map(([m, w], i) => [m, i === 0 ? w * 0.6 : w * 1.6]);
+}
+
 /** 全問正解の上乗せ抽選。倍率を返す */
 export function drawUwanose(rng: () => number, premium: boolean): number {
-  const table = premium ? ECONOMY.uwanosePremium : ECONOMY.uwanose;
+  const table = uwanoseTable(premium);
   const total = table.reduce((s, [, w]) => s + w, 0);
   let r = rng() * total;
   for (const [m, w] of table) {
@@ -131,7 +157,7 @@ export function drawUwanose(rng: () => number, premium: boolean): number {
 
 /** 上乗せ倍率の期待値 */
 export function uwanoseMean(premium: boolean): number {
-  const table = premium ? ECONOMY.uwanosePremium : ECONOMY.uwanose;
+  const table = uwanoseTable(premium);
   const total = table.reduce((s, [, w]) => s + w, 0);
   return table.reduce((s, [m, w]) => s + (m * w) / total, 0);
 }

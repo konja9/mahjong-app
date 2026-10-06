@@ -3785,3 +3785,170 @@ body.busy #answer {
     animation: none !important;
   }
 }
+
+/* ============================================================ 昇段試験 */
+/* 試験中は台・計器・BET・出題の設定を隠し、問題と答えだけにする */
+body.exam #machine,
+body.exam #meter,
+body.exam #exp-strip,
+body.exam #progress,
+body.exam #mode-tabs,
+body.exam .play-tabs,
+body.exam #cfg-toggle,
+body.exam #open-shop {
+  display: none !important;
+}
+#exam-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #3a1a10, #200c07);
+  box-shadow: inset 0 0 0 1.5px rgba(242, 201, 76, 0.7);
+  font-size: 14px;
+}
+#exam-bar[hidden] {
+  display: none;
+}
+#exam-bar .eb-title b {
+  color: #ffe9a0;
+  font-size: 16px;
+}
+#exam-bar .eb-n,
+#exam-bar .eb-ok {
+  color: var(--sub);
+  font-variant-numeric: tabular-nums;
+}
+#exam-bar .eb-quit {
+  margin-left: auto;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--sub);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Lv アップの報酬と、試験の結果 */
+#levelup .lu-reward {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 2px 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(20, 14, 8, 0.85);
+  box-shadow: inset 0 0 0 1.5px rgba(200, 50, 60, 0.6);
+  animation: lu-fade 0.4s 0.7s ease-out both;
+}
+#levelup .lu-reward small {
+  color: #ff8a8a;
+}
+#levelup .lu-reward b {
+  color: #fff;
+  font-size: 16px;
+}
+#levelup .lu-reward span {
+  font-size: 12px;
+  color: var(--sub, #bbb);
+}
+#levelup .lu-mini {
+  margin-left: 4px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--main);
+  color: var(--bg);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+#levelup .lu-mini:disabled {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--sub, #bbb);
+}
+#levelup .ex-paper {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 16px 18px 18px;
+  border-radius: 6px;
+  background: #f4ead2;
+  color: #2a1a0c;
+  box-shadow: 0 0 0 4px #b8860b, 0 0 0 7px #2a1a0c, 0 10px 30px rgba(0, 0, 0, 0.6);
+  animation: lu-stamp 0.5s 0.15s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+#levelup .ex-paper small {
+  letter-spacing: 0.4em;
+  color: #7a1e14;
+  font-weight: 700;
+}
+#levelup .ex-rank {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 900;
+  font-size: 40px;
+  line-height: 1.1;
+  color: #7a1e14;
+}
+#levelup .ex-paper p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+}
+#levelup .ex-seal {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 2.5px solid #c8323c;
+  border-radius: 6px;
+  color: #c8323c;
+  font-weight: 900;
+  font-size: 22px;
+  transform: rotate(-10deg);
+  opacity: 0.85;
+}
+#levelup .ex-stats {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+}
+#levelup .ex-stats > div {
+  display: grid;
+  justify-items: center;
+}
+#levelup .ex-stats small {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+#levelup .ex-stats b {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+}
+#levelup .ex-stats u {
+  text-decoration: none;
+  font-size: 13px;
+  opacity: 0.6;
+}
+#levelup.exam-fail .ex-stats {
+  color: #fdf3d6;
+}
+#levelup.exam-fail .lu-title {
+  background: none;
+  color: #c9c1b0;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  filter: none;
+}
