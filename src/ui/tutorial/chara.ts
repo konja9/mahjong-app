@@ -2,7 +2,8 @@
  * パチふとくん：麻雀牌スロットの妖精。
  * 昔のパチンコ屋の人気台がスクラップ置き場から掘り起こされ、世紀末の地下で目を覚ました姿。
  * - 体は使い込まれた金の筐体（傷・へこみ・鋲）。頭に回転灯、肩にトゲの鋲（世紀末の名残）
- * - 顔は黒いガラスの液晶。左右のリール窓が目、払い出し口が口。頬にばんそうこう、画面の角にひび
+ * - 顔は黒いガラスの液晶。左右のリール窓が目（麻雀牌の絵柄）、払い出し口が口。頬にばんそうこう、画面の角にひび
+ * - おでこは保留ランプ4つ（表情で点き方と色が変わる）
  * - 右手はレバー（赤い玉）、左手は小さな鉄の手
  * 表情は、目のリールの絵柄・眉の鉄板の角度・口で変える。30px ほどの小ささでも読めるよう、太い線で描く
  */
@@ -11,13 +12,39 @@ export type Face = 'neutral' | 'grin' | 'surprise' | 'proud' | 'sweat';
 const INK = '#140b05';
 let seq = 0;
 
-const EYES: Record<Face, { sym: string; color: string }> = {
-  neutral: { sym: '發', color: '#178a4a' },
-  grin: { sym: '7', color: '#d4142e' },
-  surprise: { sym: '!', color: '#d4142e' },
-  proud: { sym: '★', color: '#d99a00' },
-  sweat: { sym: '－', color: '#2b4f9e' },
-};
+/**
+ * 目の麻雀牌：ふつう＝發、ニヤリ＝中（当たりの赤）、驚き＝一筒（まん丸に見開く）、
+ * ドヤ顔＝赤五筒（赤ドラ）、冷や汗＝白（頭が真っ白）
+ */
+const RED = '#d4142e';
+const GREEN = '#178a4a';
+const BLUE = '#2458a6';
+
+function tileFace(x: number, face: Face): string {
+  const cx = x + 10.5;
+  const cy = 58;
+  const kanji = (ch: string, color: string, size = 16) =>
+    `<text x="${cx}" y="${cy + size * 0.4}" text-anchor="middle" font-size="${size}" font-weight="900" fill="${color}" font-family="'Noto Sans JP', sans-serif">${ch}</text>`;
+  switch (face) {
+    case 'grin':
+      return kanji('中', RED, 17);
+    case 'surprise':
+      // 一筒：大きな丸（赤・緑・青の輪）
+      return `<circle cx="${cx}" cy="${cy}" r="8.4" fill="${GREEN}"/><circle cx="${cx}" cy="${cy}" r="6.2" fill="#f6f1e3"/>
+        <circle cx="${cx}" cy="${cy}" r="4.6" fill="${RED}"/><circle cx="${cx}" cy="${cy}" r="2.6" fill="#f6f1e3"/><circle cx="${cx}" cy="${cy}" r="1.3" fill="${BLUE}"/>`;
+    case 'proud': {
+      // 赤五筒（赤ドラ）
+      const dot = (dx: number, dy: number) =>
+        `<circle cx="${cx + dx}" cy="${cy + dy}" r="3.3" fill="${RED}"/><circle cx="${cx + dx}" cy="${cy + dy}" r="1.3" fill="#f6f1e3"/>`;
+      return dot(-5, -6.5) + dot(5, -6.5) + dot(0, 0) + dot(-5, 6.5) + dot(5, 6.5);
+    }
+    case 'sweat':
+      // 白：青い枠だけ
+      return `<rect x="${x + 4}" y="${cy - 8.5}" width="13" height="17" rx="1.5" fill="none" stroke="#3a7bd5" stroke-width="2"/>`;
+    default:
+      return kanji('發', GREEN, 16);
+  }
+}
 
 /** 眉（鉄板）：左右の [内側の高さ, 外側の高さ]（小さいほど上） */
 const BROWS: Record<Face, [number, number, number, number]> = {
@@ -48,12 +75,11 @@ function mouth(face: Face): string {
 }
 
 function eye(x: number, face: Face): string {
-  const e = EYES[face];
   const half = face === 'sweat' ? `<rect x="${x}" y="46" width="21" height="9" fill="#5a5446" opacity=".55"/>` : '';
   return `<g class="pf-eye">
     <rect x="${x}" y="46" width="21" height="24" rx="3.5" fill="#f6f1e3" stroke="${INK}" stroke-width="2.6"/>
     <rect x="${x + 1.5}" y="47.5" width="18" height="5" rx="2" fill="#000" opacity=".12"/>
-    <text x="${x + 10.5}" y="${face === 'sweat' ? 66 : 64.5}" text-anchor="middle" font-size="${face === 'grin' ? 18 : 16}" font-weight="900" fill="${e.color}" font-family="'Noto Sans JP', sans-serif">${e.sym}</text>
+    ${tileFace(x, face)}
     ${half}
   </g>`;
 }
@@ -63,6 +89,26 @@ function brows(face: Face): string {
   const bar = (x1: number, y1: number, x2: number, y2: number) =>
     `<path d="M${x1} ${y1} L${x2} ${y2}" stroke="#c4ccd8" stroke-width="3.6" stroke-linecap="round"/>`;
   return bar(21, lo, 39, li) + bar(61, ri, 79, ro);
+}
+
+/** おでこの保留ランプ4つ。点き方と色は表情に合わせる（ふつう＝青2つ、ニヤリ＝赤、驚き＝金で全部、ドヤ顔＝虹、冷や汗＝青1つ） */
+const HOLDS: Record<Face, (string | null)[]> = {
+  neutral: ['#3a8bff', '#3a8bff', null, null],
+  grin: ['#ff3344', '#ff3344', '#3a8bff', null],
+  surprise: ['#ffcf2e', '#ffcf2e', '#ffcf2e', '#ffcf2e'],
+  proud: ['#ff3344', '#ffcf2e', '#2fd27a', '#3a8bff'],
+  sweat: ['#3a8bff', null, null, null],
+};
+
+function holds(face: Face): string {
+  return HOLDS[face]
+    .map((c, i) => {
+      const cx = 29.5 + i * 13.7;
+      return c
+        ? `<circle cx="${cx}" cy="27" r="3.9" fill="${c}" stroke="${INK}" stroke-width="1.2"/><circle cx="${cx - 1.2}" cy="25.8" r="1.2" fill="#fff" opacity=".8"/>`
+        : `<circle cx="${cx}" cy="27" r="3.9" fill="#3a3027" stroke="${INK}" stroke-width="1.2"/>`;
+    })
+    .join('');
 }
 
 /** 頭の回転灯。驚き・ドヤ顔のときは光る */
@@ -115,9 +161,9 @@ export function charaSvg(face: Face = 'neutral'): string {
   <!-- 傷とへこみ -->
   <path d="M12 92 L20 88 M78 96 L86 92 M15 40 L18 33" stroke="#7a4f0a" stroke-width="1.3" stroke-linecap="round" opacity=".8"/>
   <path d="M74 99 q4 -3 8 0" stroke="#7a4f0a" stroke-width="1.6" fill="none" opacity=".7"/>
-  <!-- 看板（パチふと） -->
-  <rect x="19" y="21.5" width="62" height="11" rx="3" fill="#7d1018" stroke="${INK}" stroke-width="2.2"/>
-  <text x="50" y="30.4" text-anchor="middle" font-size="8.2" font-weight="900" letter-spacing=".5" fill="#ffd447" font-family="'Noto Sans JP', sans-serif">パチふと</text>
+  <!-- おでこの保留ランプ -->
+  <rect x="21" y="21" width="58" height="12" rx="6" fill="#1a0d08" stroke="${INK}" stroke-width="2.2"/>
+  ${holds(face)}
   ${[
     [12, 24],
     [88, 24],
