@@ -1,4 +1,5 @@
 import { load, save } from '../storage';
+import { sfx } from '../audio';
 import { charaSvg } from './chara';
 import { layoutBubble } from './layout';
 import { type ChapterId, type Step, type TutorialAction, type TutorialEvent, chapter } from './script';
@@ -188,7 +189,10 @@ export class Tutorial {
       this.endTyping();
       return;
     }
-    if (s.kind === 'say' || (s.kind === 'spot' && s.next === 'tap')) this.advance();
+    if (s.kind === 'say' || (s.kind === 'spot' && s.next === 'tap')) {
+      sfx.tap();
+      this.advance();
+    }
   }
 
   private target(): HTMLElement | null {

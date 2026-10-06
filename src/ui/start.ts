@@ -1,3 +1,4 @@
+import { sfx } from './audio';
 import { charaSvg } from './tutorial/chara';
 
 /**
@@ -159,6 +160,7 @@ export class StartScreen {
     if (this.phase === 'loading') this.ready();
     else if (this.phase === 'ready') {
       const choice = this.choice;
+      sfx.tap();
       this.hide();
       this.host.enter(choice);
     }

@@ -138,7 +138,7 @@ const SAMPLE_NAMES = [
   'key', 'back', 'reelStop0', 'reelStop1', 'reelStop2', 'reelTick', 'reach', 'gekiatsu', 'hit',
   'coin0', 'coin1', 'coin2', 'coin3', 'fanfare', 'yakuman', 'kakuhen', 'lampUp', 'miss', 'gyuin',
   'pushAppear', 'push', 'align', 'shatter', 'comboHit', 'glitch', 'swarm', 'step', 'stamp',
-  'kakuhenEnd', 'god', 'register', 'chucker', 'round', 'gimmick', 'end',
+  'kakuhenEnd', 'god', 'register', 'chucker', 'round', 'gimmick', 'end', 'tap', 'tapClose',
 ] as const;
 type SampleName = (typeof SAMPLE_NAMES)[number];
 
@@ -183,6 +183,16 @@ function play(name: SampleName, o: { rate?: number; gain?: number; start?: numbe
 const semis = (n: number) => 2 ** (n / 12);
 
 export const sfx = {
+  /** UI のタッチ音（ボタン・タブ・スイッチなど） */
+  tap(): void {
+    if (play('tap')) return;
+    tone({ type: 'sine', freq: 1500, to: 950, dur: 0.05, gain: 0.05 });
+  },
+  /** 閉じる・戻るのタッチ音 */
+  tapClose(): void {
+    if (play('tapClose')) return;
+    tone({ type: 'sine', freq: 1000, to: 600, dur: 0.07, gain: 0.05 });
+  },
   key(): void {
     if (play('key')) return;
     tone({ type: 'triangle', freq: 1800, dur: 0.03, gain: 0.04 });

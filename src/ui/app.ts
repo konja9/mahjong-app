@@ -1364,6 +1364,15 @@ export class App {
   private bind(): void {
     addEventListener('keydown', (e) => this.onKey(e));
     addEventListener('mousemove', () => document.body.classList.remove('typing'));
+    // UI のタッチ音：ボタン・タブなどを押したら鳴らす（4択とテンキーは自分の音があるので除く）。
+    // 押した操作はユーザー操作なので、ここで音も起こす
+    document.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('button, [role="button"], a[href]');
+      if (!b || b.closest('#choices, #numpad, [data-silent]')) return;
+      unlockAudio();
+      const close = b.matches('[data-shop-close], [data-story-close], [data-help-close], [data-close-cfg], [aria-label="閉じる"], [data-tut-menu="back"]');
+      (close ? sfx.tapClose : sfx.tap)();
+    });
     // ロゴでスタート画面へ（BONUS 中などは戻れないことを一言で知らせる）
     const logo = $('#top .logo');
     const toStart = () => {

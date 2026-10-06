@@ -489,6 +489,24 @@ def end():
     return reverb(x, 0.7, 0.15)
 
 
+@sound('tap', 0.2)
+def tap():
+    # UI のタッチ音：小さく丸い「ポッ」（何度押してもうるさくないよう、短く柔らかく）
+    d = 0.06
+    body = np.sin(phase(glide(1500, 950, d))) * env_exp(d, 0.012, 0.001)
+    click = band(noise(0.003), 3000, 9000)
+    return mix(d, (body, 0, 0.8), (click, 0, 0.18))
+
+
+@sound('tapClose', 0.18)
+def tap_close():
+    # 閉じる・戻る：少し低く、下がる「ポン」
+    d = 0.08
+    body = np.sin(phase(glide(1000, 600, d))) * env_exp(d, 0.016, 0.001)
+    click = band(noise(0.003), 2000, 7000)
+    return mix(d, (body, 0, 0.8), (click, 0, 0.15))
+
+
 # ------------------------------------------------------------ 書き出し
 
 def write_wav(path: str, x: np.ndarray) -> None:
