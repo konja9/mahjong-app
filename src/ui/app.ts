@@ -120,6 +120,9 @@ function scoreOf(q: Question): ScoreResult {
   return q.mode === 'hayami' ? q.score : q.ev.score;
 }
 
+
+/** 音量の表示（0 は「オフ」） */
+const volLabel = (v: number): string => (v <= 0 ? 'オフ' : String(Math.round(v * 100)));
 export class App {
   private s: Settings = loadSettings();
   private session = newSession();
@@ -225,6 +228,7 @@ export class App {
       onShown: (on) => {
         this.pause('start', on);
         this.panel.hold(on);
+        this.syncScene();
       },
       enter: (c) => this.enterFromStart(c),
       skipTutorial: () => skipAllTutorial(ALL_CHAPTERS),
@@ -249,8 +253,16 @@ export class App {
     return this.keiko ? 'off' : this.s.effects;
   }
 
+  /** 音量（稽古は効果音を鳴らさず BGM だけ）と、場面の BGM */
   private configureSound(): void {
-    configureAudio(this.s.sound && !this.keiko, this.s.volume);
+    configureAudio(this.s.sfxVolume, this.s.bgmVolume, !this.keiko);
+    this.syncScene();
+  }
+
+  /** 場面の BGM：スタート画面と物語は title、それ以外はパチンコの通常時か稽古 */
+  private syncScene(): void {
+    const title = this.start?.shown || document.body.classList.contains('story-open');
+    bgm.scene(title ? 'title' : this.keiko ? 'keiko' : 'normal');
   }
 
   private applyTheme(): void {
@@ -1367,6 +1379,8 @@ export class App {
     addEventListener('mousemove', () => document.body.classList.remove('typing'));
     // UI のタッチ音：ボタン・タブなどを押したら鳴らす（4択とテンキーは自分の音があるので除く）。
     // 押した操作はユーザー操作なので、ここで音も起こす
+    // 最初のタッチで音を起こす（スタート画面の BGM を、ボタンを押す前から鳴らす）
+    document.addEventListener('pointerdown', () => unlockAudio(), { once: true, passive: true });
     document.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('button, [role="button"], a[href]');
       if (!b || b.closest('#choices, #numpad, [data-silent]')) return;
@@ -1817,7 +1831,7 @@ export class App {
         unlockAudio();
         if (bgm.preview(d.preview as BgmTrack)) {
           b.classList.add('playing');
-          window.setTimeout(() => b.classList.remove('playing'), 4500);
+          window.setTimeout(() => b.classList.remove('playing'), 6000);
         }
         return;
       }
@@ -1947,6 +1961,8 @@ export class App {
     });
     dlg.addEventListener('close', () => {
       this.pause('story', false);
+      document.body.classList.remove('story-open');
+      this.syncScene();
       this.renderExpStrip();
     });
   }
@@ -1955,6 +1971,8 @@ export class App {
   openStory(chapter = 0): void {
     const dlg = $<HTMLDialogElement>('#story-dialog');
     this.pause('story', true);
+    document.body.classList.add('story-open');
+    this.syncScene();
     if (!dlg.open) dlg.showModal();
     this.renderStory(chapter);
   }
@@ -1986,7 +2004,18 @@ export class App {
     });
     dlg.addEventListener('input', (e) => {
       const el = e.target as HTMLInputElement;
-      if (el.dataset.set === 'volume') this.update({ volume: Number(el.value) }, false);
+      const name = el.dataset.set;
+      if (name !== 'sfxVolume' && name !== 'bgmVolume') return;
+      const v = Number(el.value);
+      this.update({ [name]: v }, false);
+      unlockAudio();
+      const out = el.parentElement?.querySelector('output');
+      if (out) out.textContent = volLabel(v);
+    });
+    // 効果音の音量を決めたら、その大きさで一度鳴らす
+    dlg.addEventListener('change', (e) => {
+      const el = e.target as HTMLInputElement;
+      if (el.dataset.set === 'sfxVolume' && Number(el.value) > 0) sfx.hit();
     });
     dlg.addEventListener('close', () => {
       if (this.rulesDirty) this.startSession();
@@ -2003,13 +2032,6 @@ export class App {
         return;
       case 'effects':
         this.update({ effects: v as Settings['effects'] }, false);
-        return;
-      case 'sound':
-        this.update({ sound: bool }, false);
-        if (bool) {
-          unlockAudio();
-          sfx.hit();
-        }
         return;
       case 'doubleWindPairFu':
         if (this.blockedInBonus()) return;
@@ -2108,6 +2130,9 @@ export class App {
          .map(([v, l]) => `<button class="cfg${cur === v ? ' on' : ''}" data-set="${name}" data-v="${v}">${l}</button>`)
          .join('')}</div></div>`;
     const onOff = (b: boolean) => (b ? 'on' : 'off');
+    const volRow = (label: string, desc: string, name: string, v: number) =>
+      `<div class="set-row"><div><div class="set-label">${label}</div><div class="set-desc">${desc}</div></div>
+       <div class="set-vol"><input type="range" min="0" max="1" step="0.05" value="${v}" data-set="${name}" aria-label="${label}の音量"><output>${volLabel(v)}</output></div></div>`;
     const yn: [string, string][] = [
       ['on', 'あり'],
       ['off', 'なし'],
@@ -2116,8 +2141,9 @@ export class App {
       <div class="set-head"><span>設定</span><button class="icon-btn" data-set="close" data-v="" aria-label="閉じる">×</button></div>
       <div class="set-sec">表示・演出</div>
       ${row('演出', '点滅や揺れが苦手な場合は「控えめ」か「オフ」に', 'effects', [['max', '全開'], ['lite', '控えめ'], ['off', 'オフ']], s.effects)}
-      ${row('サウンド', '', 'sound', yn, onOff(s.sound))}
-      <div class="set-row"><div><div class="set-label">音量</div></div><input type="range" min="0" max="1" step="0.05" value="${s.volume}" data-set="volume" aria-label="音量"></div>
+      <div class="set-sec">音</div>
+      ${volRow('効果音', '稽古では鳴らない', 'sfxVolume', s.sfxVolume)}
+      ${volRow('BGM', 'BONUS・RUSH の曲は交換所で', 'bgmVolume', s.bgmVolume)}
       <div class="set-sec">ルール <span class="muted small">変更すると新しいセッションを開始</span></div>
       ${row('喰いタン', '鳴いた断么九を認める', 'kuitan', yn, onOff(r.kuitan))}
       ${row('赤ドラ', '赤五萬・赤五筒・赤五索 各1枚', 'aka', yn, onOff(r.aka))}

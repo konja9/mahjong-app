@@ -1130,6 +1130,26 @@ a.cfg {
   background: var(--main);
   color: var(--bg);
 }
+/* 音量のスライダーと、その値（0 は「オフ」） */
+.set-vol {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.set-vol input[type='range'] {
+  width: 130px;
+}
+/* 音量の行はスマホでも折り返さない */
+.set-row:has(.set-vol) {
+  flex-wrap: nowrap;
+}
+.set-vol output {
+  min-width: 3em;
+  text-align: right;
+  font-size: 13px;
+  color: var(--sub);
+  font-variant-numeric: tabular-nums;
+}
 input[type='range'] {
   accent-color: var(--main);
   width: 180px;

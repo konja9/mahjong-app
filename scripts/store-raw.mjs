@@ -35,7 +35,7 @@ async function open({ settings, level = { exp: 5200, read: [1, 2, 3, 4] }, shop 
       // 一言ガイドは見たことにして、画面の上に出ないようにする
       localStorage.setItem('tensu.tips.v1', JSON.stringify(['enter', 'reach', 'jackpot', 'rush', 'miss', 'fast', 'low', 'firstHit', 'denchuSoon', 'denchu', 'bonusFu', 'ladder', 'bonusMiss', 'roundUp', 'uwanose', 'rushMiss', 'shop', 'machine', 'levelUp']));
     },
-    [{ sound: false, ...settings }, level, shop ?? null, DONE],
+    [{ sfxVolume: 0, bgmVolume: 0, ...settings }, level, shop ?? null, DONE],
   );
   await p.goto(`${BASE}?debug`);
   await p.waitForTimeout(800);

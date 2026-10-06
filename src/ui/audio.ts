@@ -1,35 +1,58 @@
 /**
  * パチンコ風の効果音と BGM。
  * 効果音は public/assets/sfx/*.mp3（tools/sfx.py で合成した音）を鳴らす。
- * 読み込み前・読み込めないときは、Web Audio の合成音（下の各関数の後半）で鳴らす
+ * 読み込み前・読み込めないときは、Web Audio の合成音（下の各関数の後半）で鳴らす。
+ * BGM は public/assets/bgm/*.mp3（tools/bgm.py で合成した曲）。効果音と別の音量で鳴らす
  */
 
-let ctx: AudioContext | null = null;
-let master: GainNode | null = null;
-let enabled = true;
-let volume = 0.5;
+import { BGM_LOOPS, BGM_PAD, type BgmFile } from './bgmLoops';
 
-export function configureAudio(on: boolean, vol: number): void {
-  enabled = on;
-  volume = vol;
-  if (master) master.gain.value = volume * 0.6;
-  if (!on) bgm.stop(true);
+let ctx: AudioContext | null = null;
+/** 効果音の出力 */
+let master: GainNode | null = null;
+/** BGM の出力（効果音と別の音量） */
+let bgmBus: GainNode | null = null;
+let sfxOn = true;
+let sfxVolume = 0.5;
+let bgmVolume = 0.5;
+
+/** 効果音の音量（0〜1） */
+const SFX_GAIN = 0.6;
+/** BGM のファイルの音量（効果音とのつり合い。BGM は後ろで鳴る音なので一段下げる） */
+const BGM_GAIN = 0.45;
+
+/**
+ * 音量を決める。sfx・music は 0〜1（0 で鳴らさない）。
+ * sfxAllowed=false は効果音だけ止める（稽古。BGM は鳴らす）
+ */
+export function configureAudio(sfx: number, music: number, sfxAllowed = true): void {
+  sfxOn = sfxAllowed;
+  sfxVolume = sfx;
+  bgmVolume = music;
+  if (master) master.gain.value = sfxVolume * SFX_GAIN;
+  if (bgmBus) bgmBus.gain.value = bgmVolume * BGM_GAIN;
+  bgm.refresh();
 }
 
 /** ユーザー操作の中で呼び、AudioContext を起こす */
 export function unlockAudio(): void {
-  if (!enabled) return;
+  if (sfxVolume <= 0 && bgmVolume <= 0) return;
   try {
     if (!ctx) {
       ctx = new AudioContext();
-      master = ctx.createGain();
-      master.gain.value = volume * 0.6;
       const comp = ctx.createDynamicsCompressor();
-      master.connect(comp).connect(ctx.destination);
+      comp.connect(ctx.destination);
+      master = ctx.createGain();
+      master.gain.value = sfxVolume * SFX_GAIN;
+      master.connect(comp);
+      bgmBus = ctx.createGain();
+      bgmBus.gain.value = bgmVolume * BGM_GAIN;
+      bgmBus.connect(comp);
       loadSamples(ctx);
     }
     // iOS は画面ロックや別アプリから戻ると 'interrupted' になる
     if (ctx.state !== 'running') void ctx.resume();
+    bgm.refresh();
   } catch {
     ctx = null;
   }
@@ -54,8 +77,9 @@ export function audioLevel(): number {
   return Math.sqrt(buf.reduce((s, v) => s + v * v, 0) / buf.length);
 }
 
+/** 効果音を鳴らせるときの AudioContext */
 function ready(): AudioContext | null {
-  if (!enabled || !ctx || !master || volume <= 0) return null;
+  if (!sfxOn || !ctx || !master || sfxVolume <= 0) return null;
   return ctx;
 }
 
@@ -68,24 +92,9 @@ interface ToneOpts {
   gain?: number;
   attack?: number;
   filter?: number;
-  /** BGM 用の出力（BGM の音量をまとめて上げる） */
-  bgm?: boolean;
 }
 
-/** BGM の出力。スマホのスピーカーでも効果音に負けないよう、BGM 全体をここで持ち上げる */
-const BGM_GAIN = 2;
-let bgmBus: GainNode | null = null;
-function out(c: AudioContext, useBgm = false): AudioNode {
-  if (!useBgm) return master!;
-  if (!bgmBus || bgmBus.context !== c) {
-    bgmBus = c.createGain();
-    bgmBus.gain.value = BGM_GAIN;
-    bgmBus.connect(master!);
-  }
-  return bgmBus;
-}
-
-function tone({ type = 'square', freq, to, start = 0, dur, gain = 0.2, attack = 0.005, filter, bgm: toBgm = false }: ToneOpts): void {
+function tone({ type = 'square', freq, to, start = 0, dur, gain = 0.2, attack = 0.005, filter }: ToneOpts): void {
   const c = ready();
   if (!c || !master) return;
   const t0 = c.currentTime + start;
@@ -105,12 +114,12 @@ function tone({ type = 'square', freq, to, start = 0, dur, gain = 0.2, attack = 
     osc.connect(f);
     node = f;
   }
-  node.connect(g).connect(out(c, toBgm));
+  node.connect(g).connect(master);
   osc.start(t0);
   osc.stop(t0 + dur + 0.05);
 }
 
-function noise(start: number, dur: number, gain: number, freq = 3000, toBgm = false): void {
+function noise(start: number, dur: number, gain: number, freq = 3000): void {
   const c = ready();
   if (!c || !master) return;
   const t0 = c.currentTime + start;
@@ -125,7 +134,7 @@ function noise(start: number, dur: number, gain: number, freq = 3000, toBgm = fa
   const g = c.createGain();
   g.gain.setValueAtTime(gain, t0);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  src.connect(f).connect(g).connect(out(c, toBgm));
+  src.connect(f).connect(g).connect(master);
   src.start(t0);
 }
 
@@ -398,207 +407,165 @@ export const sfx = {
 };
 
 export type BgmTheme = 'bonus' | 'rush';
-export type BgmTrack = 'standard' | 'euro' | 'wa' | 'chip';
+/** 場面の曲（固定）：スタート画面・パチンコの通常時・稽古 */
+export type BgmScene = 'title' | 'normal' | 'keiko';
+/** 交換所の BGM（BONUS・RUSH の曲） */
+export const BGM_TRACKS = ['standard', 'euro', 'wa', 'chip', 'enka', 'jazz', 'metal'] as const;
+export type BgmTrack = (typeof BGM_TRACKS)[number];
 
-/** 1曲の1テーマ分：コード進行（1小節ずつ）・メロディ（8分 × 4小節、null は休み）・テンポ */
-interface ThemeDef {
-  chords: number[][];
-  melody: (number | null)[];
-  tempo: number;
-}
+/** 曲の切り替えのクロスフェード（秒） */
+const FADE = 0.4;
+/** 超確変の再生速度 */
+const FAST_RATE = 1.12;
 
 /**
- * 曲の表（景品の BGM）。スマホのスピーカーは低音がほとんど出ないので、曲の輪郭は中高音のメロディで作る
+ * BGM（public/assets/bgm/*.mp3。tools/bgm.py で合成した曲）。
+ * 場面の曲（scene）の上に、BONUS・RUSH の曲（play）をかぶせる。止めると場面の曲に戻る。
+ * 曲は初めて要るときに読み込む。ファイルは前後に余白を付けた周期的な波形なので、
+ * BGM_PAD 秒から1周ぶんをループさせると継ぎ目が出ない
  */
-const TRACKS: Record<BgmTrack, Record<BgmTheme, ThemeDef>> = {
-  // スタンダード：RUSH は短調で疾走感、BONUS は明るい長調
-  standard: {
-    rush: {
-      tempo: 150,
-      chords: [[57, 60, 64, 69], [53, 57, 60, 65], [55, 59, 62, 67], [52, 56, 59, 64]],
-      melody: [81, null, 76, 81, 84, 83, 81, 76, 77, null, 81, 77, 84, 81, 77, 81, 79, null, 83, 79, 86, 83, 79, 83, 80, 83, 88, 83, 80, 76, 80, 83],
-    },
-    bonus: {
-      tempo: 165,
-      chords: [[60, 64, 67, 72], [57, 60, 64, 69], [53, 57, 60, 65], [55, 59, 62, 67]],
-      melody: [72, 76, 79, 76, 84, 79, 76, 79, 81, 79, 76, 72, 76, null, 81, null, 77, 81, 84, 81, 77, 72, 77, 81, 79, 83, 86, 83, 79, null, 86, 84],
-    },
-  },
-  // ユーロビート：速いテンポ、駆け上がるアルペジオとノコギリ波のリード、オクターブで跳ねるベース
-  euro: {
-    rush: {
-      tempo: 172,
-      chords: [[57, 60, 64, 69], [53, 57, 60, 65], [55, 59, 62, 67], [52, 55, 59, 64]],
-      melody: [76, 79, 81, 79, 76, 74, 72, 74, 77, 81, 84, 81, 77, 76, 74, 76, 79, 83, 86, 83, 79, 77, 76, 77, 76, 79, 83, 88, 86, 84, 83, 79],
-    },
-    bonus: {
-      tempo: 176,
-      chords: [[57, 61, 64, 69], [50, 53, 57, 62], [55, 59, 62, 67], [57, 61, 64, 69]],
-      melody: [81, 84, 88, 84, 81, 79, 76, 79, 77, 81, 84, 86, 84, 81, 77, 81, 79, 83, 86, 88, 86, 83, 79, 83, 81, 85, 88, 93, 88, 85, 81, 85],
-    },
-  },
-  // 和風：ヨナ抜き（D E G A B）のメロディ、琴のようにはじく音、太鼓
-  wa: {
-    rush: {
-      tempo: 140,
-      chords: [[50, 57, 62, 69], [55, 62, 67, 74], [57, 64, 69, 76], [52, 59, 64, 71]],
-      melody: [74, 76, 79, 81, 79, 76, 74, null, 79, 81, 83, 81, 79, 76, 79, null, 81, 83, 86, 83, 81, 79, 76, 79, 74, null, 76, 79, 76, 74, 71, 74],
-    },
-    bonus: {
-      tempo: 150,
-      chords: [[50, 57, 62, 69], [55, 62, 67, 74], [59, 66, 71, 78], [57, 64, 69, 76]],
-      melody: [86, 83, 81, 79, 81, 83, 86, null, 88, 86, 83, 81, 83, 86, 88, null, 91, 88, 86, 83, 86, 88, 91, 88, 86, null, 83, 81, 79, 81, 83, 86],
-    },
-  },
-  // チップチューン：8bit 風。矩形波のメロディ、細かいアルペジオ、三角波のベース、ノイズのドラム
-  chip: {
-    rush: {
-      tempo: 160,
-      chords: [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 56, 59]],
-      melody: [72, 76, 79, 84, 83, 79, 76, 79, 74, 77, 81, 86, 84, 81, 77, 81, 76, 79, 83, 88, 86, 83, 79, 83, 77, 81, 84, 89, 88, 84, 81, 79],
-    },
-    bonus: {
-      tempo: 168,
-      chords: [[60, 64, 67], [57, 60, 64], [53, 57, 60], [55, 59, 62]],
-      melody: [84, 88, 91, 88, 84, 88, 91, 96, 81, 84, 88, 84, 81, 84, 88, 93, 77, 81, 84, 81, 77, 81, 84, 89, 79, 83, 86, 83, 91, 89, 88, 86],
-    },
-  },
-};
-
-/** BONUS・RUSH 中に流れる合成 BGM（スケジューラ方式） */
 export const bgm = (() => {
-  let timer = 0;
-  let step = 0;
-  let nextTime = 0;
-  let theme: BgmTheme = 'rush';
+  const buffers = new Map<BgmFile, AudioBuffer>();
+  const loading = new Set<BgmFile>();
+  let scene: BgmScene | null = null;
+  let overlay: BgmTheme | null = null;
   let track: BgmTrack = 'standard';
   let fast = false;
+  let preview: BgmFile | null = null;
   let previewTimer = 0;
-  const def = () => TRACKS[track][theme];
-  const bpm = () => def().tempo + (fast ? 26 : 0);
-  const schedule = () => {
-    const c = ready();
-    if (!c || !master) return;
-    const sixteenth = 60 / bpm() / 4;
-    const { chords, melody } = def();
-    while (nextTime < c.currentTime + 0.12) {
-      const chord = chords[Math.floor(step / 16) % chords.length];
-      const start = nextTime - c.currentTime;
-      const m = step % 2 === 0 ? melody[(step / 2) % melody.length] : null;
-      switch (track) {
-        case 'euro':
-          // オクターブで跳ねるベースと4つ打ち
-          tone({ type: 'sawtooth', freq: note(chord[0] - (step % 2 ? 0 : 12)), start, dur: sixteenth * 0.9, gain: 0.05, filter: 1400, bgm: true });
-          if (step % 4 === 0) tone({ type: 'sine', freq: 100, to: 45, start, dur: 0.12, gain: 0.24, bgm: true });
-          if (step % 8 === 4) noise(start, 0.1, 0.1, 2200, true);
-          if (step % 4 === 2) noise(start, 0.05, 0.04, 8000, true);
-          if (m !== null) {
-            tone({ type: 'sawtooth', freq: note(m), start, dur: sixteenth * 1.8, gain: 0.04, filter: 4200, bgm: true });
-            tone({ type: 'square', freq: note(m + 12), start, dur: sixteenth * 1.2, gain: 0.015, filter: 5000, bgm: true });
-          }
-          tone({ type: 'square', freq: note(chord[step % chord.length] + 12 + (step % 8 >= 4 ? 12 : 0)), start, dur: sixteenth * 0.8, gain: 0.03, filter: 4000, bgm: true });
-          break;
-        case 'wa':
-          // 太鼓（1拍目と裏）と、琴のようにはじく音
-          if (step % 16 === 0 || step % 16 === 6 || step % 16 === 10) tone({ type: 'sine', freq: 75, to: 38, start, dur: 0.25, gain: 0.3, bgm: true });
-          if (step % 8 === 4) noise(start, 0.06, 0.05, 1400, true);
-          if (step % 4 === 0) tone({ type: 'triangle', freq: note(chord[0]), start, dur: sixteenth * 3.5, gain: 0.05, bgm: true });
-          if (m !== null) {
-            tone({ type: 'triangle', freq: note(m), start, dur: 0.35, gain: 0.08, attack: 0.002, bgm: true });
-            tone({ type: 'square', freq: note(m + 12), start, dur: 0.12, gain: 0.012, attack: 0.002, filter: 3000, bgm: true });
-          }
-          if (step % 4 === 2) tone({ type: 'triangle', freq: note(chord[(step / 2) % chord.length] + 12), start, dur: 0.2, gain: 0.03, attack: 0.002, bgm: true });
-          break;
-        case 'chip':
-          // 三角波のベース・ノイズのドラム・細かいアルペジオ
-          if (step % 2 === 0) tone({ type: 'triangle', freq: note(chord[0] - 12 + (step % 4 ? 12 : 0)), start, dur: sixteenth * 1.5, gain: 0.08, bgm: true });
-          if (step % 4 === 0) noise(start, 0.05, 0.12, 300, true);
-          if (step % 8 === 4) noise(start, 0.08, 0.1, 3500, true);
-          if (m !== null) tone({ type: 'square', freq: note(m), start, dur: sixteenth * 1.6, gain: 0.045, attack: 0.001, bgm: true });
-          tone({ type: 'square', freq: note(chord[step % chord.length] + 24), start, dur: sixteenth * 0.6, gain: 0.018, attack: 0.001, bgm: true });
-          break;
-        default:
-          // スタンダード：8分のベース、キック・スネア・ハイハット、メロディとアルペジオ
-          if (step % 2 === 0) {
-            tone({ type: 'sawtooth', freq: note(chord[0] - 12), start, dur: sixteenth * 1.6, gain: 0.06, filter: 900, bgm: true });
-            tone({ type: 'triangle', freq: note(chord[0]), start, dur: sixteenth * 1.4, gain: 0.05, bgm: true });
-          }
-          if (step % 4 === 0) tone({ type: 'sine', freq: 90, to: 45, start, dur: 0.12, gain: 0.22, bgm: true });
-          if (step % 8 === 4) noise(start, 0.09, 0.09, 2500, true);
-          if (step % 2 === 1) noise(start, 0.03, 0.025, 9000, true);
-          if (m !== null) {
-            tone({ type: 'square', freq: note(m), start, dur: sixteenth * 1.7, gain: 0.05, filter: 3000, bgm: true });
-            tone({ type: 'triangle', freq: note(m - 12), start, dur: sixteenth * 1.7, gain: 0.03, bgm: true });
-          }
-          tone({ type: 'square', freq: note(chord[(step * 3) % chord.length] + 12 + (step % 16 >= 8 ? 12 : 0)), start, dur: sixteenth * 0.9, gain: 0.03, filter: 3500, bgm: true });
-      }
-      step++;
-      nextTime += sixteenth;
+  let current: { name: BgmFile; src: AudioBufferSourceNode; gain: GainNode } | null = null;
+
+  const wanted = (): BgmFile | null => {
+    if (preview) return preview;
+    // スタート画面・物語を開いている間は、BONUS・RUSH の途中でもその曲にする
+    if (overlay && scene !== 'title') return `${track}-${overlay}`;
+    return scene;
+  };
+
+  const load = (c: AudioContext, name: BgmFile) => {
+    if (buffers.has(name) || loading.has(name)) return;
+    loading.add(name);
+    fetch(`assets/bgm/${name}.mp3`)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((b) => c.decodeAudioData(b))
+      .then((buf) => {
+        buffers.set(name, buf);
+        sync();
+      })
+      .catch(() => undefined)
+      .finally(() => loading.delete(name));
+  };
+
+  const fadeOut = (c: AudioContext) => {
+    if (!current) return;
+    const { src, gain } = current;
+    const t = c.currentTime;
+    gain.gain.cancelScheduledValues(t);
+    gain.gain.setValueAtTime(gain.gain.value, t);
+    gain.gain.linearRampToValueAtTime(0, t + FADE);
+    src.stop(t + FADE + 0.05);
+    current = null;
+  };
+
+  const sync = () => {
+    const c = ctx;
+    if (!c || !bgmBus) return;
+    const name = bgmVolume > 0 ? wanted() : null;
+    if (current && current.name === name) {
+      current.src.playbackRate.value = fast && overlay === 'rush' && !preview ? FAST_RATE : 1;
+      return;
     }
+    if (!name) {
+      fadeOut(c);
+      return;
+    }
+    const buf = buffers.get(name);
+    if (!buf) {
+      // 読み込みが終わったらもう一度 sync する。それまでは前の曲を止めておく
+      fadeOut(c);
+      load(c, name);
+      return;
+    }
+    fadeOut(c);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.loopStart = BGM_PAD;
+    src.loopEnd = BGM_PAD + BGM_LOOPS[name];
+    src.playbackRate.value = fast && overlay === 'rush' && !preview ? FAST_RATE : 1;
+    const gain = c.createGain();
+    const t = c.currentTime;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(1, t + FADE);
+    src.connect(gain).connect(bgmBus);
+    src.start(t, BGM_PAD);
+    current = { name, src, gain };
   };
-  const begin = (c: AudioContext) => {
-    step = 0;
-    nextTime = c.currentTime + 0.05;
-    if (!timer) timer = window.setInterval(schedule, 25);
+
+  const endPreview = () => {
+    clearTimeout(previewTimer);
+    previewTimer = 0;
+    preview = null;
   };
-  const stopNow = () => {
-    clearInterval(timer);
-    timer = 0;
-  };
+
   return {
-    /** 曲を流す。別のテーマが鳴っていれば切り替え、同じなら何もしない。quick は超確変などでテンポを上げる */
+    /** 場面の曲を流す（null で止める） */
+    scene(s: BgmScene | null): void {
+      scene = s;
+      sync();
+    },
+    /** BONUS・RUSH の曲をかぶせる。quick は超確変などでテンポを上げる */
     play(t: BgmTheme, quick = false): void {
       fast = quick;
-      const c = ready();
-      if (!c) return;
-      if (c.state !== 'running') void c.resume().catch(() => undefined);
-      if (previewTimer) {
-        clearTimeout(previewTimer);
-        previewTimer = 0;
-        stopNow();
-      }
-      if (timer && theme === t) return;
-      theme = t;
-      begin(c);
+      if (preview) endPreview();
+      overlay = t;
+      sync();
     },
     /** 超確変などでテンポを上げる */
     setFast(on: boolean): void {
       fast = on;
+      sync();
     },
-    /** 装備した曲に切り替える（鳴っている最中なら次の音から新しい曲） */
+    /** 装備した曲に切り替える（鳴っている最中なら切り替える） */
     setTrack(t: BgmTrack): void {
-      if (TRACKS[t]) track = t;
-    },
-    /** 交換所の試聴：その曲の BONUS を数秒流す。本番の曲が鳴っている間はしない */
-    preview(t: BgmTrack, ms = 4500): boolean {
-      const c = ready();
-      if (!c || (timer && !previewTimer)) return false;
-      if (c.state !== 'running') void c.resume().catch(() => undefined);
-      const keep = track;
-      clearTimeout(previewTimer);
+      if (!BGM_TRACKS.includes(t)) return;
       track = t;
-      theme = 'bonus';
-      fast = false;
-      begin(c);
+      sync();
+    },
+    /** 交換所の試聴：その曲の BONUS を数秒流す。本番の BONUS・RUSH の曲が鳴っている間はしない */
+    preview(t: BgmTrack, ms = 6000): boolean {
+      if (overlay || !ctx || bgmVolume <= 0 || !BGM_TRACKS.includes(t)) return false;
+      if (ctx.state !== 'running') void ctx.resume().catch(() => undefined);
+      clearTimeout(previewTimer);
+      preview = `${t}-bonus`;
       previewTimer = window.setTimeout(() => {
-        previewTimer = 0;
-        stopNow();
-        track = keep;
+        endPreview();
+        sync();
       }, ms);
+      sync();
       return true;
     },
-    /** 止める。試聴中は force のときだけ止める（BONUS の終わりなどで試聴を切らない） */
+    /** BONUS・RUSH の曲を止めて場面の曲に戻す。試聴中は force のときだけ止める */
     stop(force = false): void {
-      if (previewTimer && !force) return;
-      clearTimeout(previewTimer);
-      previewTimer = 0;
-      stopNow();
+      if (preview && !force) return;
+      endPreview();
+      overlay = null;
+      fast = false;
+      sync();
+    },
+    /** 音量の変更や AudioContext を起こしたあとに、鳴らすべき曲に合わせ直す */
+    refresh(): void {
+      sync();
     },
     get playing(): boolean {
-      return timer !== 0;
+      return current !== null;
+    },
+    /** 鳴らしている（鳴らすはずの）曲のファイル名（動作確認用） */
+    get file(): BgmFile | null {
+      return bgmVolume > 0 ? wanted() : null;
     },
     get theme(): BgmTheme | null {
-      return timer && !previewTimer ? theme : null;
+      return overlay && !preview ? overlay : null;
     },
   };
 })();

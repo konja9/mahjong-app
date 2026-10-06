@@ -75,6 +75,9 @@ export const ITEMS: ShopItem[] = [
   { id: 'bgm-euro', kind: 'bgm', name: 'ユーロビート', price: 2500, value: 'euro' },
   { id: 'bgm-wa', kind: 'bgm', name: '和風', price: 4000, value: 'wa' },
   { id: 'bgm-chip', kind: 'bgm', name: 'チップチューン', price: 5000, value: 'chip' },
+  { id: 'bgm-enka', kind: 'bgm', name: '演歌', price: 6000, value: 'enka' },
+  { id: 'bgm-jazz', kind: 'bgm', name: 'ジャズ', price: 7500, value: 'jazz' },
+  { id: 'bgm-metal', kind: 'bgm', name: 'メタル', price: 9000, value: 'metal' },
   { id: 'title-none', kind: 'title', name: 'なし', price: 0, value: '' },
   // 買う称号（安い順）
   title('hayami-new', '早見の新人', 500),
@@ -240,7 +243,7 @@ export function itemsHtml(s: ShopState, balance: number, canPreview = true, tab:
   let body: string;
   if (tab === 'skin') body = group('牌の背', of('back')) + group('液晶のスキン', of('skin'));
   else if (tab === 'bgm')
-    body = group('BGM（BONUS・RUSH の曲）', of('bgm')) + '<p class="help-note">BONUS と RUSH の間に流れる曲です。試聴は BONUS・RUSH 中以外にできます。</p>';
+    body = group('BGM（BONUS・RUSH の曲）', of('bgm')) + '<p class="help-note">BONUS と RUSH の間に流れる曲です（通常時・稽古・スタート画面の曲は固定）。試聴は BONUS・RUSH 中以外にできます。</p>';
   else
     body =
       '<p class="help-note top">装備すると、計器の上の経験値の帯（Lv の横）にプレートで表示されます。色はレア度（コモン・レア・エピック・レジェンド）。</p>' +
