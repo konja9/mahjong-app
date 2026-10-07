@@ -45,7 +45,6 @@ const BASE = `*{margin:0;box-sizing:border-box}body{font-family:'Noto Sans JP',s
   .chara svg{width:100%;height:100%}
   .bubble{position:absolute;z-index:4;white-space:nowrap;padding:22px 30px;border-radius:30px;background:#fbf6e6;color:#1b1206;font-weight:900;line-height:1.45;
     box-shadow:0 0 0 5px #1b1206,0 16px 30px rgba(0,0,0,.5)}
-  .bubble::after{content:'';position:absolute;width:34px;height:34px;background:#fbf6e6;box-shadow:5px 5px 0 #1b1206;transform:rotate(45deg)}
   .flavor{font-family:'Reggae One',sans-serif;color:${C.ivory};text-shadow:0 4px 0 #6a0b12,0 0 26px rgba(200,50,60,.8)}
   .tag{display:inline-block;padding:10px 26px;border-radius:999px;background:rgba(0,0,0,.55);box-shadow:inset 0 0 0 3px ${C.goldDeep};color:${C.gold};font-weight:900}`;
 
@@ -141,8 +140,10 @@ const SHOTS = [
     name: '5-rank',
     html: page(`${rays(1080, 1920, 540, 1100, 44, 0.08)}
       ${caption('腕を上げると、<br><em>段位</em>が上がる', '5級から名人へ。受かるたびに台を改造できる。', 82)}
-      ${phone('5-rank', 324, 440, 720, 0, 1)}
-      ${phone('5-parts', 22, 1140, 290, -5, 2)}`),
+      ${phone('5-rank', 6, 460, 540, -3, 1)}
+      ${phone('5-parts', 534, 540, 540, 3, 2)}
+      ${chara('proud', 70, 1530, 330, -6)}
+      ${bubble('受かるたびに、<br>台の鍵が開くぜ', 400, 1660, 40, 'left')}`),
   },
   // 6. 世界観と締め
   {
