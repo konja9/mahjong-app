@@ -86,7 +86,7 @@ export const CHAPTERS: Chapter[] = [
       { kind: 'spot', target: '#mode-tabs [data-mode="fu"]', face: 'grin', text: '「符計算」を押してみな。', next: 'click', pad: 4 },
       { kind: 'spot', target: '#question', face: 'proud', text: 'これが「符計算」。手牌から符を数える。BONUS の賞金は符で決まるから、ここを鍛えりゃ稼ぎが変わるぜ。正解で 40 exp。', next: 'tap', pad: 6 },
       { kind: 'spot', target: '#mode-tabs [data-mode="jissen"]', face: 'grin', text: '次は「実戦」を押しな。', next: 'click', pad: 4 },
-      { kind: 'spot', target: '#question', face: 'grin', text: 'これが「実戦」。翻も符も数えて点数まで出す、卓と同じ本番だ。正解で 60 exp。上の台は実戦だけだぜ。', next: 'tap', pad: 6 },
+      { kind: 'spot', target: '#question', face: 'grin', text: 'これが「実戦」。翻も符も数えて点数まで出す、卓と同じ本番だ。正解で 70 exp。上の台は実戦だけだぜ。', next: 'tap', pad: 6 },
       { kind: 'spot', target: '#mode-tabs [data-mode="hayami"]', face: 'neutral', text: '慣れるまでは早見がおすすめだ。「早見」を押して戻しな。', next: 'click', pad: 4 },
       { kind: 'say', face: 'proud', text: 'BONUS のあとに確変を引けば RUSH だ。当たりやすい時間が続くが、外すと回転が減る。腕で引っぱるんだぜ。' },
       { kind: 'say', face: 'neutral', text: 'ここからは BET も本物だ。所持金が尽きたら破産だから気をつけな。' },

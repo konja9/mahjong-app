@@ -3,6 +3,7 @@ import { fastWindows, helpHtml } from '../src/ui/help';
 import { introHtml } from '../src/ui/intro';
 import { ECONOMY } from '../src/ui/machine/economy';
 import { NORMAL_ODDS, RUSH_ODDS } from '../src/ui/machine/machine';
+import { MODE_EXP } from '../src/ui/level';
 import { Tips, tipLink, tipText } from '../src/ui/tips';
 
 describe('一言ガイド', () => {
@@ -25,20 +26,23 @@ describe('一言ガイド', () => {
 
 describe('遊び方', () => {
   it('数値は ECONOMY と台の定数から作る', () => {
-    const rush = helpHtml('rush', 'jissen');
+    const rush = helpHtml('machine', 'jissen');
     expect(rush).toContain(`1/${NORMAL_ODDS}`);
     expect(rush).toContain(`1/${RUSH_ODDS}`);
-    const money = helpHtml('money', 'jissen');
+    const money = helpHtml('basic', 'jissen');
     expect(money).toContain(`${ECONOMY.initial.toLocaleString()} yan`);
     expect(fastWindows()).toBe(
       `早見 ${ECONOMY.fastSeconds.hayami}秒・符計算 ${ECONOMY.fastSeconds.fu}秒・実戦 ${ECONOMY.fastSeconds.jissen}秒`,
     );
   });
 
-  it('基本タブにゲームの目的とコンボ（電チュー）の説明がある', () => {
-    const html = helpHtml('basic', 'jissen');
-    expect(html).toContain('id="h-goal"');
-    expect(html).toContain('このゲームの目的');
+  it('基本タブにゲームの目的・画面の見方・スマホの操作、台タブにコンボ（電チュー）の説明がある', () => {
+    const basic = helpHtml('basic', 'jissen');
+    for (const id of ['goal', 'screen', 'flow', 'modes', 'ops', 'bet']) expect(basic).toContain(`id="h-${id}"`);
+    expect(basic).toContain('タップ');
+    // キーボードの説明は PC 用の囲みに入れる（タッチだけの端末では隠す）
+    expect(basic).toMatch(/class="h-pc"[\s\S]*<kbd>Tab<\/kbd>/);
+    const html = helpHtml('machine', 'jissen');
     expect(html).toContain(`${ECONOMY.denchu.jissen}連`);
     expect(html).toContain(`${ECONOMY.denchu.hayami}連`);
   });
@@ -47,6 +51,12 @@ describe('遊び方', () => {
     const html = helpHtml('bonus', 'jissen');
     for (const m of ECONOMY.comboLadder) expect(html).toContain(`×${m}`);
     expect(html).toContain(`+${ECONOMY.extraRounds.max}R`);
+  });
+
+  it('成長タブに経験値（種目ごとの量）・昇段試験・改造・物語・成績・交換所がある', () => {
+    const html = helpHtml('grow', 'jissen');
+    for (const id of ['level', 'exam', 'parts', 'story', 'settle', 'shop', 'games']) expect(html).toContain(`id="h-${id}"`);
+    for (const n of Object.values(MODE_EXP)) expect(html).toContain(`<td>${n}</td>`);
   });
 
   it('すべての Tips に文面があり、「詳しく」の行き先のカードがヘルプにある', () => {

@@ -2467,3 +2467,130 @@ body[data-phase='summary'] #meter,
   margin: 0 0 4px;
   color: var(--main);
 }
+
+/* 遊び方：画面の見方（スマホの画面を上から帯で描き、番号ごとに説明） */
+.h-screen {
+  display: grid;
+  grid-template-columns: minmax(150px, 190px) 1fr;
+  gap: 14px;
+  align-items: start;
+}
+.h-phone {
+  display: grid;
+  gap: 4px;
+  padding: 8px 6px;
+  border-radius: 14px;
+  background: #0b0a0e;
+  box-shadow: inset 0 0 0 2px #3a2f22;
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--sub);
+}
+.hp-band {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 4px;
+  min-height: 22px;
+  padding: 3px 6px 3px 20px;
+  border-radius: 6px;
+  background: var(--sub-bg);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.hp-lcd {
+  min-height: 40px;
+  background: radial-gradient(circle at 50% 30%, #2a1f14, #0d0906);
+  box-shadow: inset 0 0 0 1px #5a4520;
+}
+.hp-q {
+  min-height: 56px;
+  color: var(--text);
+}
+.hp-tabs span:first-of-type {
+  color: var(--main);
+}
+.hp-reel {
+  display: flex;
+  gap: 2px;
+}
+.hp-reel i {
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--tile-face);
+}
+.hp-lamps {
+  color: #6a8dff;
+  letter-spacing: -1px;
+}
+.hp-bar {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: #3a3226;
+}
+.hp-bar i {
+  display: block;
+  width: 60%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--main);
+}
+.hp-n {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--main);
+  color: var(--bg);
+  font-size: 10px;
+  font-weight: 900;
+  font-style: normal;
+}
+.hp-band > .hp-n {
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.h-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.h-legend li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.h-legend li .hp-n {
+  margin-top: 3px;
+}
+.h-legend p {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+@media (max-width: 480px) {
+  .h-screen {
+    grid-template-columns: 1fr;
+  }
+  .h-phone {
+    width: min(100%, 260px);
+    margin: 0 auto;
+  }
+}
+/* PC のキーボードの説明は、タッチだけの端末では出さない */
+.h-pc .set-sec {
+  margin-top: 10px;
+}
+@media (hover: none) and (pointer: coarse) {
+  .h-pc {
+    display: none;
+  }
+}

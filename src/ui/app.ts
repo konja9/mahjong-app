@@ -2361,7 +2361,7 @@ export class App {
   /** 実力の称号の条件を満たしていたら取得して知らせる */
   private grantUnlocks(): void {
     for (const it of checkUnlocks(this.shop)) {
-      this.toast(`称号を獲得：${it.name}（${RARITY_LABEL[it.rarity ?? 'common']}）。交換所で装備すると、計器の Lv の下に表示されます`, { tab: 'money', card: 'shop' });
+      this.toast(`称号を獲得：${it.name}（${RARITY_LABEL[it.rarity ?? 'common']}）。交換所で装備すると、計器の Lv の下に表示されます`, { tab: 'grow', card: 'shop' });
     }
   }
 

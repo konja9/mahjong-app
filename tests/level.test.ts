@@ -45,9 +45,10 @@ describe('経験値と Lv', () => {
     expect(addExp(s, 1)).toEqual([]);
   });
 
-  it('正解の exp：早見1・符計算2・実戦3。段階練習は正解の割合に応じて', () => {
-    expect(MODE_EXP.fu).toBe(MODE_EXP.hayami * 2);
-    expect(MODE_EXP.jissen).toBe(MODE_EXP.hayami * 3);
+  it('正解の exp：早見 20・符計算 40・実戦 70。段階練習は正解の割合に応じて', () => {
+    expect(MODE_EXP).toEqual({ hayami: 20, fu: 40, jissen: 70 });
+    expect(MODE_EXP.hayami).toBeLessThan(MODE_EXP.fu);
+    expect(MODE_EXP.fu).toBeLessThan(MODE_EXP.jissen);
     expect(expFor('jissen')).toBe(MODE_EXP.jissen);
     expect(expFor('fu', 8, 8)).toBe(MODE_EXP.fu);
     expect(expFor('fu', 4, 8)).toBe(MODE_EXP.fu / 2);
@@ -70,7 +71,7 @@ describe('経験値と Lv', () => {
     expect(unreadChapters(s)).toEqual([1, 3]);
   });
 
-  it('3種目を同じだけ解く（1問平均 40 exp）と、Lv20 は正解 4,000〜5,500 問', () => {
+  it('3種目を同じだけ解く（1問平均 約43 exp）と、Lv20 は正解 4,000〜5,500 問', () => {
     const avg = (MODE_EXP.hayami + MODE_EXP.fu + MODE_EXP.jissen) / 3;
     const questions = expForLevel(FINAL_LEVEL) / avg;
     expect(questions).toBeGreaterThan(4000);

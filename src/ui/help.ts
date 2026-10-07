@@ -13,14 +13,14 @@ import { KAKUHEN_RATE, NORMAL_ODDS, RUSH_ODDS, ST_SPINS } from './machine/machin
 import { MACHINE_IDS, SPECS } from './machine/specs';
 import { FINAL_LEVEL, MODE_EXP } from './level';
 
-export type HelpTab = 'basic' | 'fu' | 'bonus' | 'rush' | 'money' | 'terms';
+export type HelpTab = 'basic' | 'fu' | 'machine' | 'bonus' | 'grow' | 'terms';
 
 const TABS: [HelpTab, string][] = [
   ['basic', '基本'],
   ['fu', '符の数え方'],
+  ['machine', '台'],
   ['bonus', 'BONUS'],
-  ['rush', 'RUSH'],
-  ['money', 'お金と景品'],
+  ['grow', '成長'],
   ['terms', '用語'],
 ];
 
@@ -35,7 +35,7 @@ export function fastWindows(): string {
 export const FLOW: { title: string; body: string }[] = [
   {
     title: '点数を答える',
-    body: `麻雀の点数を4択で答えます。1問の BET は ${costFor(true, false)} yan。締切までに正解すると ${costFor(true, true)} yan に割引。間違えると −${costFor(false, false)} yan。`,
+    body: `麻雀の点数を4択で答えます。正解するたびに経験値がたまり、Lv が上がります。1問の BET は ${costFor(true, false)} yan。締切までに正解すると ${costFor(true, true)} yan に割引。間違えると −${costFor(false, false)} yan。`,
   },
   {
     title: '正解すると台が回る',
@@ -62,8 +62,24 @@ const ladderVis = (now: number) =>
 const pips = (n: number, on: number, extra = 0) =>
   `<span class="b-pips">${Array.from({ length: n + extra }, (_, i) => `<i class="${i < on ? 'on' : ''}${i >= n ? ' ext' : ''}"></i>`).join('')}</span>`;
 
+/** 画面の見方：スマホの画面を上から順に、番号つきの帯で描く */
+const SCREEN: { band: string; cls: string; title: string; body: string }[] = [
+  { band: '<span>パチンコ｜稽古</span><span>出題設定 ▾</span><span>≡</span>', cls: 'head', title: 'ヘッダー', body: '左の［パチンコ｜稽古］でモードを切り替え。<b>出題設定</b>で答え方（4択・入力）や出題の条件、<b>≡ メニュー</b>で台選び・改造・昇段試験・交換所・物語・成績・設定が開きます。' },
+  { band: '<span>早見</span><span>符計算</span><span>実戦</span>', cls: 'tabs', title: '種目のタブ', body: 'タップで出題の種目を切り替えます（稽古では、学習の種類と出題の切り替え）。' },
+  { band: '<span class="hp-reel"><i></i><i></i><i></i></span><span class="hp-lamps">◆◆◇◇</span><span class="hp-slots">▢▢🔒</span>', cls: 'lcd', title: '台の液晶帯', body: '図柄・保留ランプ・パチふとくん。<b>液晶帯をタップで台選び</b>、<b>改造の枠をタップで改造</b>、<b>パチふとくんをタップでひとこと</b>。' },
+  { band: '<span>2翻 30符・子のロン</span>', cls: 'q', title: '問題と答え', body: '問題の下に選択肢（またはテンキー）。答えると判定と解説が出ます。' },
+  { band: '<span>Lv 7</span><span class="hp-bar"><i></i></span><span>exp</span>', cls: 'xp', title: '経験値の帯', body: '正解でたまる経験値と Lv・段位・称号。タップでメニュー。' },
+  { band: '<span>所持 1,000</span><span>本日 +95</span><span>BET 40</span>', cls: 'meter', title: '計器', body: '所持yan・本日の収支・1問の BET。BONUS 中は出玉に変わります。' },
+];
+
+function screenMap(): string {
+  const n = (i: number) => `<b class="hp-n">${i + 1}</b>`;
+  return `<div class="h-screen"><div class="h-phone">${SCREEN.map((r, i) => `<div class="hp-band hp-${r.cls}">${n(i)}${r.band}</div>`).join('')}</div>
+    <ol class="h-legend">${SCREEN.map((r, i) => `<li>${n(i)}<div><b>${r.title}</b><p>${r.body}</p></div></li>`).join('')}</ol></div>`;
+}
+
 function basic(): string {
-  const flow = `<div class="h-flow"><span class="iv-tag">正解</span><span class="iv-arrow">→</span>${holds(['blue', 'red', '', ''])}<span class="iv-arrow">→</span><span class="iv-reel"><b>7</b><b>7</b><b>7</b></span><span class="iv-arrow">→</span><span class="h-chip gold">BONUS<br><small>符で稼ぐ</small></span><span class="iv-arrow">→</span><span class="h-chip">yan</span><span class="iv-arrow">→</span><span class="h-chip">台・景品<br><small>Lv・物語</small></span></div>`;
+  const flow = `<div class="h-flow"><span class="iv-tag">正解</span><span class="iv-arrow">→</span><span class="h-chip">経験値<br><small>Lv・段位</small></span><span class="iv-arrow">→</span><span class="h-chip gold">BONUS<br><small>符で稼ぐ</small></span><span class="iv-arrow">→</span><span class="h-chip">yan<br><small>台・景品</small></span></div>`;
   return (
     card(
       'goal',
@@ -71,50 +87,51 @@ function basic(): string {
       flow,
       `<p><b>麻雀の点数計算と符計算を、パチンコの台を回しながら身につける</b>ゲームです。</p>
       <ul>
-        <li><b>勝ち方</b>：正確に・速く答えるほど yan が増えます。速答で BET が割引、連続正解で電チュー（玉が2個）、BONUS は符が高い手ほど賞金。</li>
-        <li><b>運と実力</b>：運で決まるのは大当りのタイミングだけ。長く遊ぶほど、計算の正確さと速さの差が収支に出ます。</li>
-        <li><b>やり込み</b>：点数計算に正解すると経験値がたまり、Lv が上がるたびに<b>パチふとくんの記憶（物語）</b>が1話ずつ読めます。Lv ${FINAL_LEVEL} で物語は完結。yan では台（ミドル・MAX）・スキン・BGM・称号も集められます。</li>
+        <li><b>実力で育つ</b>：正解するたびに経験値がたまり、Lv が上がります。Lv が上がると昇段試験・改造パーツ・<b>パチふとくんの記憶（物語）</b>が開きます。段位は試験に受かった実力の証です。</li>
+        <li><b>yan で遊ぶ</b>：正確に・速く答えるほど yan が増えます。yan は台（ミドル・MAX）・スキン・BGM・称号に使えます。</li>
+        <li><b>運と実力</b>：運で決まるのは大当りのタイミングだけ。長く遊ぶほど、計算の正確さと速さの差が出ます。</li>
         <li>数え方をじっくり身につけたいときは<b>稽古</b>（yan も演出もなし）。</li>
       </ul>`,
     ) +
+    card('screen', '画面の見方', '', screenMap()) +
     card('flow', '1問の流れ', '', `<ol class="help-flow">${FLOW.map((s, i) => `<li><b><span class="n">${i + 1}</span>${s.title}</b><p>${s.body}</p></li>`).join('')}</ol>`) +
     card(
       'modes',
-      '2つのモードと3つの出題',
+      'モードと出題',
       '',
       `<dl class="help-dl">
         <dt>パチンコ</dt><dd>yan を賭けて台を回すモード。問題は無制限で、所持金が尽きると破産です。</dd>
-        <dt>稽古</dt><dd>演出も yan もない練習用。手牌1つを段階に分けて解きます。<b>重点学習</b>は 基本符 → 面子 → 雀頭 → 待ち → 符 → 翻 → 点数 の7段階、<b>簡易学習</b>は 符 → 翻 → 点数 の3段階。出題は 通常・苦手（正答率の低い要素）・復習（間違えた手）から選べます。</dd>
+        <dt>稽古</dt><dd>演出も yan もない練習用。手牌1つを段階に分けて解きます。<b>重点学習</b>は 基本符 → 面子 → 雀頭 → 待ち → 符 → 翻 → 点数 の7段階、<b>簡易学習</b>は 符 → 翻 → 点数 の3段階。出題は 通常・苦手（正答率の低い要素）・復習（間違えた手）から選べます。経験値はパチンコと同じだけ入ります。</dd>
         <dt>早見</dt><dd>翻と符から点数を答える。点数表を覚える練習。</dd>
         <dt>符計算</dt><dd>手牌と状況から符を答える。答えは 20〜60符の6択（70符以上は出題しません。理由は「符の数え方」タブに）。</dd>
         <dt>実戦</dt><dd>手牌と状況から役・翻・符を数えて点数を答える。</dd>
       </dl>`,
     ) +
     card(
-      'holds',
-      '保留と先読み',
-      holds(['blue', 'green', 'red', 'gold']),
-      `<p>正解すると玉が入り、液晶帯のランプ（保留）が1つ点きます。最大4つ。保留があるかぎり台は自動で回ります。</p><p>ランプの色は当たりやすさの予告で、青 &lt; 緑 &lt; 赤 &lt; 金 &lt; 虹。回る直前にパチふとくんがランプを叩いて色が上がる<b>保留変化</b>もあります。</p><p>回転の頭にパチふとくんが顔を出したら<b>パチふとくん予告</b>。吹き出しの色も白 &lt; 赤 &lt; 金 &lt; 虹の順に熱く、虹なら当り確定。リーチから<b>パチふとくんリーチ</b>に発展すると大チャンス。一度外れても<b>復活</b>することがあります。</p>`,
-    ) +
-    card(
-      'denchu',
-      'コンボと電チュー開放',
-      `<div class="h-progress"><span>19連</span><span class="balls b2"><i></i><i></i></span></div>`,
-      `<p>連続正解が続くと<b>電チュー開放</b>。正解1回で玉が2個入り、大当りまでが早くなります。外すと1個に戻ります。</p>
-      <p>必要な連続数：${modeList((m) => `${denchuFor(m)}連`)}（早見は連続正解しやすいので多め）。問題数の横の ●● が目印です。</p>
-      <p>10連・20連…の節目には大きな表示が出ます。</p>`,
-    ) +
-    card(
-      'keys',
+      'ops',
       '操作',
       '',
-      `<dl class="help-dl keys">
-        <dt><kbd>1</kbd>-<kbd>4</kbd></dt><dd>選択肢を選ぶ（タップでも可）。符計算は <kbd>1</kbd>-<kbd>6</kbd> で 20符〜60符 のボタン</dd>
+      `<dl class="help-dl">
+        <dt>答える</dt><dd>選択肢のボタンをタップ。出題設定で「入力」にすると、テンキーで数字を入れて答えます（子のツモは「子-親」、例 1000-2000）。</dd>
+        <dt>次の問題へ</dt><dd>判定が出たら、画面のどこかか「次へ」をタップ。</dd>
+        <dt>解説</dt><dd>解説の「符の数え方 ›」をタップすると、この遊び方の符の章が開きます。</dd>
+        <dt>台</dt><dd>液晶帯をタップで台選び、改造の枠をタップで改造、パチふとくんをタップでひとこと。</dd>
+        <dt>メニュー</dt><dd>右上の ≡ か、経験値の帯をタップ。</dd>
+      </dl>
+      <div class="h-pc"><div class="set-sec">PC のキーボード</div>
+      <dl class="help-dl keys">
+        <dt><kbd>1</kbd>-<kbd>4</kbd></dt><dd>選択肢を選ぶ。符計算は <kbd>1</kbd>-<kbd>6</kbd> で 20符〜60符</dd>
         <dt><kbd>Tab</kbd></dt><dd>パス / 次へ</dd>
         <dt><kbd>Esc</kbd></dt><dd>入力を消す（入力で答えるとき）</dd>
-        <dt>入力</dt><dd>出題設定で「入力」にすると数字で答えられます。子のツモは「子-親」（例 1000-2000）</dd>
-      </dl>`,
-    )
+      </dl></div>`,
+    ) +
+    card(
+      'bet',
+      'BET と速答',
+      `<div class="mt-cell mt-bet"><div class="bet-box"><small>BET<em>速答で割引</em></small><span class="bet-v"><s>${costFor(true, false)}</s><b>${costFor(true, true)}</b></span><i class="bar"></i></div></div>`,
+      `<p>1問の BET は ${costFor(true, false)} yan。締切までに正解すると ${costFor(true, true)} yan に割引（${fastWindows()}）。不正解・パス・時間切れは −${costFor(false, false)} yan。初期所持金は ${ECONOMY.initial.toLocaleString()} yan。</p>`,
+    ) +
+    card('meter', '計器と破産', '', `<p>画面下の計器に<b>所持yan</b>・<b>本日の収支</b>・BET を常に表示。本日の収支は BET と BONUS の賞金だけを数え（交換所の買い物は含めない）、<b>朝5時</b>に0に戻ります。BET は回答すると実際にかかった額に変わり、BONUS 中は収支の枠が出玉になります。</p><p>所持金が尽きると破産で、${ECONOMY.initial.toLocaleString()} yan から再スタート。経験値・Lv・段位は減りません。</p>`)
   );
 }
 
@@ -236,8 +253,22 @@ function bonus(mode: Mode): string {
   );
 }
 
-function rush(): string {
+function machine(): string {
   return (
+    card(
+      'holds',
+      '保留と先読み',
+      holds(['blue', 'green', 'red', 'gold']),
+      `<p>正解すると玉が入り、液晶帯のランプ（保留）が1つ点きます。最大4つ。保留があるかぎり台は自動で回ります。</p><p>ランプの色は当たりやすさの予告で、青 &lt; 緑 &lt; 赤 &lt; 金 &lt; 虹。回る直前にパチふとくんがランプを叩いて色が上がる<b>保留変化</b>もあります。</p><p>回転の頭にパチふとくんが顔を出したら<b>パチふとくん予告</b>。吹き出しの色も白 &lt; 赤 &lt; 金 &lt; 虹の順に熱く、虹なら当り確定。リーチから<b>パチふとくんリーチ</b>に発展すると大チャンス。一度外れても<b>復活</b>することがあります。</p>`,
+    ) +
+    card(
+      'denchu',
+      'コンボと電チュー開放',
+      `<div class="h-progress"><span>19連</span><span class="balls b2"><i></i><i></i></span></div>`,
+      `<p>連続正解が続くと<b>電チュー開放</b>。正解1回で玉が2個入り、大当りまでが早くなります。外すと1個に戻ります。</p>
+      <p>必要な連続数：${modeList((m) => `${denchuFor(m)}連`)}（早見は連続正解しやすいので多め）。問題数の横の ●● が目印です。</p>
+      <p>10連・20連…の節目には大きな表示が出ます。</p>`,
+    ) +
     card(
       'st',
       '確変と RUSH',
@@ -247,56 +278,60 @@ function rush(): string {
     card('rush-miss', '不正解で ST が減る', '', `<p>RUSH 中は<b>不正解でも ST が1回転減ります</b>（抽選はなし）。正解し続けるほど RUSH が長く続きます。</p>`) +
     card('rush-q', '4択は符違いで迷わせる', `<div class="iv-choices"><span>2000</span><span class="on">2600</span><span>3200</span><span>3900</span></div>`, `<p>BONUS と RUSH の4択は、4翻以下の手なら「同じ翻で符だけ違う点数」が並びます。</p>`) +
     card(
-      'machines',
-      '台ごとの数値',
+      'machine',
+      '台選び',
       '',
-      `<table class="help-table"><tr><th></th><th>大当り</th><th>RUSH</th><th>BONUS</th></tr>${MACHINE_IDS.map((id) => {
+      `<p><b>液晶帯をタップ</b>するか、メニューの「台選び」から。大当りは重いが BONUS が長く賞金の大きいミドル・MAX を yan で解放できます（ミドル以上は実戦のみ）。</p>
+      <table class="help-table"><tr><th></th><th>大当り</th><th>RUSH</th><th>BONUS</th></tr>${MACHINE_IDS.map((id) => {
         const sp = SPECS[id];
         return `<tr><th>${sp.name}</th><td>1/${sp.odds}</td><td>1/${sp.rushOdds}×${sp.st}</td><td>${sp.rounds}問</td></tr>`;
-      }).join('')}</table><p>ミドル以上は実戦のみ。メニュー（右上の ≡）の「台選び」か、液晶帯の台の名前 ▾ をタップで台選び。</p>`,
+      }).join('')}</table>`,
     )
   );
 }
 
-function money(): string {
-  const bet = `<div class="mt-cell mt-bet"><div class="bet-box"><small>BET<em>速答で割引</em></small><span class="bet-v"><s>${costFor(true, false)}</s><b>${costFor(true, true)}</b></span><i class="bar"></i></div></div>`;
+function grow(): string {
   const plates = `<div class="h-plates">${(['common', 'rare', 'epic', 'legend'] as const)
     .map((r) => `<span class="mt-title r-${r}">${{ common: 'コモン', rare: 'レア', epic: 'エピック', legend: 'レジェンド' }[r]}</span>`)
     .join('')}</div>`;
   return (
     card(
-      'bet',
-      'BET と速答',
-      bet,
-      `<p>1問の BET は ${costFor(true, false)} yan。締切までに正解すると ${costFor(true, true)} yan に割引（${fastWindows()}）。不正解・パス・時間切れは −${costFor(false, false)} yan。初期所持金は ${ECONOMY.initial.toLocaleString()} yan。</p>`,
-    ) +
-    card('meter', '計器', '', `<p>画面下に<b>所持yan</b>・BET・<b>本日の収支</b>を常に表示。本日の収支は BET と BONUS の賞金だけを数え（交換所の買い物は含めない）、<b>朝5時</b>に0に戻ります。BET は回答すると実際にかかった額に変わり、BONUS 中は収支の枠が出玉になります。</p>`) +
-    card('machine', '台選び', '', `<p>メニュー（右上の ≡）の「台選び」か、液晶帯の台の名前 ▾ をタップ。大当りは重いが BONUS が長く賞金の大きいミドル・MAX を yan で解放できます（ミドル以上は実戦のみ）。</p>`) +
-    card(
-      'shop',
-      '交換所（称号・スキン・BGM）',
-      plates,
-      `<p>メニュー（右上の ≡）の「交換所」から。<b>称号</b>は装備すると計器の Lv の下にプレートで出ます（色はレア度）。<b>実力の称号</b>は買えず、連続正解や累計正解数などの条件で手に入ります。<b>スキン</b>は牌の背と液晶、<b>BGM</b> は BONUS・RUSH の曲（試聴できます）。通常時・稽古・スタート画面の曲は固定です。効果音と BGM の音量は、設定で別々に変えられます（0 で鳴らさない）。</p>`,
-    ) +
-    card(
       'level',
       '経験値と Lv',
       `<div class="h-xp"><b class="xp-lv">Lv 7</b><span class="mt-title r-rare">符読み</span><span class="xp-bar"><i style="width:62%"></i></span><small class="xp-next">次まで 2,140</small></div>`,
-      `<p>計器の上の帯。<b>正解するたびに経験値がたまり</b>、難しい種目ほど多く入ります（1問 早見 ${MODE_EXP.hayami}・符計算 ${MODE_EXP.fu}・実戦 ${MODE_EXP.jissen}）。パチンコの通常の問題・BONUS・稽古のどれでも同じ量で、稽古の重点学習は正解した段階の割合に応じて入ります。yan の稼ぎとは関係なく、BET や買い物、破産では減りません。Lv1 から始まり、上限はありません。装備した称号もここに出ます。</p>`,
+      `<p>計器の上の帯。Lv は<b>点数計算の実力</b>で上がります。<b>正解するたびに経験値がたまり</b>、難しい種目ほど多く入ります。</p>
+      <table class="help-table"><tr><th>早見</th><th>符計算</th><th>実戦</th></tr><tr><td>${MODE_EXP.hayami}</td><td>${MODE_EXP.fu}</td><td>${MODE_EXP.jissen}</td></tr></table>
+      <p>パチンコの通常の問題・BONUS・稽古のどれでも同じ量で、稽古の重点学習は正解した段階の割合に応じて入ります。yan の稼ぎとは関係なく、BET や買い物、破産では減りません。Lv1 から始まり、上限はありません。</p>
+      <p>Lv が上がるたびに、<b>改造パーツ</b>が1つと、<b>物語</b>の次の話が手に入ります。</p>`,
+    ) +
+    card(
+      'exam',
+      '昇段試験',
+      '',
+      `<p>パチふとくんが課す「数えの試験」。段位は、賭場で数え屋に頼らずに数えられる証です。<b>Lv 2 ごと</b>に次の段位の試験（10問）が受けられます。5級（早見）から始まり、符計算・実戦と進んで、Lv 20 で<b>名人</b>。上の段位ほど正確さと速さが求められます。</p>
+      <p>何度でも受け直せて、受かると計器の Lv の横に段位の札が付きます。試験中は yan・台・経験値は動きません。受かるたびに、ある人の手書きの帳面が1頁ずつ戻ってきます（物語の本の「帳面」で読めます）。メニューの「昇段試験」から。</p>`,
+    ) +
+    card(
+      'parts',
+      '台の改造',
+      '',
+      `<p>Lv が上がるたびに<b>改造パーツ</b>が1つ手に入ります（保留タンク・速答センサー・確変ユニットなど）。<b>台の改造の枠をタップ</b>するか、メニューの「改造」で台に付けると、台が少し有利になります。</p>
+      <p>改造の枠は<b>5つ</b>。最初はすべて鍵がかかっていて、<b>昇段試験の5級・3級・1級・二段・名人</b>に受かるたびに1つずつ開きます。</p>`,
     ) +
     card(
       'story',
       '物語（パチふとくんの記憶）',
       '',
-      `<p>パチふとで経験を積むほど、パチふとくんの失った記憶が流れ込んできます。<b>Lv が上がるたびに1話ずつ</b>読めるようになり、<b>Lv ${FINAL_LEVEL} の第${FINAL_LEVEL}話で完結</b>（事実上のクリア）。そこから先の Lv は自己満足です。メニュー（右上の ≡）の「物語」で読めます。</p>`,
+      `<p>経験を積むほど、パチふとくんの失った記憶が流れ込んできます。<b>Lv が上がるたびに1話ずつ</b>読めるようになり、<b>Lv ${FINAL_LEVEL} の第${FINAL_LEVEL}話で完結</b>。メニューの「物語」で読めます。</p>`,
     ) +
+    card('settle', '成績', '', `<p>メニューの「成績」で、答えた記録を見られます。「腕前」は種目ごとの直近50問の正答率と速さ、次の昇段試験の基準との比べ。「推移」は遊んだ日ごとのグラフ、「苦手」は状況・符の要素・早見の点数ごとの弱いところ、「台」は収支と大当り履歴です。</p>`) +
     card(
-      'exam',
-      '昇段試験と台の改造',
-      '',
-      `<p><b>昇段試験</b>：パチふとくんが課す「数えの試験」。段位は、賭場で数え屋に頼らずに数えられる証です。受かるたびに、ある人の手書きの帳面が1頁ずつ戻ってきます（物語の本の「帳面」で読めます）。Lv 2 ごとに次の段位の試験（10問）が受けられます。5級（早見）から始まり、符計算・実戦と進んで、Lv 20 で<b>名人</b>。上の段位ほど正確さと速さが求められます。何度でも受け直せて、受かると計器の Lv の横に段位の札が付きます。メニュー（右上の ≡）の「昇段試験」から。</p><p><b>台の改造</b>：Lv が上がるたびに<b>改造パーツ</b>が1つ手に入ります（保留タンク・速答センサー・確変ユニットなど）。メニューの「改造」か、台の改造の枠をタップして台に付けると、台が少し有利になります。台には改造の枠が<b>5つ</b>ありますが、最初はすべて鍵がかかっています。<b>昇段試験の5級・3級・1級・二段・名人</b>に受かるたびに、鍵が1つずつ開きます。</p>`,
+      'shop',
+      '交換所（称号・スキン・BGM）',
+      plates,
+      `<p>メニューの「交換所」で yan と交換します。<b>称号</b>は装備すると計器の Lv の下にプレートで出ます（色はレア度）。<b>実力の称号</b>は買えず、連続正解や累計正解数などの条件で手に入ります。<b>スキン</b>は牌の背と液晶、<b>BGM</b> は BONUS・RUSH の曲（試聴できます）。効果音と BGM の音量は、設定で別々に変えられます（0 で鳴らさない）。</p>`,
     ) +
-    card('settle', '成績と破産', '', `<p>メニューの「成績」で、答えた記録を見られます。「腕前」は種目ごとの直近50問の正答率と速さ、次の昇段試験の基準との比べ。「推移」は遊んだ日ごとのグラフ、「苦手」は状況・符の要素・早見の点数ごとの弱いところ、「台」は収支と大当り履歴です。所持金が尽きると破産で、${ECONOMY.initial.toLocaleString()} yan から再スタート。</p>`)
+    card('games', '実績・ランキング', '', `<p>アプリ版では Google Play ゲームにログインすると、<b>実績</b>・<b>ランキング</b>（最大連続正解・累計正解数）・<b>クラウドセーブ</b>が使えます。メニューの「実績・ランキング」から。</p>`)
   );
 }
 
@@ -314,7 +349,7 @@ function terms(): string {
     ])}
     <div class="set-sec">パチンコ</div>
     ${dl([
-      ['保留', '液晶帯のひし形のランプ。正解で1つ増え、最大4つまで溜まる。回転するたびに1つ減る'],
+      ['保留', '台の液晶帯のひし形のランプ。正解で1つ増え、最大4つまで溜まる。回転するたびに1つ減る'],
       ['先読み', '保留ランプの色。青 < 緑 < 赤 < 金 < 虹 の順に当たりやすい'],
       ['電チュー', '連続正解が続くと開き、正解1回で玉が2個入る'],
       ['リーチ', '左右の図柄がそろった状態。真ん中もそろえば大当り'],
@@ -324,7 +359,7 @@ function terms(): string {
       ['ラウンド上乗せ', 'BONUS 中に満貫以上を正解すると、BONUS の問題数が増える'],
       ['上乗せ', 'BONUS を全問正解すると、ラウンドの賞金に倍率を掛ける抽選がある'],
       ['パンク', 'BONUS 中の不正解。その問題の賞金は 0'],
-      ['回転', '前回の大当りから回った数（液晶帯の右上）'],
+      ['回転', '前回の大当りから回った数（台の液晶帯の右上）'],
       ['レア度', '称号の格。コモン・レア・エピック・レジェンドの順'],
       ['スランプグラフ', '成績の「台」に出る所持金の推移。点線が初期所持金'],
     ])}`;
@@ -332,7 +367,7 @@ function terms(): string {
 
 export function helpHtml(tab: HelpTab, mode: Mode): string {
   const body =
-    tab === 'basic' ? basic() : tab === 'fu' ? fu() : tab === 'bonus' ? bonus(mode) : tab === 'rush' ? rush() : tab === 'money' ? money() : terms();
+    tab === 'basic' ? basic() : tab === 'fu' ? fu() : tab === 'machine' ? machine() : tab === 'bonus' ? bonus(mode) : tab === 'grow' ? grow() : terms();
   return `<div class="settings help">
     <div class="set-head"><span>遊び方</span><button class="icon-btn" data-help-close aria-label="閉じる">×</button></div>
     <div class="cfg-group help-tabs" role="tablist">${TABS.map(

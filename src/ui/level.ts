@@ -17,8 +17,8 @@ const KEY = 'tensu.level.v1';
 
 /** 物語が完結する Lv */
 export const FINAL_LEVEL = 20;
-/** 1問正解したときの exp。難しい種目ほど多い（早見1：符計算2：実戦3） */
-export const MODE_EXP: Record<Mode, number> = { hayami: 20, fu: 40, jissen: 60 };
+/** 1問正解したときの exp。難しい種目ほど多い（実戦は1問に時間がかかるので、時間あたりがそろうよう少し多め） */
+export const MODE_EXP: Record<Mode, number> = { hayami: 20, fu: 40, jissen: 70 };
 
 export const freshLevel = (): LevelState => ({ exp: 0, read: [] });
 
@@ -34,7 +34,7 @@ export function saveLevel(s: LevelState): void {
 
 /**
  * Lv L から L+1 に上がるのに要る exp。早見の正解10問で Lv2 になり、
- * Lv1→20 の合計が約19万（3種目を混ぜて平均 40 なら、正解で約4,700問）になるようにしている
+ * Lv1→20 の合計が約19万（3種目を同じだけ解けば1問平均 約43 で、正解約4,300問）になるようにしている
  */
 export const expToNext = (level: number): number => Math.ceil((200 * level ** 1.63) / 10) * 10;
 

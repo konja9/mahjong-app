@@ -109,24 +109,24 @@ export function tipText(id: Exclude<TipId, 'firstHit'>, fastSec: number, spec: M
 /** 「詳しく」で開くヘルプのタブとカード（なければ出さない） */
 export function tipLink(id: Exclude<TipId, 'firstHit'>): { tab: HelpTab; card: string } | null {
   const map: Partial<Record<Exclude<TipId, 'firstHit'>, [HelpTab, string]>> = {
-    enter: ['basic', 'holds'],
-    reach: ['basic', 'holds'],
+    enter: ['machine', 'holds'],
+    reach: ['machine', 'holds'],
     jackpot: ['bonus', 'bonus-fu'],
-    rush: ['rush', 'st'],
-    miss: ['money', 'bet'],
-    fast: ['money', 'bet'],
+    rush: ['machine', 'st'],
+    miss: ['basic', 'bet'],
+    fast: ['basic', 'bet'],
     low: ['basic', 'modes'],
-    denchuSoon: ['basic', 'denchu'],
-    denchu: ['basic', 'denchu'],
+    denchuSoon: ['machine', 'denchu'],
+    denchu: ['machine', 'denchu'],
     bonusFu: ['bonus', 'bonus-fu'],
     ladder: ['bonus', 'ladder'],
     bonusMiss: ['bonus', 'punk'],
     roundUp: ['bonus', 'roundup'],
     uwanose: ['bonus', 'uwanose'],
-    rushMiss: ['rush', 'rush-miss'],
-    shop: ['money', 'shop'],
-    machine: ['money', 'machine'],
-    levelUp: ['money', 'level'],
+    rushMiss: ['machine', 'rush-miss'],
+    shop: ['grow', 'shop'],
+    machine: ['machine', 'machine'],
+    levelUp: ['grow', 'level'],
   };
   const v = map[id];
   return v ? { tab: v[0], card: v[1] } : null;
