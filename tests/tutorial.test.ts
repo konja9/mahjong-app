@@ -24,10 +24,16 @@ describe('チュートリアルの台本', () => {
     const acts = p.flatMap((s) => (s.kind === 'do' ? [s.action] : []));
     expect(acts.indexOf('freeBet')).toBeLessThan(acts.indexOf('paidBet'));
   });
-  it('3つの出題の説明では、その種目に切り替えて問題を見せる', () => {
-    const acts = CHAPTERS.find((c) => c.id === 'pachinko')!.steps.flatMap((s) => (s.kind === 'do' ? [s.action] : []));
-    for (const a of ['modeHayami', 'modeFu', 'modeJissen'] as const) expect(acts).toContain(a);
-    expect(acts.lastIndexOf('modeHayami')).toBeGreaterThan(acts.indexOf('modeJissen'));
+  it('3つの出題の説明では、プレイヤーにタブを押して切り替えてもらい、最後は早見に戻す', () => {
+    const clicks = CHAPTERS.find((c) => c.id === 'pachinko')!.steps.flatMap((s) => (s.kind === 'spot' && s.next === 'click' ? [s.target] : []));
+    expect(clicks).toEqual(['#mode-tabs [data-mode="fu"]', '#mode-tabs [data-mode="jissen"]', '#mode-tabs [data-mode="hayami"]']);
+  });
+  it('最初の正解のすぐあとに、経験値の帯を見せる', () => {
+    const p = CHAPTERS.find((c) => c.id === 'pachinko')!.steps;
+    const exp = p.findIndex((s) => s.kind === 'spot' && s.target === '#exp-strip');
+    const first = p.findIndex((s) => s.kind === 'spot' && s.next === 'answered');
+    expect(exp).toBeGreaterThan(first);
+    expect(exp - first).toBeLessThanOrEqual(3);
   });
   it('パチふとくんの表情は5種類', () => {
     for (const f of ['neutral', 'grin', 'surprise', 'proud', 'sweat'] as const) expect(charaSvg(f)).toContain(`data-face="${f}"`);

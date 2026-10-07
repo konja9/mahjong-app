@@ -53,13 +53,11 @@ import { PARTS, type PartId, SLOT_RANKS, applyParts, equipPart, loadParts, nextS
 import { type Rank, canTakeExam, examIntroHtml, examResultHtml, examTabHtml, notebookHtml, notebookName, unreadNotes, judge, loadExam, nextRank, rankName, recordPass, saveExam } from './exam';
 import {
   FINAL_LEVEL,
-  KEIKO_EXP,
-  PACHINKO_EXP,
   type DailyNet,
   addExp,
   dayKey,
   ensureDay,
-  keikoExp,
+  expFor,
   levelOf,
   loadDaily,
   loadLevel,
@@ -106,6 +104,9 @@ interface Session {
   /** このセッションで復習に入った手の数 */
   reviewAdded: number;
 }
+
+/** チュートリアル中、答えずにこの時間がたつと正解のボタンを光らせる（初心者向け） */
+const TUT_REVEAL_MS = 5000;
 
 const MODE_NAMES: Record<Mode, string> = { hayami: '早見', fu: '符計算', jissen: '実戦' };
 
@@ -183,6 +184,7 @@ export class App {
   /** 苦手ドリルの記録不足を知らせたか（セッションに1回） */
   private weakNoted = false;
   private betRaf = 0;
+  private revealTimer = 0;
   /** 大当りのラウンド（賞金タイム）。null なら通常時 */
   private round: {
     n: number;
@@ -846,11 +848,10 @@ export class App {
     renderOdometer(el.querySelector('b')!, `${v > 0 ? '+' : v < 0 ? '−' : '±'}${Math.abs(v).toLocaleString()}`);
   }
 
-  /** 稼いだ yan（BONUS の賞金・上乗せ）：所持金・本日の収支・経験値に入れる */
+  /** 稼いだ yan（BONUS の賞金・上乗せ）：所持金・本日の収支に入れる（経験値は正解で入る） */
   private earn(amount: number, rollMs = 500): void {
     this.addDaily(amount);
     this.changeBalance(amount, rollMs);
-    this.gainExp(amount);
   }
 
   /** 本日の収支に足す（BET と BONUS の賞金だけ。買い物・破産・リセットは含めない） */
@@ -1398,8 +1399,8 @@ export class App {
       if (!this.isRoundQ) {
         this.talk(correctEvent({ streak, big: !!scoreOf(this.q).limit, fast: elapsed <= fastSecondsFor(this.s.mode) }));
       }
-      // パチンコの通常の問題の正解でも、経験値を少しだけ入れる（BONUS は賞金の分が入る）
-      if (!this.keiko && !this.isRoundQ) this.gainExp(PACHINKO_EXP);
+      // パチンコの正解（通常の問題・BONUS）で経験値。量は種目で決まる（稽古は下で入れる）
+      if (!this.keiko) this.gainExp(expFor(this.q.mode));
       if (!this.keiko) {
         this.fx.hit(streak, answerEl);
         // 正解＝始動口入賞。ラウンド中は台に玉を入れない
@@ -1457,8 +1458,8 @@ export class App {
       this.changeBalance(-cost);
     }
     if (!this.keiko && !this.tutFree) this.recordStats(correct, elapsed <= fastSecondsFor(this.s.mode), dealer, tsumo);
-    // 稽古は yan が動かないので、正解した分だけ少し経験値を入れる
-    if (this.keiko && !this.tutFree) this.gainExp(this.steps ? keikoExp(this.steps.okCount, this.steps.total) : correct ? KEIKO_EXP : 0);
+    // 稽古もパチンコと同じ量の経験値。段階練習は正解した段階の割合に応じて
+    if (this.keiko && !this.tutFree) this.gainExp(this.steps ? expFor(this.q.mode, this.steps.okCount, this.steps.total) : correct ? expFor(this.q.mode) : 0);
     this.renderProgress();
     this.renderInput();
     this.hint(this.compact ? '' : correct ? 'クリック / 任意のキーで次へ' : 'クリック / Enter / Space で次へ');
@@ -1577,6 +1578,17 @@ export class App {
         return `<button class="choice${cls}" data-choice="${i}"${tut}${done ? ' disabled' : ''}><kbd>${i + 1}</kbd><span class="label">${c.label}</span>${unit}</button>`;
       })
       .join('');
+    clearTimeout(this.revealTimer);
+    if (this.tut?.active && !done) this.revealTimer = window.setTimeout(() => this.revealAnswer(), TUT_REVEAL_MS);
+  }
+
+  /** チュートリアル：迷っている間に正解のボタンを光らせる */
+  private revealAnswer(): void {
+    if (!this.tut?.active || this.phase !== 'answering') return;
+    const b = document.querySelector<HTMLElement>('#choices [data-tut="correct"]:not(:disabled)');
+    if (!b) return;
+    b.classList.add('tut-reveal');
+    if (!this.compact) this.hint('迷ったら、光っているボタンを押してみな');
   }
 
   private renderInput(): void {
@@ -2127,15 +2139,11 @@ export class App {
         this.tutJackpotIn = 2;
         return;
       case 'modeHayami':
-      case 'modeFu':
-      case 'modeJissen': {
-        // 種目を切り替えて、その種目の問題を出す（台が実戦のみなら切り替えない）
-        const mode: Mode = a === 'modeHayami' ? 'hayami' : a === 'modeFu' ? 'fu' : 'jissen';
+        // 早見に切り替えて、その問題を出す（台が実戦のみなら切り替えない）
         if (this.round || this.spec.jissenOnly) return;
-        if (this.s.mode !== mode) this.update({ mode });
+        if (this.s.mode !== 'hayami') this.update({ mode: 'hayami' });
         else if (this.phase !== 'answering') this.next();
         return;
-      }
       case 'nextQuestion':
         if (this.phase === 'result') {
           this.fx.skip();

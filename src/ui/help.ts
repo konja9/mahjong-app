@@ -11,7 +11,7 @@ import { blocksHtml, fuTable } from './explain';
 import { ECONOMY, costFor, denchuFor, fastSecondsFor, fuScale, uwanoseMean } from './machine/economy';
 import { KAKUHEN_RATE, NORMAL_ODDS, RUSH_ODDS, ST_SPINS } from './machine/machine';
 import { MACHINE_IDS, SPECS } from './machine/specs';
-import { FINAL_LEVEL, KEIKO_EXP, PACHINKO_EXP } from './level';
+import { FINAL_LEVEL, MODE_EXP } from './level';
 
 export type HelpTab = 'basic' | 'fu' | 'bonus' | 'rush' | 'money' | 'terms';
 
@@ -73,7 +73,7 @@ function basic(): string {
       <ul>
         <li><b>勝ち方</b>：正確に・速く答えるほど yan が増えます。速答で BET が割引、連続正解で電チュー（玉が2個）、BONUS は符が高い手ほど賞金。</li>
         <li><b>運と実力</b>：運で決まるのは大当りのタイミングだけ。長く遊ぶほど、計算の正確さと速さの差が収支に出ます。</li>
-        <li><b>やり込み</b>：yan を稼ぐと経験値がたまり、Lv が上がるたびに<b>パチふとくんの記憶（物語）</b>が1話ずつ読めます。Lv ${FINAL_LEVEL} で物語は完結。yan では台（ミドル・MAX）・スキン・BGM・称号も集められます。</li>
+        <li><b>やり込み</b>：点数計算に正解すると経験値がたまり、Lv が上がるたびに<b>パチふとくんの記憶（物語）</b>が1話ずつ読めます。Lv ${FINAL_LEVEL} で物語は完結。yan では台（ミドル・MAX）・スキン・BGM・称号も集められます。</li>
         <li>数え方をじっくり身につけたいときは<b>稽古</b>（yan も演出もなし）。</li>
       </ul>`,
     ) +
@@ -282,7 +282,7 @@ function money(): string {
       'level',
       '経験値と Lv',
       `<div class="h-xp"><b class="xp-lv">Lv 7</b><span class="mt-title r-rare">符読み</span><span class="xp-bar"><i style="width:62%"></i></span><small class="xp-next">次まで 2,140</small></div>`,
-      `<p>計器の上の帯。<b>yan を稼ぐと経験値がたまり</b>（BONUS の賞金と同じ量）、BET や買い物、破産では減りません。通常の問題の正解でも ${PACHINKO_EXP}、稽古でも正解すると少しだけ（1問 最大${KEIKO_EXP}）たまります。Lv1 から始まり、上限はありません。装備した称号もここに出ます。</p>`,
+      `<p>計器の上の帯。<b>正解するたびに経験値がたまり</b>、難しい種目ほど多く入ります（1問 早見 ${MODE_EXP.hayami}・符計算 ${MODE_EXP.fu}・実戦 ${MODE_EXP.jissen}）。パチンコの通常の問題・BONUS・稽古のどれでも同じ量で、稽古の重点学習は正解した段階の割合に応じて入ります。yan の稼ぎとは関係なく、BET や買い物、破産では減りません。Lv1 から始まり、上限はありません。装備した称号もここに出ます。</p>`,
     ) +
     card(
       'story',

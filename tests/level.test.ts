@@ -1,22 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
   FINAL_LEVEL,
-  KEIKO_EXP,
-  PACHINKO_EXP,
+  MODE_EXP,
   addExp,
   dayKey,
   ensureDay,
   expForLevel,
   expToNext,
   freshLevel,
-  keikoExp,
+  expFor,
   levelOf,
   markRead,
   unlockedChapters,
   unreadChapters,
 } from '../src/ui/level';
 import { STORY, chapterLength, storyChapterHtml, storyIndexHtml, storyLead } from '../src/ui/story';
-import { simulateDetail } from './sim';
 
 describe('経験値と Lv', () => {
   it('次の Lv までの exp は Lv ごとに増える。Lv1→2 は最初の BONUS 1回で届く量', () => {
@@ -47,11 +45,19 @@ describe('経験値と Lv', () => {
     expect(addExp(s, 1)).toEqual([]);
   });
 
-  it('稽古の exp：全部正解で KEIKO_EXP、正解の割合に応じて', () => {
-    expect(keikoExp(8, 8)).toBe(KEIKO_EXP);
-    expect(keikoExp(4, 8)).toBe(Math.round(KEIKO_EXP / 2));
-    expect(keikoExp(0, 8)).toBe(0);
-    expect(keikoExp(0, 0)).toBe(0);
+  it('正解の exp：早見1・符計算2・実戦3。段階練習は正解の割合に応じて', () => {
+    expect(MODE_EXP.fu).toBe(MODE_EXP.hayami * 2);
+    expect(MODE_EXP.jissen).toBe(MODE_EXP.hayami * 3);
+    expect(expFor('jissen')).toBe(MODE_EXP.jissen);
+    expect(expFor('fu', 8, 8)).toBe(MODE_EXP.fu);
+    expect(expFor('fu', 4, 8)).toBe(MODE_EXP.fu / 2);
+    expect(expFor('hayami', 0, 8)).toBe(0);
+    expect(expFor('hayami', 0, 0)).toBe(0);
+  });
+
+  it('早見の正解10問で Lv2', () => {
+    expect(levelOf(MODE_EXP.hayami * 9).level).toBe(1);
+    expect(levelOf(MODE_EXP.hayami * 10).level).toBe(2);
   });
 
   it('Lv N で第N話まで読める（完結より先は増えない）。読んでいない話を数える', () => {
@@ -64,24 +70,11 @@ describe('経験値と Lv', () => {
     expect(unreadChapters(s)).toEqual([1, 3]);
   });
 
-  it('パチンコの正解の exp は、BONUS の稼ぎ（1問あたり約38）よりずっと小さい', () => {
-    expect(PACHINKO_EXP).toBeGreaterThan(0);
-    expect(PACHINKO_EXP).toBeLessThanOrEqual(5);
-  });
-
-  it('中級者・甘デジ（正解85%・速答5割）の稼ぎで、Lv20 は 4,000〜6,000 問', () => {
-    let won = 0;
-    let n = 0;
-    for (const mode of ['hayami', 'fu', 'jissen'] as const)
-      for (const seed of [1, 2]) {
-        const d = simulateDetail(mode, 0.85, 0.5, seed, 20000);
-        won += d.won;
-        n += d.questions;
-      }
-    // BONUS の賞金に、通常の問題の正解（85%）ごとの exp を足す
-    const questions = expForLevel(FINAL_LEVEL) / (won / n + 0.85 * PACHINKO_EXP);
+  it('3種目を同じだけ解く（1問平均 40 exp）と、Lv20 は正解 4,000〜5,500 問', () => {
+    const avg = (MODE_EXP.hayami + MODE_EXP.fu + MODE_EXP.jissen) / 3;
+    const questions = expForLevel(FINAL_LEVEL) / avg;
     expect(questions).toBeGreaterThan(4000);
-    expect(questions).toBeLessThan(6000);
+    expect(questions).toBeLessThan(5500);
   });
 });
 

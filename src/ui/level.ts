@@ -1,7 +1,9 @@
+import type { Mode } from '../core/generator';
 import { load, save } from './storage';
 
 /**
- * 経験値とレベル。exp は yan を稼ぐと貯まり、減らない（BET・買い物・破産・所持金のリセットでも消えない）。
+ * 経験値とレベル。exp は点数計算に正解すると貯まり（パチンコ・BONUS・稽古で同じ量。yan の稼ぎとは関係ない）、
+ * 減らない（BET・買い物・破産・所持金のリセットでも消えない）。
  * Lv が上がるたびにパチふとくんの記憶（物語）が1話ずつ読める。Lv20 で完結し、そこから先は上限なし
  */
 
@@ -15,10 +17,8 @@ const KEY = 'tensu.level.v1';
 
 /** 物語が完結する Lv */
 export const FINAL_LEVEL = 20;
-/** 稽古で1問を全部正解したときの exp（パチンコの中級者の1問あたり約38の4分の1ほど） */
-export const KEIKO_EXP = 10;
-/** パチンコの通常の問題で正解したときの exp（BONUS の賞金とは別に少しだけ） */
-export const PACHINKO_EXP = 3;
+/** 1問正解したときの exp。難しい種目ほど多い（早見1：符計算2：実戦3） */
+export const MODE_EXP: Record<Mode, number> = { hayami: 20, fu: 40, jissen: 60 };
 
 export const freshLevel = (): LevelState => ({ exp: 0, read: [] });
 
@@ -33,8 +33,8 @@ export function saveLevel(s: LevelState): void {
 }
 
 /**
- * Lv L から L+1 に上がるのに要る exp。最初の BONUS 1回で Lv2 になり、
- * Lv1→20 の合計が約19万（中級者・甘デジで約5,000問）になるようにしている
+ * Lv L から L+1 に上がるのに要る exp。早見の正解10問で Lv2 になり、
+ * Lv1→20 の合計が約19万（3種目を混ぜて平均 40 なら、正解で約4,700問）になるようにしている
  */
 export const expToNext = (level: number): number => Math.ceil((200 * level ** 1.63) / 10) * 10;
 
@@ -85,8 +85,8 @@ export function mergeLevelUp(p: PendingLevelUp | null, ups: number[]): PendingLe
   return { from, to: ups[ups.length - 1] };
 }
 
-/** 稽古の exp：答えた段階のうち正解した割合に応じて（全部正解で KEIKO_EXP） */
-export const keikoExp = (ok: number, total: number): number => (total > 0 ? Math.round((KEIKO_EXP * ok) / total) : 0);
+/** 正解したときの exp。稽古の段階練習は、答えた段階のうち正解した割合に応じて（全部正解で1問分） */
+export const expFor = (mode: Mode, ok = 1, total = 1): number => (total > 0 ? Math.round((MODE_EXP[mode] * ok) / total) : 0);
 
 /** 読める話（Lv N で第N話まで。完結より先は増えない） */
 export const unlockedChapters = (level: number): number => Math.min(level, FINAL_LEVEL);

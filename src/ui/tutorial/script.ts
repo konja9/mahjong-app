@@ -21,9 +21,7 @@ export type TutorialAction =
   | 'freeBet' // チュートリアル中の BET をなしにする
   | 'paidBet' // BET を元に戻す
   | 'keikoFocus' // 稽古の重点学習・通常の出題にする
-  | 'modeHayami' // 早見に切り替えて問題を出す
-  | 'modeFu' // 符計算に切り替えて問題を出す
-  | 'modeJissen' // 実戦に切り替えて問題を出す
+  | 'modeHayami' // 早見に切り替えて問題を出す（符計算・実戦はプレイヤーにタブを押してもらう）
   | 'haltMachine'; // 台を止める（残りの保留で次の大当りが起きないように。稽古へ移るときは台がリセットされる）
 
 export type Step =
@@ -71,6 +69,7 @@ export const CHAPTERS: Chapter[] = [
       { kind: 'spot', target: '#choices [data-tut="correct"]', face: 'grin', text: '答えは1000点。光ってるボタンを押しな。', next: 'answered' },
       { kind: 'do', action: 'armJackpot' },
       { kind: 'say', face: 'proud', text: 'クケケ、正解だ。正解すると台に玉が入るぜ。' },
+      { kind: 'spot', target: '#exp-strip', face: 'surprise', text: '……ん？　計器の上の線が経験値だ。正解するたびにたまって、Lv が上がると改造パーツがもらえる。オレ様の記憶も少し戻る、らしい。', next: 'tap', pad: 4 },
       { kind: 'spot', target: '#machine .m-holds', face: 'neutral', text: '玉が入ると、液晶のランプ（保留）が点く。保留がある限り、台は勝手に回るぜ。', next: 'tap', pad: 8 },
       { kind: 'spot', target: '#meter', face: 'neutral', text: '下が計器だ。左が所持yan と本日の収支、右が1問の BET（40 yan）。速く正解すりゃ半額、今だけはオレ様のおごりだ。', next: 'tap' },
       { kind: 'do', action: 'nextQuestion' },
@@ -81,16 +80,15 @@ export const CHAPTERS: Chapter[] = [
       { kind: 'spot', target: '#choices', face: 'neutral', text: '手牌の符を考えて答えてみな。外すとその問題の賞金はパンク（0）だ。', next: 'answered' },
       { kind: 'free', face: 'grin', text: 'その調子だ。BONUS を最後まで答えて、賞金を受け取りな。', until: 'bonusEnd' },
       { kind: 'do', action: 'paidBet' },
-      { kind: 'say', face: 'neutral', text: '出題は3種類あって、上のタブで切り替えられる。実際に見せてやるぜ。' },
       { kind: 'do', action: 'modeHayami' },
-      { kind: 'spot', target: '#question', face: 'neutral', text: 'これが「早見」。翻と符が出て、点数だけを答える。点数表を体に叩き込むモードだな。', next: 'tap', pad: 6 },
-      { kind: 'do', action: 'modeFu' },
-      { kind: 'spot', target: '#question', face: 'proud', text: 'これが「符計算」。手牌から符を数える。BONUS の賞金は符で決まるから、ここを鍛えりゃ稼ぎが変わるぜ。', next: 'tap', pad: 6 },
-      { kind: 'do', action: 'modeJissen' },
-      { kind: 'spot', target: '#question', face: 'grin', text: 'これが「実戦」。翻も符も数えて点数まで出す、卓と同じ本番だ。上の台は実戦だけだぜ。', next: 'tap', pad: 6 },
-      { kind: 'do', action: 'modeHayami' },
+      { kind: 'spot', target: '#mode-tabs', face: 'neutral', text: '出題は3種類あって、上のタブで切り替えられる。難しい種目ほど、正解したときの経験値が多いぜ。', next: 'tap', pad: 6 },
+      { kind: 'spot', target: '#question', face: 'neutral', text: '今のが「早見」。翻と符が出て、点数だけを答える。点数表を体に叩き込むモードだな。正解で 20 exp。', next: 'tap', pad: 6 },
+      { kind: 'spot', target: '#mode-tabs [data-mode="fu"]', face: 'grin', text: '「符計算」を押してみな。', next: 'click', pad: 4 },
+      { kind: 'spot', target: '#question', face: 'proud', text: 'これが「符計算」。手牌から符を数える。BONUS の賞金は符で決まるから、ここを鍛えりゃ稼ぎが変わるぜ。正解で 40 exp。', next: 'tap', pad: 6 },
+      { kind: 'spot', target: '#mode-tabs [data-mode="jissen"]', face: 'grin', text: '次は「実戦」を押しな。', next: 'click', pad: 4 },
+      { kind: 'spot', target: '#question', face: 'grin', text: 'これが「実戦」。翻も符も数えて点数まで出す、卓と同じ本番だ。正解で 60 exp。上の台は実戦だけだぜ。', next: 'tap', pad: 6 },
+      { kind: 'spot', target: '#mode-tabs [data-mode="hayami"]', face: 'neutral', text: '慣れるまでは早見がおすすめだ。「早見」を押して戻しな。', next: 'click', pad: 4 },
       { kind: 'say', face: 'proud', text: 'BONUS のあとに確変を引けば RUSH だ。当たりやすい時間が続くが、外すと回転が減る。腕で引っぱるんだぜ。' },
-      { kind: 'spot', target: '#exp-strip', face: 'surprise', text: '……ん？　計器の上が経験値だ。次の Lv まであと何 exp か出てる。Lv が上がると改造パーツがもらえて、オレ様の記憶も少し戻る、らしい。', next: 'tap', pad: 4 },
       { kind: 'say', face: 'neutral', text: 'ここからは BET も本物だ。所持金が尽きたら破産だから気をつけな。' },
     ],
   },

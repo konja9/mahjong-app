@@ -689,6 +689,25 @@ main {
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
 }
+/* チュートリアル：答えずに少したつと、正解のボタンが金色に脈打つ */
+.choice.tut-reveal {
+  border-color: #ffd84a;
+  box-shadow: 0 0 0 2px #ffd84a, 0 0 18px 4px rgba(255, 216, 74, 0.55);
+  animation: tut-reveal 1.2s ease-in-out infinite;
+}
+@keyframes tut-reveal {
+  50% {
+    box-shadow: 0 0 0 2px #ffd84a, 0 0 6px 1px rgba(255, 216, 74, 0.25);
+  }
+}
+[data-effects='off'] .choice.tut-reveal {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .choice.tut-reveal {
+    animation: none;
+  }
+}
 #choices.fu-pad .choice {
   padding: 16px 4px;
   font-size: clamp(18px, 2.4vw, 24px);
