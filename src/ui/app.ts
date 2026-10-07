@@ -12,7 +12,7 @@ import { lockPageScroll, scrollToView } from './scroll';
 import { type BgmTrack, bgm, configureAudio, sfx, suspendAudio, unlockAudio } from './audio';
 import { LevelUpFx } from './effects/levelup';
 import { slotRowHtml } from './machine/partArt';
-import { scoreTableHtml, toggleScoreSide } from './scoreTable';
+import { scoreSidesHtml, scoreTableHtml, toggleScoreSide } from './scoreTable';
 import { Fx, type WinTier } from './effects/pachinko';
 import type { EffectLevel } from './effects/performance';
 import {
@@ -814,7 +814,7 @@ export class App {
     const html = (exp: boolean) =>
       exp
         ? `<small>BET</small><span class="bet-v"><b>${full}</b></span>`
-        : `<small>BET<em>速答で割引</em></small><span class="bet-v"><s>${full}</s><b>${half}</b></span><i class="bar"></i>`;
+        : `<small>BET<em>速答<span class="em-long">で割引</span></em></small><span class="bet-v"><s>${full}</s><b>${half}</b></span><i class="bar"></i>`;
     el.innerHTML = html(false);
     const tick = () => {
       if (this.phase !== 'answering') return;
@@ -833,7 +833,7 @@ export class App {
     cancelAnimationFrame(this.betRaf);
     if (this.keiko || this.isRoundQ) return;
     const cost = costFor(correct, correct && fast, this.spec);
-    const tag = !correct ? '<em class="ng">不正解</em>' : fast ? '<em>速答で割引</em>' : '';
+    const tag = !correct ? '<em class="ng">不正解</em>' : fast ? '<em>速答<span class="em-long">で割引</span></em>' : '';
     const el = $('#bet');
     el.classList.remove('expired');
     el.classList.add('settled');
@@ -2198,8 +2198,8 @@ export class App {
   private openScoreTable(): void {
     const dlg = $<HTMLDialogElement>('#score-dialog');
     const dealer = this.q.mode !== 'hayami' && questionMeta(this.q).dealer;
-    dlg.innerHTML = `<div class="settings help"><div class="set-head"><span>点数表</span><button class="icon-btn" data-score-close aria-label="閉じる">×</button></div>
-      <div class="help-body">${scoreTableHtml(this.s.rules, dealer)}<p class="small muted">点数の出し方は、遊び方の「点数」のタブにあります。</p></div></div>`;
+    dlg.innerHTML = `<div class="settings help st-pop"><div class="set-head"><span>点数表</span>${scoreSidesHtml(dealer)}<button class="icon-btn" data-score-close aria-label="閉じる">×</button></div>
+      <div class="help-body">${scoreTableHtml(this.s.rules, dealer, { legend: false })}</div></div>`;
     if (!dlg.open) dlg.showModal();
   }
 

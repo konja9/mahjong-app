@@ -452,18 +452,33 @@
 }
 .bet-box {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
+  white-space: nowrap;
+}
+.bet-box > small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .bet-box em {
   font-style: normal;
-  padding: 0 5px;
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 0 4px;
   border-radius: 3px;
   background: var(--main);
   color: var(--bg);
   font-weight: 700;
   letter-spacing: 0;
+}
+/* 狭いスマホでは札を「速答」に短くして、BET の枠を1行に収める */
+@media (max-width: 390px) {
+  #meter .bet-box .em-long {
+    display: none;
+  }
 }
 .bet-box em.ng {
   background: transparent;
@@ -1115,7 +1130,7 @@ body.busy .bet-box .bar {
 .cfg.locked {
   opacity: 0.3;
 }
-.mode-tabs {
+.mode-tabs:not(.keiko-tabs) {
   flex-wrap: wrap;
 }
 .mode-tab.locked {
@@ -2218,8 +2233,8 @@ body[data-phase='summary'] #meter,
   display: none;
 }
 #meter .mt-cell {
-  min-height: 38px;
-  padding: 4px 12px;
+  min-height: 32px;
+  padding: 3px 10px;
   border-radius: 0;
   background: none;
   box-shadow: none;
@@ -2757,5 +2772,74 @@ body[data-phase='summary'] #meter,
   }
   .score-table .score-grid td small {
     font-size: 9.5px;
+  }
+}
+
+/* 点数表のポップアップ：表だけを、スマホの1画面に収める */
+#score-dialog .set-head {
+  gap: 10px;
+}
+#score-dialog .set-head > span {
+  flex: none;
+}
+#score-dialog .st-sides {
+  margin: 0 auto 0 4px;
+}
+#score-dialog .st-sides .cfg {
+  min-width: 52px;
+  padding: 4px 10px;
+}
+#score-dialog .help-body {
+  padding-bottom: 0;
+}
+.score-table .st-corner {
+  font-size: 9.5px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+.score-table.compact .score-grid {
+  border-spacing: 2px;
+}
+.score-table.compact .score-grid th {
+  padding: 2px 1px;
+}
+.score-table.compact .score-grid td {
+  padding: 3px 1px;
+  line-height: 1.15;
+}
+.score-table.compact .score-grid td b {
+  font-size: 14px;
+}
+.score-table.compact .score-grid td small {
+  font-size: 9.5px;
+  letter-spacing: -0.02em;
+}
+.score-table.compact .st-sub {
+  margin: 8px 0 0;
+}
+/* 満貫以上は1行ずつ：名前と翻、ロンとツモを横に並べる */
+.score-table.compact .limit-grid tbody th small {
+  display: inline;
+  margin-left: 4px;
+}
+.score-table.compact .limit-grid td b,
+.score-table.compact .limit-grid td small {
+  display: inline;
+}
+.score-table.compact .limit-grid td small::before {
+  content: ' / ';
+}
+.score-table.compact .limit-grid thead th:first-child {
+  width: 28%;
+}
+@media (max-width: 480px) {
+  .score-table.compact .score-grid td b {
+    font-size: 13px;
+  }
+  .score-table.compact .limit-grid td b {
+    font-size: 12.5px;
+  }
+  .score-table.compact .limit-grid td small {
+    font-size: 9px;
   }
 }
