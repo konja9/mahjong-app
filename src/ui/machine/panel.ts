@@ -28,6 +28,8 @@ export interface PanelHooks {
   onCharaTap?(): void;
   /** 改造の枠をタップした（改造のタブ） */
   onPartsTap?(): void;
+  /** 光っている鍵の枠をタップした（昇段試験のタブ） */
+  onExamTap?(): void;
 }
 
 export interface JackpotResult {
@@ -101,7 +103,8 @@ export class MachinePanel {
     root.querySelector('.m-parts')!.addEventListener('click', (e) => {
       // 改造の枠は、台選びではなく改造のタブを開く
       e.stopPropagation();
-      this.hooks.onPartsTap?.();
+      if ((e.target as HTMLElement).closest('[data-go-exam]')) this.hooks.onExamTap?.();
+      else this.hooks.onPartsTap?.();
     });
     this.face('neutral');
     this.idleSymbols();

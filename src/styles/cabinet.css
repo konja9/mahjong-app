@@ -2844,3 +2844,11 @@ body[data-phase='summary'] #meter,
     font-size: 9px;
   }
 }
+
+/* 光っている鍵の枠はタップで昇段試験へ */
+.slot.locked.next[data-go-exam] {
+  cursor: pointer;
+}
+.slot.locked.next[data-go-exam]:active {
+  transform: translateY(1px) scale(0.95);
+}

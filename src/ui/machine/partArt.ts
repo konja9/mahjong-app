@@ -201,7 +201,9 @@ export function slotRowHtml(v: SlotRowView): string {
       const label = v.labels ? `<small>${i < v.slots ? '&nbsp;' : rank}</small>` : '';
       if (i < v.slots && id) return `<span class="slot on" title="${v.names?.[id] ?? ''}"><i>${partSvg(id)}</i>${label}</span>`;
       if (i < v.slots) return `<span class="slot open${i === v.opened ? ' opened' : ''}" title="空いている枠"><i>${i === v.opened ? lockSvg() : ''}</i>${label}</span>`;
-      return `<span class="slot locked${i === v.slots && v.nextReady ? ' next' : ''}" title="${rank}の昇段試験で開く"><i>${lockSvg()}</i>${label}</span>`;
+      // 受けられる試験で開く枠は光らせ、タップで昇段試験の画面へ
+      if (i === v.slots && v.nextReady) return `<span class="slot locked next" data-go-exam title="タップで${rank}の昇段試験へ"><i>${lockSvg()}</i>${label}</span>`;
+      return `<span class="slot locked" title="${rank}の昇段試験で開く"><i>${lockSvg()}</i>${label}</span>`;
     })
     .join('');
 }

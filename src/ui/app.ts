@@ -261,6 +261,7 @@ export class App {
       onJackpot: ({ premium }) => this.startRound(premium),
       onTap: () => this.openMachineTab('machines'),
       onPartsTap: () => this.openMachineTab('parts'),
+      onExamTap: () => this.openMachineTab('exam'),
       onEvent: (e) => {
         this.tip(e);
         if (e === 'rush') this.countAchievement('rushes');
@@ -2292,6 +2293,12 @@ export class App {
         dlg.close();
         return;
       }
+      // 改造の画面の光っている鍵の枠：同じダイアログのまま昇段試験の画面へ
+      if (t.closest('[data-go-exam]')) {
+        this.machineTab = 'exam';
+        this.renderShop();
+        return;
+      }
       const b = t.closest<HTMLElement>('button');
       if (!b || b.hasAttribute('disabled')) return;
       const d = b.dataset;
@@ -2336,7 +2343,7 @@ export class App {
   }
 
   /** 台の液晶帯・改造の枠のタップ。演出中・BONUS 中は誤タップで開かないようにする */
-  private openMachineTab(tab: 'machines' | 'parts'): void {
+  private openMachineTab(tab: MachineTab): void {
     if (this.keiko || this.busy || this.round) return;
     this.machineTab = tab;
     this.openShop('machine');

@@ -42,6 +42,9 @@ describe('改造パーツの絵', () => {
   it('次の鍵が光るのは、その枠を開ける試験を受けられるときだけ', () => {
     expect(slotRowHtml({ equip: [], slots: 1, ranks: RANKS5 })).not.toContain('locked next');
     expect(slotRowHtml({ equip: [], slots: 1, ranks: RANKS5, nextReady: true }).match(/slot locked next/g)).toHaveLength(1);
+    // 光っている枠だけ、タップで昇段試験へ
+    expect(slotRowHtml({ equip: [], slots: 1, ranks: RANKS5, nextReady: true }).match(/data-go-exam/g)).toHaveLength(1);
+    expect(slotRowHtml({ equip: [], slots: 1, ranks: RANKS5 })).not.toContain('data-go-exam');
   });
   it('枠が0のときは付けられず、5級の昇段試験をすすめる', () => {
     const html = partsHtml({ state: { owned: ['fast'], equip: [] }, slots: 0, rank: '', nextSlotRank: '5級', slotRanks: RANKS5, canChange: true });
