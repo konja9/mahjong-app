@@ -1515,6 +1515,9 @@ export class App {
 
   private renderQuestion(): void {
     const q = this.q;
+    // 実戦（パチンコ）と稽古では、答えのボタンのすぐ上から点数表を開ける（昇段試験では出さない）
+    const table = !this.examRun && (this.keiko || q.mode === 'jissen');
+    $('#answer-tools').innerHTML = table ? '<button type="button" class="st-open" data-score-table>点数表</button>' : '';
     const el = $('#question');
     if (q.mode === 'hayami') {
       const main =
@@ -1532,11 +1535,9 @@ export class App {
     const ura = q.sit.uraIndicators.length
       ? `<div class="dora"><span class="muted">裏ドラ表示</span>${tilesInline(q.sit.uraIndicators)}<span class="muted small">→ ${doraLabel(q.sit.uraIndicators)}</span></div>`
       : '';
-    // 実戦（パチンコ）と稽古では、点数表をいつでも開ける（昇段試験では出さない）
-    const table = !this.examRun && (this.keiko || q.mode === 'jissen') ? '<button type="button" class="st-open" data-score-table>点数表</button>' : '';
     return `<div class="q-hand">
       <div class="q-info">
-        <div class="chips">${situationChips(q)}${table}</div>
+        <div class="chips">${situationChips(q)}</div>
         <div class="doras">
           <div class="dora"><span class="muted">ドラ表示</span>${tilesInline(q.sit.doraIndicators)}<span class="muted small">→ ${doraLabel(q.sit.doraIndicators)}</span></div>
           ${ura}
@@ -3014,6 +3015,7 @@ const SHELL = `
         <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><small class="mt-label">所持</small><b>0</b><small class="mt-unit">yan</small><span id="net" class="mt-net"><small>本日</small><b>±0</b></span></div>
         <div class="mt-cell mt-bet"><div id="bet" class="bet-box"></div></div>
       </div>
+      <div id="answer-tools"></div>
       <div id="answer" aria-live="polite"></div>
       <div id="choices" role="group" aria-label="選択肢"></div>
       <div id="hint" class="hint"></div>

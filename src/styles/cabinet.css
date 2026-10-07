@@ -2622,8 +2622,15 @@ body[data-phase='summary'] #meter,
 }
 
 /* 点数表：問題の上の「点数表」ボタンと、表（遊び方の「点数」タブ・ポップアップ） */
+#answer-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin: 2px 0 -4px;
+}
+#answer-tools:empty {
+  display: none;
+}
 .st-open {
-  margin-left: auto;
   padding: 3px 10px;
   border-radius: 6px;
   border: 1px solid color-mix(in srgb, var(--main) 60%, transparent);
