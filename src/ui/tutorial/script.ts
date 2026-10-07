@@ -10,7 +10,7 @@ import type { Face } from './chara';
 
 /** アプリ側で起きる出来事（runner.notify で知らせる） */
 /** idle：BONUS 中でない（BONUS が終わったときに知らせる。すでに BONUS 中でなければ待たずに進む） */
-export type TutorialEvent = 'answered' | 'bonusStart' | 'bonusEnd' | 'stepAnswered' | 'idle';
+export type TutorialEvent = 'answered' | 'bonusStart' | 'bonusEnd' | 'stepAnswered' | 'idle' | 'scoreTableClosed';
 
 /** 画面の準備（アプリ側の処理） */
 export type TutorialAction =
@@ -87,6 +87,8 @@ export const CHAPTERS: Chapter[] = [
       { kind: 'spot', target: '#question', face: 'proud', text: 'これが「符計算」。手牌から符を数える。BONUS の賞金は符で決まるから、ここを鍛えりゃ稼ぎが変わるぜ。正解で 40 exp。', next: 'tap', pad: 6 },
       { kind: 'spot', target: '#mode-tabs [data-mode="jissen"]', face: 'grin', text: '次は「実戦」を押しな。', next: 'click', pad: 4 },
       { kind: 'spot', target: '#question', face: 'grin', text: 'これが「実戦」。翻も符も数えて点数まで出す、卓と同じ本番だ。正解で 70 exp。ミドルの台は符計算と実戦、MAX は実戦だけだぜ。', next: 'tap', pad: 6 },
+      { kind: 'spot', target: '#answer-tools [data-score-table]', face: 'neutral', text: '実戦と稽古では、答えのボタンの下の「点数表」でいつでも点数表が開ける。押して見てみな。見終わったら × で閉じるんだぜ。', next: 'scoreTableClosed', pad: 6 },
+      { kind: 'say', face: 'grin', text: '大きい数字がロン、小さい数字がツモの点数だ。ただし開いてる間も時計は進む。速答で稼ぎたけりゃ、覚えちまうのが一番だぜ。' },
       { kind: 'spot', target: '#mode-tabs [data-mode="hayami"]', face: 'neutral', text: '慣れるまでは早見がおすすめだ。「早見」を押して戻しな。', next: 'click', pad: 4 },
       { kind: 'say', face: 'proud', text: 'BONUS のあとに確変を引けば RUSH だ。当たりやすい時間が続くが、外すと回転が減る。腕で引っぱるんだぜ。' },
       { kind: 'say', face: 'neutral', text: 'ここからは BET も本物だ。所持金が尽きたら破産だから気をつけな。' },

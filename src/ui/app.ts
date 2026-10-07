@@ -2061,6 +2061,7 @@ export class App {
     });
     help.addEventListener('close', () => this.pause('help', false));
     const st = $<HTMLDialogElement>('#score-dialog');
+    st.addEventListener('close', () => this.tut.notify('scoreTableClosed'));
     st.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
       if (t === st || t.closest('[data-score-close]')) st.close();

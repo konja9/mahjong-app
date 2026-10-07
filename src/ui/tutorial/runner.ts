@@ -259,6 +259,12 @@ export class Tutorial {
     return !!el?.closest?.('.tut-ui, .tut-menu');
   }
 
+  /** 案内の途中でプレイヤーに開かせたポップアップ（点数表）の中。閉じるまで自由に触らせる */
+  private inPopup(t: EventTarget | null): boolean {
+    const el = t as HTMLElement | null;
+    return !!el?.closest?.('#score-dialog');
+  }
+
   /** 光らせた場所の中か（押してよい場所） */
   private inTarget(t: EventTarget | null): boolean {
     const s = this.current;
@@ -276,7 +282,7 @@ export class Tutorial {
   }
 
   private guardPointer(e: Event): void {
-    if (!this.active || this.current?.kind === 'free' || this.inTutUi(e.target) || this.inTarget(e.target) || this.targetMissing()) return;
+    if (!this.active || this.current?.kind === 'free' || this.inTutUi(e.target) || this.inPopup(e.target) || this.inTarget(e.target) || this.targetMissing()) return;
     e.preventDefault();
     e.stopImmediatePropagation();
   }
@@ -301,6 +307,7 @@ export class Tutorial {
       return;
     }
     if ((this.current?.kind === 'free' || this.targetMissing()) && !this.inTutUi(t)) return;
+    if (this.inPopup(t)) return;
     if (this.inTarget(t)) {
       const s = this.current;
       // 押したら次へ：アプリの処理（タブの切り替えなど）が済んでから進める
@@ -316,6 +323,8 @@ export class Tutorial {
     if (!this.active) return;
     const s = this.current;
     if (!s || s.kind === 'free' || this.targetMissing()) return;
+    // 開かせたポップアップは Esc で閉じられるようにする
+    if (document.querySelector('#score-dialog[open]')) return;
     // 光らせた場所で答えるステップでは、その中のボタンの番号キーと入力のキーだけ通す
     if (s.kind === 'spot' && s.next !== 'tap' && s.next !== 'click') {
       const el = this.target();

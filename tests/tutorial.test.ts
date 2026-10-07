@@ -13,7 +13,7 @@ describe('チュートリアルの台本', () => {
     expect(lines[0]).toContain('クケケケ、久しぶりの新顔だな');
   });
   it('光らせる場所は画面にある要素を指す', () => {
-    const known = /^(#question|#choices|#machine|#meter|#steps|#mode-tabs|#cfg-toggle|#open-menu|#exp-strip|\.play-tab)/;
+    const known = /^(#question|#choices|#machine|#meter|#steps|#mode-tabs|#cfg-toggle|#open-menu|#exp-strip|#answer-tools|\.play-tab)/;
     for (const c of CHAPTERS) for (const s of c.steps) if (s.kind === 'spot') expect(s.target).toMatch(known);
   });
   it('第1章は大当りを待ち、BONUS が終わるまで通しで見せる', () => {
@@ -27,6 +27,17 @@ describe('チュートリアルの台本', () => {
   it('3つの出題の説明では、プレイヤーにタブを押して切り替えてもらい、最後は早見に戻す', () => {
     const clicks = CHAPTERS.find((c) => c.id === 'pachinko')!.steps.flatMap((s) => (s.kind === 'spot' && s.next === 'click' ? [s.target] : []));
     expect(clicks).toEqual(['#mode-tabs [data-mode="fu"]', '#mode-tabs [data-mode="jissen"]', '#mode-tabs [data-mode="hayami"]']);
+  });
+  it('実戦の説明のあとに、点数表をプレイヤーに開かせ、閉じるまで待つ', () => {
+    const p = CHAPTERS.find((c) => c.id === 'pachinko')!.steps;
+    const i = p.findIndex((s) => s.kind === 'spot' && s.target === '#answer-tools [data-score-table]');
+    expect(i).toBeGreaterThan(0);
+    expect((p[i] as { next: string }).next).toBe('scoreTableClosed');
+    // 実戦に切り替えたあと、早見に戻す前
+    const jissen = p.findIndex((s) => s.kind === 'spot' && s.target === '#mode-tabs [data-mode="jissen"]');
+    const back = p.findIndex((s) => s.kind === 'spot' && s.target === '#mode-tabs [data-mode="hayami"]');
+    expect(i).toBeGreaterThan(jissen);
+    expect(i).toBeLessThan(back);
   });
   it('最初の正解のすぐあとに、経験値の帯を見せる', () => {
     const p = CHAPTERS.find((c) => c.id === 'pachinko')!.steps;
