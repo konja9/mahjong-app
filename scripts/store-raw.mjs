@@ -7,6 +7,7 @@
  *   PLAYWRIGHT_FROM（playwright のある node_modules）・CHROME（ブラウザの実行ファイル）で場所を指定できる。
  *   ONLY=1,5 で、その番号の画面だけを撮る（ほかの元画面はそのまま）。
  *   CANDIDATES=1 で、1枚目（大当り）の候補をリーチから BONUS の始まりまで連続で store/candidates/raw/ に撮る。
+ *   CANDIDATES=game で、答えている最中のゲーム画面（通常時・BONUS 中・RUSH 中、3つの出題）の候補を撮る。
  *   選んだ候補を store/raw/1-jackpot.png にコピーしてから scripts/store.mjs を走らせる。
  */
 import { mkdirSync, rmSync } from 'node:fs';
@@ -77,7 +78,60 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',').map(Number) : null;
 const want = (n) => !process.env.CANDIDATES && (!ONLY || ONLY.includes(n));
 
 // 1枚目の候補：大当りまでの流れを何回か回し、リーチ演出から BONUS の始まりまでを連続で撮る
-if (process.env.CANDIDATES) {
+/** 演出・結果を飛ばして、次に答えられる状態（答えている最中で、演出で止まっていない）まで進める */
+async function toAnswering(p) {
+  for (let k = 0; k < 80; k++) {
+    const ph = await phase(p);
+    const busy = await p.evaluate(() => document.body.classList.contains('busy'));
+    if (ph === 'answering' && !busy) return true;
+    if (ph === 'result' && !busy) await next(p);
+    else await p.evaluate(() => (window.tensu.fx.awaitingPush ? window.tensu.fx.pressPush() : window.tensu.fx.skip?.()));
+    await p.waitForTimeout(300);
+  }
+  return false;
+}
+
+// 1枚目の候補（答えている最中のゲーム画面）：下に「次へ」が出ない、台と手牌と4択がそろった画面
+if (process.env.CANDIDATES === 'game') {
+  const dir = join(ROOT, 'store', 'candidates', 'raw');
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  const snap = async (p, name) => {
+    // 正解の吹き出しや一言ガイドが消えるのを少し待つ
+    await p.waitForTimeout(900);
+    await p.screenshot({ path: join(dir, `${name}.png`) });
+  };
+  // 通常時（実戦・符計算・早見）。何問か正解して、保留を貯めた状態でも撮る
+  for (const [mode, n] of [['jissen', 6], ['fu', 3], ['hayami', 2]]) {
+    const p = await open({ settings: { effects: 'max', playMode: 'pachinko', mode, answerStyle: 'choice' }, shop: title });
+    await enter(p, 'pachinko');
+    for (let k = 0; k < n; k++) {
+      if (!(await toAnswering(p))) break;
+      await snap(p, `${mode}-${k + 1}`);
+      await answerCorrect(p);
+      await p.waitForTimeout(500);
+    }
+    await p.context().close();
+  }
+  // BONUS 中と RUSH 中（実戦）
+  {
+    const p = await open({ settings: { effects: 'max', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' }, shop: title });
+    await enter(p, 'pachinko');
+    await p.evaluate(() => window.tensu.panel.machine.forceNextHit());
+    let bonus = 0;
+    let rush = 0;
+    for (let k = 0; k < 40 && rush < 3; k++) {
+      if (!(await toAnswering(p))) break;
+      const st = await p.evaluate(() => ({ round: window.tensu.round?.n ?? 0, rush: !!window.tensu.panel.rush }));
+      if (st.round >= 2 && bonus < 3) await snap(p, `bonus-${++bonus}`);
+      else if (!st.round && st.rush) await snap(p, `rush-${++rush}`);
+      await answerCorrect(p);
+      await p.waitForTimeout(500);
+    }
+    await p.context().close();
+  }
+  console.log(`候補を ${dir} に書き出しました`);
+} else if (process.env.CANDIDATES) {
   const dir = join(ROOT, 'store', 'candidates', 'raw');
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
