@@ -395,10 +395,17 @@ main {
   font-size: 14px;
   font-weight: 400;
 }
-/* Android 版：広告が出ている間だけ、行の右端に出す「広告を消す」 */
-#progress .adfree-btn {
-  align-self: center;
-  margin-left: auto;
+/* Android 版：広告が出ている間だけ、ヘッダーの「パチンコ・稽古」と「出題設定」の間に出す「広告を消す」 */
+#adfree-slot {
+  display: flex;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+#adfree-slot:empty {
+  display: none;
+}
+#adfree-slot .adfree-btn {
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
@@ -411,7 +418,7 @@ main {
   font-weight: 700;
   white-space: nowrap;
 }
-#progress .adfree-btn small {
+#adfree-slot .adfree-btn small {
   color: var(--sub);
   font-size: 11px;
   font-weight: 400;
@@ -4401,8 +4408,7 @@ body.exam #open-shop {
 }
 /* スマホ幅ではほかのダイアログと同じ下からのシート（幅いっぱいにして左に寄らないように） */
 @media (max-width: 640px) {
-  #record-dialog,
-  #story-dialog {
+  #record-dialog {
     width: 100vw;
   }
 }
@@ -4458,4 +4464,39 @@ body.exam #open-shop {
 }
 .ex-slot-pip {
   padding: 0 6px;
+}
+
+/* 稽古の段階練習：答えている間は、問題（手牌）を動かさず、段階の一覧だけをスクロールする */
+body.has-steps[data-phase='answering'] #steps {
+  max-height: 40vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@media (max-width: 640px) {
+  body.has-steps[data-phase='answering'] main {
+    overflow: hidden;
+  }
+  body.has-steps[data-phase='answering'] #stage {
+    height: 100%;
+    min-height: 0;
+  }
+  body.has-steps[data-phase='answering'] #question,
+  body.has-steps[data-phase='answering'] #progress {
+    flex: none;
+  }
+  body.has-steps[data-phase='answering'] #steps {
+    flex: 1 1 0;
+    min-height: 72px;
+    max-height: none;
+  }
+}
+/* 狭い幅では値段を隠して「広告を消す」だけにする */
+@media (max-width: 420px) {
+  #adfree-slot .adfree-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+  #adfree-slot .adfree-btn small {
+    display: none;
+  }
 }

@@ -394,6 +394,8 @@ export class App {
     const el = $('#steps');
     el.hidden = !this.steps;
     el.innerHTML = this.steps ? this.steps.html() : '';
+    // 段階練習で答えている間は、問題（手牌）を固定して段階の一覧だけをスクロールさせる
+    document.body.classList.toggle('has-steps', !!this.steps && !this.steps.done);
     // スマホでは下の入力欄に隠れないよう、今の段階を画面の中ほどに出す
     if (this.compact && this.steps && !this.steps.done && this.steps.results.length) {
       scrollToView(el.querySelector('li.now'), 'center');
@@ -1602,14 +1604,14 @@ export class App {
     const acc = ss.answered ? Math.round((ss.correct / ss.answered) * 100) : 100;
     $('#progress').innerHTML = `<span>${ss.answered + (this.phase === 'answering' || this.phase === 'suspense' ? 1 : 0)}${total}</span>
       <span class="muted">正答率 ${acc}%</span>
-      <span class="streak${ss.streak >= 20 ? ' holo' : ss.streak >= 10 ? ' ten' : ss.streak >= 5 ? ' mid' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>${this.ballsTag()}${this.sourceTag()}${this.adFreeTag()}`;
+      <span class="streak${ss.streak >= 20 ? ' holo' : ss.streak >= 10 ? ' ten' : ss.streak >= 5 ? ' mid' : ''}">${ss.streak ? `${ss.streak}連` : ''}</span>${this.ballsTag()}${this.sourceTag()}`;
   }
 
-  /** Android 版：広告が出ている間だけ、問題数の行の右端に「広告を消す」（押すと購入画面） */
-  private adFreeTag(): string {
+  /** Android 版：広告が出ている間だけ、ヘッダーの「パチンコ・稽古」と「出題設定」の間に「広告を消す」（押すと購入画面） */
+  private renderAdFree(): void {
     const p = purchaseState();
-    if (!p.available || p.owned || p.busy || !document.body.classList.contains('has-ad')) return '';
-    return `<button class="adfree-btn" type="button" data-adfree>広告を消す${p.price ? `<small>${p.price}</small>` : ''}</button>`;
+    const show = p.available && !p.owned && !p.busy && document.body.classList.contains('has-ad');
+    $('#adfree-slot').innerHTML = show ? `<button class="adfree-btn" type="button" data-adfree>広告を消す${p.price ? `<small>${p.price}</small>` : ''}</button>` : '';
   }
 
   /** 稽古の出題の種類（復習・苦手ドリル）を問題数の横に出す */
@@ -1831,15 +1833,23 @@ export class App {
     this.bindGuide();
     this.bindSettings();
     let lastMessage = '';
+    $('#adfree-slot').addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('[data-adfree]')) void buyRemoveAds();
+    });
+    this.renderAdFree();
     onPurchaseChange((p) => {
       this.renderProgress();
+      this.renderAdFree();
       if ($<HTMLDialogElement>('#settings-dialog').open) this.renderSettings();
-      // 問題数の行のボタンから買ったときは、結果を一言ガイドで知らせる（設定からのときは設定の中に出る）
+      // ヘッダーのボタンから買ったときは、結果を一言ガイドで知らせる（設定からのときは設定の中に出る）
       else if (p.message && p.message !== lastMessage) this.toast(p.message);
       lastMessage = p.message;
     });
     // 広告が出た・消えたら「広告を消す」を出し直す
-    document.addEventListener('ads:change', () => this.renderProgress());
+    document.addEventListener('ads:change', () => {
+      this.renderProgress();
+      this.renderAdFree();
+    });
     // 隠れたら音を止め、画面ロックや別アプリから戻ったら起こし直す（iOS は止まったままになる）
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'visible') {
@@ -1872,11 +1882,6 @@ export class App {
     });
     $('#overlay').addEventListener('click', () => this.fx.tap());
     $('#stage').addEventListener('click', (e) => {
-      // 「広告を消す」は購入画面を開く（次の問題へは進まない）
-      if ((e.target as HTMLElement).closest('[data-adfree]')) {
-        void buyRemoveAds();
-        return;
-      }
       // 解説の「符の数え方」はヘルプを開く（次の問題へは進まない）
       const link = (e.target as HTMLElement).closest<HTMLElement>('[data-help-link]');
       if (link) {
@@ -2767,6 +2772,7 @@ const SHELL = `
     <button class="play-tab" role="tab" data-play="pachinko">パチンコ</button>
     <button class="play-tab" role="tab" data-play="keiko">稽古</button>
   </div>
+  <span id="adfree-slot"></span>
   <div class="top-right">
     <button id="cfg-toggle" class="cfg-pill" type="button" aria-expanded="false" aria-controls="config"></button>
     <button id="open-menu" class="icon-btn menu-btn" type="button" aria-label="メニュー"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><i class="menu-dot" hidden></i></button>

@@ -276,6 +276,12 @@ body.start-open {
   color: #f1e9d4;
   box-shadow: 0 0 0 1px rgba(242, 201, 76, 0.35), 0 20px 60px rgba(0, 0, 0, 0.6);
 }
+/* スマホ幅ではほかのダイアログと同じ下からのシート。幅いっぱいにして左に寄らないように（この指定は #story-dialog の幅より後に置く） */
+@media (max-width: 640px) {
+  #story-dialog {
+    width: 100vw;
+  }
+}
 .story {
   display: flex;
   flex-direction: column;
