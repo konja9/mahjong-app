@@ -3,7 +3,7 @@ import { generateHandQuestion } from '../src/core/generator';
 import { DEFAULT_RULES } from '../src/core/rules';
 import { formatAnswer } from '../src/core/score';
 import { hanBucket, stepCorrect, studySteps } from '../src/core/steps';
-import { StepRun } from '../src/ui/steps';
+import { StepRun, stepVerdict } from '../src/ui/steps';
 
 function mulberry32(seed: number) {
   return () => {
@@ -74,5 +74,17 @@ describe('稽古の段階練習', () => {
     expect(run.allCorrect).toBe(true);
     expect(run.total).toBe(run.steps.length - 1);
     expect(run.html()).toContain('副底');
+  });
+});
+
+describe('段階練習の判定', () => {
+  it('全部正解は正解、点数が合えばほぼ正解、過半数ならおしい、それ以外は不正解', () => {
+    expect(stepVerdict(7, 7, true)).toBe('ok');
+    expect(stepVerdict(6, 7, true)).toBe('almost');
+    expect(stepVerdict(1, 7, true)).toBe('almost');
+    expect(stepVerdict(4, 7, false)).toBe('close');
+    expect(stepVerdict(3, 7, false)).toBe('ng');
+    expect(stepVerdict(2, 3, false)).toBe('close');
+    expect(stepVerdict(1, 3, false)).toBe('ng');
   });
 });

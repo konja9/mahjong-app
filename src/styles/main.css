@@ -748,7 +748,11 @@ main {
   background: var(--error);
   color: var(--bg);
 }
-/* 稽古：最後の点数は合っていた（途中の段階を間違えた） */
+/* 稽古の段階練習：ほぼ正解（最後の点数は合っていた）・おしい（過半数の段階が合っていた） */
+.verdict.almost .mark {
+  background: #8fd18a;
+  color: var(--bg);
+}
 .verdict.close .mark {
   background: #f2a93b;
   color: var(--bg);

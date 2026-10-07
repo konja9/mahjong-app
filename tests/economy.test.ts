@@ -64,16 +64,16 @@ describe('経済バランス（シミュレーション）', () => {
     });
   }
   // 大当りが重い台は1回の試行のばらつきが大きいので、長めにまわして平均をとる
-  it('ミドル・MAX（実戦のみ）：中級は約115%、上級は約250%', () => {
-    for (const id of ['middle', 'max'] as const) {
-      const mid = [11, 21, 31].map((sd) => simulate('jissen', 0.85, 0.5, sd, 100000, SPECS[id])).reduce((a, b) => a + b) / 3;
+  it('ミドル（符計算・実戦）・MAX（実戦）：中級は約115%、上級は約250%', () => {
+    for (const id of ['middle', 'max'] as const) for (const mode of SPECS[id].modes) {
+      const mid = [11, 21, 31].map((sd) => simulate(mode, 0.85, 0.5, sd, 100000, SPECS[id])).reduce((a, b) => a + b) / 3;
       expect(mid).toBeGreaterThan(1.05);
       expect(mid).toBeLessThan(1.27);
-      const pro = simulate('jissen', 0.95, 0.8, 12, 100000, SPECS[id]);
+      const pro = simulate(mode, 0.95, 0.8, 12, 100000, SPECS[id]);
       expect(pro).toBeGreaterThan(2.0);
       expect(pro).toBeLessThan(3.4);
     }
-  }, 120000);
+  }, 240000);
   it('上の台ほど1セッション（300問）の振れ幅が大きい', () => {
     const spread = (spec: MachineSpec) => {
       const xs = Array.from({ length: 120 }, (_, i) => simulate('jissen', 0.85, 0.5, 500 + i, 300, spec));

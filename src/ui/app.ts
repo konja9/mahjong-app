@@ -47,7 +47,8 @@ import { type StartChoice, StartScreen } from './start';
 import { charaSvg } from './tutorial/chara';
 import { logoSvg } from './brand/logo';
 import type { ChapterId, TutorialAction } from './tutorial/script';
-import { SPECS } from './machine/specs';
+import { SPECS, allows, fallbackMode, modesLabel } from './machine/specs';
+import { lockSvg } from './machine/partArt';
 import { effectiveSpec } from './machine/mods';
 import { PARTS, type PartId, SLOT_RANKS, applyParts, equipPart, loadParts, nextSlotRank, rewardsFor, saveParts, slotsFor, unequipPart } from './machine/parts';
 import { type Rank, canTakeExam, examIntroHtml, examResultHtml, examTabHtml, notebookHtml, notebookName, unreadNotes, judge, loadExam, nextRank, rankName, recordPass, saveExam } from './exam';
@@ -268,7 +269,7 @@ export class App {
     });
     this.renderSlots();
     this.panel.machine.spec = this.spec;
-    if (this.spec.jissenOnly && this.s.mode !== 'jissen') this.s = { ...this.s, mode: 'jissen' };
+    if (!allows(this.spec, this.s.mode)) this.s = { ...this.s, mode: fallbackMode(this.spec, this.s.mode) };
     this.applyLooks();
     this.applyTheme();
     this.configureSound();
@@ -367,7 +368,7 @@ export class App {
 
   /** 音量（稽古は効果音を鳴らさず BGM だけ）と、場面の BGM */
   private configureSound(): void {
-    configureAudio(this.s.sfxVolume, this.s.bgmVolume, !this.keiko);
+    configureAudio(this.s.sfxVolume, this.s.bgmVolume);
     this.syncScene();
   }
 
@@ -441,17 +442,19 @@ export class App {
       b.classList.toggle('on', on);
       b.setAttribute('aria-selected', String(on));
     });
-    // パチンコは種目タブ（ミドル以上の台は実戦のみ）。稽古は学習モードと出題の2段
+    // パチンコは種目タブ（上の台では出せない種目を鍵つきで押せなくする）。稽古は学習モードと出題の2段
     const tabs = $('#mode-tabs');
     tabs.classList.toggle('keiko-tabs', this.keiko);
+    const only = modesLabel(this.spec);
     tabs.innerHTML = this.keiko
       ? keikoTabsHtml(view)
       : (['hayami', 'fu', 'jissen'] as Mode[])
-          .map(
-            (m) =>
-              `<button class="mode-tab${s.mode === m ? ' on' : ''}${this.spec.jissenOnly && m !== 'jissen' ? ' locked' : ''}" role="tab" aria-selected="${s.mode === m}" data-mode="${m}">${MODE_NAMES[m]}</button>`,
+          .map((m) =>
+            allows(this.spec, m)
+              ? `<button class="mode-tab${s.mode === m ? ' on' : ''}" role="tab" aria-selected="${s.mode === m}" data-mode="${m}">${MODE_NAMES[m]}</button>`
+              : `<button class="mode-tab locked" role="tab" aria-selected="false" disabled aria-disabled="true" title="${this.spec.name}の台では選べません">${lockSvg()}${MODE_NAMES[m]}</button>`,
           )
-          .join('');
+          .join('') + (only ? `<small class="mode-note">${this.spec.name}の台は ${only}</small>` : '');
     $('#cfg-toggle').innerHTML = configSummaryHtml(view);
   }
 
@@ -506,10 +509,10 @@ export class App {
     else if (document.activeElement && $('#config').contains(document.activeElement)) $('#cfg-toggle').focus({ preventScroll: true });
   }
 
-  /** 出題モードの切り替え。ミドル以上の台は実戦のみ */
+  /** 出題モードの切り替え。上の台では出せる種目が限られる（ミドルは符計算・実戦、MAX は実戦） */
   private setMode(m: Mode): void {
-    if (!this.keiko && this.spec.jissenOnly && m !== 'jissen') {
-      this.toast(`${this.spec.name}の台は実戦のみです。メニューの「台選び」で甘デジに戻すと切り替えられます`);
+    if (!this.keiko && !allows(this.spec, m)) {
+      this.toast(`${this.spec.name}の台は ${modesLabel(this.spec)} です。メニューの「台選び」で甘デジに戻すと切り替えられます`);
       return;
     }
     this.update({ mode: m });
@@ -1286,6 +1289,11 @@ export class App {
     const st = run.current!;
     const typed = this.stepTyped;
     run.answer(typed ? this.input : st.options[this.picked].value, typed);
+    // 段階の正誤の音（正解は段階が進むほど高く）。最後の段階は判定の音に任せる
+    if (!run.done) {
+      if (run.results.at(-1)?.ok) sfx.step(run.answered.length - 1);
+      else sfx.miss();
+    }
     this.renderSteps();
     queueMicrotask(() => this.tut.notify('stepAnswered'));
     if (run.done) return false;
@@ -1401,6 +1409,8 @@ export class App {
       }
       // パチンコの正解（通常の問題・BONUS）で経験値。量は種目で決まる（稽古は下で入れる）
       if (!this.keiko) this.gainExp(expFor(this.q.mode));
+      // 稽古は台の演出がないので、正解の音だけ鳴らす
+      if (this.keiko) sfx.comboHit(streak);
       if (!this.keiko) {
         this.fx.hit(streak, answerEl);
         // 正解＝始動口入賞。ラウンド中は台に玉を入れない
@@ -1437,10 +1447,13 @@ export class App {
       const diagHtml = diag.length ? `<div class="diagnosis">${diagnosisText(diag)}</div>` : '';
       // 通常時のお金は計器だけで見せる。BONUS の外れはパンク
       const penalty = this.isRoundQ ? '<span class="punk">パンク（賞金なし）</span>' : '';
-      // 稽古：途中の段階を間違えても、最後の点数が合っていれば「おしい！」（記録は不正解のまま）
-      const close = this.steps && !timeout && this.steps.answered.at(-1)?.step.element === 'score' && this.steps.answered.at(-1)?.ok;
-      $('#result').innerHTML = `<div class="verdict ${close ? 'close' : 'ng'}"><span class="mark">${close ? 'おしい！' : '不正解'}</span><span class="${this.steps ? 'muted' : 'yours'}">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${diagHtml}${explain}`;
-      this.fx.lose(this.isChoice ? $('#choices') : answerEl, false);
+      // 稽古の段階練習：点数が合えば「ほぼ正解！」、過半数の段階が合えば「おしい！」（記録は不正解のまま）
+      const v = this.steps && !timeout ? this.steps.verdict : 'ng';
+      const mark = v === 'almost' ? 'ほぼ正解！' : v === 'close' ? 'おしい！' : '不正解';
+      $('#result').innerHTML = `<div class="verdict ${v === 'ok' ? 'ng' : v}"><span class="mark">${mark}</span><span class="${this.steps ? 'muted' : 'yours'}">${yours}</span><span class="arrow">→</span><span class="ans">${this.correctText()}</span>${penalty}</div>${diagHtml}${explain}`;
+      // 稽古は台の外れの音（グリッチ）ではなく、判定に合わせた控えめな音
+      if (this.keiko) (v === 'almost' ? sfx.lampUp : sfx.miss)();
+      else this.fx.lose(this.isChoice ? $('#choices') : answerEl, false);
       if (!this.keiko && !this.isRoundQ) {
         this.talk(diag.length ? 'nearMiss' : 'miss');
         this.tip('miss');
@@ -2107,8 +2120,10 @@ export class App {
     switch (a) {
       case 'pachinko':
         if (this.round) return;
-        if (this.keiko || this.s.answerStyle !== 'choice' || (this.s.mode !== 'hayami' && !this.spec.jissenOnly)) {
-          this.update({ playMode: 'pachinko', answerStyle: 'choice', ...(this.spec.jissenOnly ? {} : { mode: 'hayami' as Mode }) });
+        // 上の台では種目が限られるので、チュートリアルは甘デジで見せる
+        if (this.shop.machine !== 'ama') this.switchMachine('ama');
+        if (this.keiko || this.s.answerStyle !== 'choice' || this.s.mode !== 'hayami') {
+          this.update({ playMode: 'pachinko', answerStyle: 'choice', mode: 'hayami' });
         }
         return;
       case 'freeBet':
@@ -2140,7 +2155,7 @@ export class App {
         return;
       case 'modeHayami':
         // 早見に切り替えて、その問題を出す（台が実戦のみなら切り替えない）
-        if (this.round || this.spec.jissenOnly) return;
+        if (this.round || !allows(this.spec, 'hayami')) return;
         if (this.s.mode !== 'hayami') this.update({ mode: 'hayami' });
         else if (this.phase !== 'answering') this.next();
         return;
@@ -2320,14 +2335,14 @@ export class App {
     if (price > 0) this.changeBalance(-price);
   }
 
-  /** 台の切り替え：台（保留・RUSH）はリセット。ミドル以上は実戦に固定 */
+  /** 台の切り替え：台（保留・RUSH）はリセット。その台で出せない種目なら切り替える */
   private switchMachine(id: keyof typeof SPECS): void {
     if (!this.shop.machines.includes(id) || this.round || !this.panel.idle) return;
     this.shop.machine = id;
     saveShop(this.shop);
     this.panel.machine.spec = this.spec;
-    if (SPECS[id].jissenOnly && this.s.mode !== 'jissen') {
-      this.s = { ...this.s, mode: 'jissen' };
+    if (!allows(SPECS[id], this.s.mode)) {
+      this.s = { ...this.s, mode: fallbackMode(SPECS[id], this.s.mode) };
       saveSettings(this.s);
     }
     this.renderConfig();

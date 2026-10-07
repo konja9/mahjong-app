@@ -595,6 +595,14 @@ body.busy .bet-box .bar {
 .verdict.close .mark::before {
   content: '△ ';
 }
+.verdict.almost .mark::before {
+  content: '◯ ';
+}
+.verdict.almost .mark {
+  background: transparent;
+  color: #8fd18a;
+  box-shadow: inset 0 0 0 1.5px #8fd18a;
+}
 .verdict.close .mark {
   background: transparent;
   color: #f2a93b;
@@ -1103,10 +1111,37 @@ body.busy .bet-box .bar {
 .swatch.skin-urushi { background: linear-gradient(135deg, #3a0c0c 40%, #e0b85a); }
 .swatch.skin-rainbow { background: conic-gradient(#ff5f6d, #ffc371, #47e5bc, #6a8dff, #d66bff, #ff5f6d); }
 
-/* 出題モード：ミドル以上の台では実戦のみ */
-.mode-tab.locked,
+/* 出題モード：上の台で出せない種目は、鍵つき・斜線で押せないタブにする */
 .cfg.locked {
   opacity: 0.3;
+}
+.mode-tabs {
+  flex-wrap: wrap;
+}
+.mode-tab.locked {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: color-mix(in srgb, var(--sub) 60%, transparent);
+  background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 0 6px, transparent 6px 12px), color-mix(in srgb, var(--sub-bg) 70%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  cursor: not-allowed;
+}
+.mode-tab.locked:hover {
+  color: color-mix(in srgb, var(--sub) 60%, transparent);
+}
+.mode-tab.locked .lock-art {
+  width: 15px;
+  height: 15px;
+  filter: grayscale(0.7) brightness(0.8);
+}
+.mode-note {
+  flex-basis: 100%;
+  margin-top: -2px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--sub);
 }
 
 /* 液晶帯：台の名前と称号 */
@@ -2583,14 +2618,5 @@ body[data-phase='summary'] #meter,
   .h-phone {
     width: min(100%, 260px);
     margin: 0 auto;
-  }
-}
-/* PC のキーボードの説明は、タッチだけの端末では出さない */
-.h-pc .set-sec {
-  margin-top: 10px;
-}
-@media (hover: none) and (pointer: coarse) {
-  .h-pc {
-    display: none;
   }
 }

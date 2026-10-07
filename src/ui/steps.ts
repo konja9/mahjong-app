@@ -12,6 +12,15 @@ export interface StepResult {
   ok: boolean;
 }
 
+/** 段階練習の判定。全部正解／点数は合った（ほぼ正解）／過半数が正解（おしい）／不正解 */
+export type StepVerdict = 'ok' | 'almost' | 'close' | 'ng';
+
+export function stepVerdict(ok: number, total: number, scoreOk: boolean): StepVerdict {
+  if (total > 0 && ok >= total) return 'ok';
+  if (scoreOk) return 'almost';
+  return ok * 2 > total ? 'close' : 'ng';
+}
+
 /**
  * 稽古の段階練習の進行。間違えた段階はその場で正解と理由を見せ、正しい値で次へ進む
  * （後の段階が巻き添えで外れないように、各段階は正解の値を前提に問う）。
@@ -56,6 +65,12 @@ export class StepRun {
 
   get total(): number {
     return this.steps.filter((s) => !s.auto).length;
+  }
+
+  /** 判定（答え終わってから使う） */
+  get verdict(): StepVerdict {
+    const last = this.answered.at(-1);
+    return stepVerdict(this.okCount, this.total, !!last && last.step.element === 'score' && last.ok);
   }
 
   answer(value: number | string, typed: boolean): boolean {

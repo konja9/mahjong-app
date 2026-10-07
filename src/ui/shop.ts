@@ -3,7 +3,7 @@
  * 保存は tensu.shop.v1 にまとめる。破産しても消えない（購入は恒久的な yan の使い道）
  */
 import type { Mode } from '../core/generator';
-import { MACHINE_IDS, type MachineId, SPECS } from './machine/specs';
+import { MACHINE_IDS, type MachineId, SPECS, modesLabel } from './machine/specs';
 import { PARTS, PART_ORDER, type PartsState } from './machine/parts';
 import { partSvg, slotRowHtml } from './machine/partArt';
 import { load, save } from './storage';
@@ -194,7 +194,7 @@ export function machinesHtml(s: ShopState, balance: number, canSwitch: boolean):
           ? `<button class="shop-btn" data-machine="${id}"${canSwitch ? '' : ' disabled'}>この台にする</button>`
           : `<button class="shop-btn buy" data-unlock="${id}"${balance >= sp.price ? '' : ' disabled'}>${yen(sp.price)}で解放</button>`;
       return `<div class="shop-row${cur ? ' cur' : ''}">
-        <div><div class="shop-name">${sp.name}${sp.jissenOnly ? '<em>実戦のみ</em>' : ''}</div>
+        <div><div class="shop-name">${sp.name}${modesLabel(sp) ? `<em>${modesLabel(sp)}</em>` : ''}</div>
         <div class="shop-flavor">${sp.flavor}</div>
         <div class="shop-desc">大当り 1/${sp.odds}・RUSH 1/${sp.rushOdds}（${sp.st}回転）・BONUS ${sp.rounds}問・BET ×${sp.betMult}・賞金 ×${sp.prizeMult}</div></div>${btn}</div>`;
     }).join('') +

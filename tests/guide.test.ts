@@ -36,12 +36,11 @@ describe('遊び方', () => {
     );
   });
 
-  it('基本タブにゲームの目的・画面の見方・スマホの操作、台タブにコンボ（電チュー）の説明がある', () => {
+  it('基本タブにゲームの目的・画面の見方、台タブにコンボ（電チュー）の説明がある', () => {
     const basic = helpHtml('basic', 'jissen');
-    for (const id of ['goal', 'screen', 'flow', 'modes', 'ops', 'bet']) expect(basic).toContain(`id="h-${id}"`);
+    for (const id of ['goal', 'screen', 'flow', 'modes', 'bet']) expect(basic).toContain(`id="h-${id}"`);
+    expect(basic).not.toContain('id="h-ops"');
     expect(basic).toContain('タップ');
-    // キーボードの説明は PC 用の囲みに入れる（タッチだけの端末では隠す）
-    expect(basic).toMatch(/class="h-pc"[\s\S]*<kbd>Tab<\/kbd>/);
     const html = helpHtml('machine', 'jissen');
     expect(html).toContain(`${ECONOMY.denchu.jissen}連`);
     expect(html).toContain(`${ECONOMY.denchu.hayami}連`);

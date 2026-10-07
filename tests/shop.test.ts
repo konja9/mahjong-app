@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SPECS, allows, fallbackMode, modesLabel } from '../src/ui/machine/specs';
 import { ITEMS, buyItem, checkUnlocks, equipItem, freshShop, loadShop, unlockMachine } from '../src/ui/shop';
 
 describe('交換所', () => {
@@ -77,5 +78,25 @@ describe('交換所のタブ', () => {
     const bgm = itemsHtml(s, 0, true, 'bgm');
     expect(bgm).toContain('ユーロビート');
     expect(bgm).not.toContain('朱漆');
+  });
+});
+
+describe('台で出せる種目', () => {
+  it('甘デジはすべて、ミドルは符計算・実戦、MAX は実戦だけ', () => {
+    expect(SPECS.ama.modes).toEqual(['hayami', 'fu', 'jissen']);
+    expect(allows(SPECS.middle, 'hayami')).toBe(false);
+    expect(allows(SPECS.middle, 'fu')).toBe(true);
+    expect(SPECS.max.modes).toEqual(['jissen']);
+  });
+  it('出せない種目は、その台の最初の種目に替える', () => {
+    expect(fallbackMode(SPECS.middle, 'hayami')).toBe('fu');
+    expect(fallbackMode(SPECS.middle, 'jissen')).toBe('jissen');
+    expect(fallbackMode(SPECS.max, 'fu')).toBe('jissen');
+    expect(fallbackMode(SPECS.ama, 'hayami')).toBe('hayami');
+  });
+  it('種目の札', () => {
+    expect(modesLabel(SPECS.ama)).toBe('');
+    expect(modesLabel(SPECS.middle)).toBe('符計算・実戦');
+    expect(modesLabel(SPECS.max)).toBe('実戦のみ');
   });
 });

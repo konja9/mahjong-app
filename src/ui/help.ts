@@ -10,7 +10,7 @@ import { parseTiles, windName } from '../core/tiles';
 import { blocksHtml, fuTable } from './explain';
 import { ECONOMY, costFor, denchuFor, fastSecondsFor, fuScale, uwanoseMean } from './machine/economy';
 import { KAKUHEN_RATE, NORMAL_ODDS, RUSH_ODDS, ST_SPINS } from './machine/machine';
-import { MACHINE_IDS, SPECS } from './machine/specs';
+import { MACHINE_IDS, SPECS, modesLabel } from './machine/specs';
 import { FINAL_LEVEL, MODE_EXP } from './level';
 
 export type HelpTab = 'basic' | 'fu' | 'machine' | 'bonus' | 'grow' | 'terms';
@@ -106,24 +106,6 @@ function basic(): string {
         <dt>符計算</dt><dd>手牌と状況から符を答える。答えは 20〜60符の6択（70符以上は出題しません。理由は「符の数え方」タブに）。</dd>
         <dt>実戦</dt><dd>手牌と状況から役・翻・符を数えて点数を答える。</dd>
       </dl>`,
-    ) +
-    card(
-      'ops',
-      '操作',
-      '',
-      `<dl class="help-dl">
-        <dt>答える</dt><dd>選択肢のボタンをタップ。出題設定で「入力」にすると、テンキーで数字を入れて答えます（子のツモは「子-親」、例 1000-2000）。</dd>
-        <dt>次の問題へ</dt><dd>判定が出たら、画面のどこかか「次へ」をタップ。</dd>
-        <dt>解説</dt><dd>解説の「符の数え方 ›」をタップすると、この遊び方の符の章が開きます。</dd>
-        <dt>台</dt><dd>液晶帯をタップで台選び、改造の枠をタップで改造、パチふとくんをタップでひとこと。</dd>
-        <dt>メニュー</dt><dd>右上の ≡ か、経験値の帯をタップ。</dd>
-      </dl>
-      <div class="h-pc"><div class="set-sec">PC のキーボード</div>
-      <dl class="help-dl keys">
-        <dt><kbd>1</kbd>-<kbd>4</kbd></dt><dd>選択肢を選ぶ。符計算は <kbd>1</kbd>-<kbd>6</kbd> で 20符〜60符</dd>
-        <dt><kbd>Tab</kbd></dt><dd>パス / 次へ</dd>
-        <dt><kbd>Esc</kbd></dt><dd>入力を消す（入力で答えるとき）</dd>
-      </dl></div>`,
     ) +
     card(
       'bet',
@@ -281,10 +263,10 @@ function machine(): string {
       'machine',
       '台選び',
       '',
-      `<p><b>液晶帯をタップ</b>するか、メニューの「台選び」から。大当りは重いが BONUS が長く賞金の大きいミドル・MAX を yan で解放できます（ミドル以上は実戦のみ）。</p>
-      <table class="help-table"><tr><th></th><th>大当り</th><th>RUSH</th><th>BONUS</th></tr>${MACHINE_IDS.map((id) => {
+      `<p><b>液晶帯をタップ</b>するか、メニューの「台選び」から。大当りは重いが BONUS が長く賞金の大きいミドル・MAX を yan で解放できます。上の台ほど出せる種目が難しいものに限られます。</p>
+      <table class="help-table"><tr><th></th><th>種目</th><th>大当り</th><th>RUSH</th><th>BONUS</th></tr>${MACHINE_IDS.map((id) => {
         const sp = SPECS[id];
-        return `<tr><th>${sp.name}</th><td>1/${sp.odds}</td><td>1/${sp.rushOdds}×${sp.st}</td><td>${sp.rounds}問</td></tr>`;
+        return `<tr><th>${sp.name}</th><td>${modesLabel(sp) || 'すべて'}</td><td>1/${sp.odds}</td><td>1/${sp.rushOdds}×${sp.st}</td><td>${sp.rounds}問</td></tr>`;
       }).join('')}</table>`,
     )
   );
