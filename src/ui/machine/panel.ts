@@ -76,10 +76,7 @@ export class MachinePanel {
         <div class="m-screen"></div>
         <div class="lcd-info">
           <div class="m-head"><button class="m-spec" type="button" aria-label="台選び"></button><span class="m-state">通常</span><span class="m-st"></span><span class="m-spins">回転 <b data-k="sinceHit">0</b></span></div>
-          <div class="m-row">
-            <div class="m-msg" aria-live="polite"></div>
-            <div class="m-news" aria-hidden="true" hidden><b>NEWS</b><div class="m-news-track"><span></span></div></div>
-          </div>
+          <div class="m-msg" aria-live="polite"></div>
           <div class="m-bottom">
             <div class="m-holds" aria-label="保留">${Array.from({ length: maxHolds() }, () => '<span class="hold"></span>').join('')}</div>
             <button class="m-chara" type="button" aria-label="パチふとくん" data-silent></button>
@@ -275,7 +272,6 @@ export class MachinePanel {
     const full = this.level() === 'max';
     const fast = this.machine.rush ? 0.7 : 1;
     this.root.classList.remove('reach', 'hot', 'win');
-    this.hideNews();
     this.msg('', '');
     // 回転開始時の予告（先読み）
     // パチふとくん予告（出なければ、いつもの予告）
@@ -426,9 +422,8 @@ export class MachinePanel {
 
   /** パチふとくんの一言（液晶帯の中段に吹き出し）。リーチ中・BONUS 中は出さない */
   say(text: string, f: Face): void {
-    this.face(f, 3400);
+    this.face(f, Math.max(3400, text.length * 140));
     if (this.root.classList.contains('reach') || this.root.classList.contains('bonus')) return;
-    this.hideNews();
     const el = this.root.querySelector<HTMLElement>('.m-say')!;
     el.textContent = text;
     el.hidden = false;
@@ -436,51 +431,8 @@ export class MachinePanel {
     void el.offsetWidth;
     el.classList.add('pop');
     clearTimeout(this.sayTimer);
-    this.sayTimer = window.setTimeout(() => (el.hidden = true), 3200);
-  }
-
-  private newsTimer = 0;
-
-  /** ニュースを流せるか：台が止まっていて、液晶帯の文字・吹き出し・BONUS・リーチが出ていない */
-  get canNews(): boolean {
-    const msg = this.root.querySelector<HTMLElement>('.m-msg')!;
-    const say = this.root.querySelector<HTMLElement>('.m-say')!;
-    return (
-      this.idle &&
-      !this.isStopped &&
-      !msg.textContent &&
-      say.hidden &&
-      !this.root.classList.contains('bonus') &&
-      !this.root.classList.contains('reach')
-    );
-  }
-
-  get newsShown(): boolean {
-    return !this.root.querySelector<HTMLElement>('.m-news')!.hidden;
-  }
-
-  /** 世紀末ニュースを1本流す（still は動きを減らす設定：流さずに出して消す） */
-  news(text: string, still = false): void {
-    const el = this.root.querySelector<HTMLElement>('.m-news')!;
-    const track = el.querySelector<HTMLElement>('.m-news-track')!;
-    const span = track.querySelector<HTMLElement>('span')!;
-    span.textContent = text;
-    el.hidden = false;
-    el.classList.toggle('still', still);
-    span.style.animation = 'none';
-    void span.offsetWidth;
-    // 一定の速さで流す（長い見出しほど長く）
-    const dist = track.clientWidth + span.scrollWidth;
-    const ms = still ? 6000 : Math.max(5000, (dist / 48) * 1000);
-    span.style.animation = still ? '' : `news-scroll ${ms}ms linear forwards`;
-    clearTimeout(this.newsTimer);
-    this.newsTimer = window.setTimeout(() => this.hideNews(), ms + 200);
-  }
-
-  hideNews(): void {
-    clearTimeout(this.newsTimer);
-    const el = this.root.querySelector<HTMLElement>('.m-news');
-    if (el) el.hidden = true;
+    // 長い一言ほど長く出す
+    this.sayTimer = window.setTimeout(() => (el.hidden = true), Math.max(3200, text.length * 140));
   }
 
   /** 吹き出しを消す */
@@ -490,7 +442,6 @@ export class MachinePanel {
   }
 
   private msg(text: string, cls: string): void {
-    if (text) this.hideNews();
     const el = this.root.querySelector<HTMLElement>('.m-msg')!;
     el.className = `m-msg ${cls}`;
     el.textContent = text;

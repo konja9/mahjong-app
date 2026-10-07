@@ -1998,72 +1998,6 @@ body[data-phase='summary'] #exp-strip {
   }
 }
 
-/* ============================================================ 液晶の世紀末ニュース（台が止まっている間に流れるテロップ） */
-#machine .m-row {
-  display: grid;
-  min-width: 0;
-}
-#machine .m-row > * {
-  grid-area: 1 / 1;
-  min-width: 0;
-}
-#machine .m-news {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  /* 右端は常駐のパチふとくんの頭とかぶるので空ける */
-  padding-right: 50px;
-  overflow: hidden;
-  font-family: 'Noto Sans JP', sans-serif;
-  font-weight: 700;
-  font-size: 12px;
-  line-height: 18px;
-  color: #ffb547;
-  text-shadow: 0 0 6px rgba(255, 140, 30, 0.7);
-  animation: lu-fade 0.4s ease-out both;
-}
-#machine .m-news[hidden] {
-  display: none;
-}
-#machine .m-news b {
-  flex: none;
-  padding: 0 4px;
-  border-radius: 3px;
-  background: #c8323c;
-  color: #fff;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  text-shadow: none;
-}
-#machine .m-news-track {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-}
-#machine .m-news-track span {
-  display: inline-block;
-  padding-left: 100%;
-}
-#machine .m-news.still .m-news-track span {
-  padding-left: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  vertical-align: bottom;
-}
-@keyframes news-scroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-100%); }
-}
-@media (min-width: 641px) {
-  #machine .m-news {
-    font-size: 14px;
-  }
-}
 
 /* ============================================================ 段位の札（経験値の帯） */
 .xp-rank {
@@ -2101,4 +2035,303 @@ body[data-phase='summary'] #exp-strip {
 }
 .parts-pips i.on {
   background: var(--main);
+}
+
+/* ============================================================ 1行の計器（Lv・所持yan＋本日・BET）と経験値の線 */
+#meter,
+:root[data-play='pachinko'] #meter {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 6px;
+  padding-top: 7px;
+}
+:root[data-play='keiko'] #meter {
+  grid-template-columns: auto;
+  justify-content: start;
+}
+:root[data-play='keiko'] #meter .mt-credit,
+:root[data-play='keiko'] #meter .mt-bet {
+  display: none;
+}
+body[data-phase='summary'] #meter,
+:root[data-play='pachinko'] body[data-phase='summary'] #meter {
+  display: none;
+}
+#xp-line {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 0;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+#xp-line > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--main) 50%, transparent), var(--main));
+  box-shadow: 0 0 6px color-mix(in srgb, var(--main) 60%, transparent);
+  transition: width 0.6s;
+}
+#meter .mt-cell {
+  min-height: 40px;
+  padding: 4px 10px;
+}
+/* Lv の札（タップでメニュー） */
+#dock #meter #exp-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  width: auto;
+  height: auto;
+  padding: 4px 10px;
+  border: 0;
+  color: var(--sub);
+  font: inherit;
+  cursor: pointer;
+}
+#dock #meter #exp-strip .xp-lv {
+  font-size: 14px;
+}
+#dock #meter #exp-strip .xp-rank {
+  font-size: 10px;
+}
+/* 所持yan と、その横の本日の収支（BONUS 中は出玉） */
+#meter .mt-credit {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 4px;
+}
+#meter .mt-unit {
+  display: inline;
+  font-size: 10px;
+}
+#meter .mt-credit .mt-net {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-left: auto;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+#meter .mt-credit .mt-net b {
+  font-size: 13px;
+  color: var(--sub);
+}
+#meter .mt-credit .mt-net.minus b {
+  color: #ff8a98;
+}
+#meter .mt-credit .mt-net.bonus b,
+#meter .mt-credit .mt-net.bonus small {
+  color: var(--gold-hot);
+}
+
+/* ============================================================ ヘッダー：メニューのボタン */
+.menu-btn {
+  position: relative;
+}
+.menu-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e2483d;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.menu-dot[hidden] {
+  display: none;
+}
+body.exam #open-menu {
+  display: none;
+}
+
+/* ============================================================ メニュー */
+.menu .mn-me {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 4px 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+.mn-face {
+  flex: none;
+  width: 64px;
+}
+.mn-face svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.mn-stat {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.mn-lv {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.mn-lv b {
+  color: var(--main);
+  font-size: 18px;
+}
+.mn-norank {
+  font-size: 11px;
+  color: var(--sub);
+}
+.mn-title {
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--text);
+}
+.mn-xp {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.mn-xp i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--main) 50%, transparent), var(--main));
+}
+.mn-next {
+  font-size: 11px;
+  color: var(--sub);
+}
+.mn-money {
+  font-size: 12px;
+  color: var(--sub);
+}
+.mn-money b {
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+}
+.mn-money b.minus {
+  color: #ff8a98;
+}
+.mn-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 14px;
+}
+.mn-tile {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  min-height: 60px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #231b14, #15110d);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1px var(--line);
+  text-align: left;
+  cursor: pointer;
+}
+.mn-tile:hover,
+.mn-tile:focus-visible {
+  box-shadow: inset 0 0 0 1.5px var(--main);
+  outline: none;
+}
+.mn-tile b {
+  font-size: 15px;
+}
+.mn-tile small {
+  font-size: 11px;
+  color: var(--sub);
+}
+.mn-new {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: #e2483d;
+  color: #fff;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 14px;
+}
+.mn-tile[data-menu='start'] {
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+
+/* 昇段試験のタブ：次の試験 */
+.ex-next {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #3a1a10, #200c07);
+  box-shadow: inset 0 0 0 1.5px rgba(242, 201, 76, 0.7);
+}
+.ex-next > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.ex-next small {
+  color: var(--sub);
+}
+.ex-next b {
+  font-size: 22px;
+  color: #ffe9a0;
+}
+.ex-next .shop-btn {
+  justify-self: start;
+}
+.shop-state.ex-open {
+  color: #ffe9a0;
+}
+
+@media (max-width: 640px) {
+  /* スマホではロゴを出さず、ヘッダーを広く使う（スタート画面へはメニューから） */
+  #top .logo {
+    display: none;
+  }
+}
+#dock #meter #exp-strip .xp-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+#dock #meter #exp-strip .mt-title {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+}
+
+/* PC 幅：ページを下へ送ってもヘッダー（パチンコ・稽古・出題・メニュー）を上に残す。液晶帯はその下に貼り付く */
+@media (min-width: 641px) {
+  #top {
+    position: sticky;
+    top: var(--ad-h, 0px);
+    z-index: 30;
+    margin: -8px -12px 0;
+    padding: 8px 12px;
+    border-radius: 0 0 12px 12px;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(6px);
+  }
+  :root[data-play='pachinko'] #machine {
+    top: calc(var(--ad-h, 0px) + 64px);
+  }
 }

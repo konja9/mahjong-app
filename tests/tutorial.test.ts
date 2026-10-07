@@ -13,7 +13,7 @@ describe('チュートリアルの台本', () => {
     expect(lines[0]).toContain('クケケケ、久しぶりの新顔だな');
   });
   it('光らせる場所は画面にある要素を指す', () => {
-    const known = /^(#question|#choices|#machine|#meter|#steps|#mode-tabs|#cfg-toggle|#open-shop|#exp-strip|#open-story|#open-help|#open-settings|\.play-tab)/;
+    const known = /^(#question|#choices|#machine|#meter|#steps|#mode-tabs|#cfg-toggle|#open-menu|#exp-strip|\.play-tab)/;
     for (const c of CHAPTERS) for (const s of c.steps) if (s.kind === 'spot') expect(s.target).toMatch(known);
   });
   it('第1章は大当りを待ち、BONUS が終わるまで通しで見せる', () => {
@@ -23,6 +23,11 @@ describe('チュートリアルの台本', () => {
     // BET なしで始め、最後に元へ戻す
     const acts = p.flatMap((s) => (s.kind === 'do' ? [s.action] : []));
     expect(acts.indexOf('freeBet')).toBeLessThan(acts.indexOf('paidBet'));
+  });
+  it('3つの出題の説明では、その種目に切り替えて問題を見せる', () => {
+    const acts = CHAPTERS.find((c) => c.id === 'pachinko')!.steps.flatMap((s) => (s.kind === 'do' ? [s.action] : []));
+    for (const a of ['modeHayami', 'modeFu', 'modeJissen'] as const) expect(acts).toContain(a);
+    expect(acts.lastIndexOf('modeHayami')).toBeGreaterThan(acts.indexOf('modeJissen'));
   });
   it('パチふとくんの表情は5種類', () => {
     for (const f of ['neutral', 'grin', 'surprise', 'proud', 'sweat'] as const) expect(charaSvg(f)).toContain(`data-face="${f}"`);

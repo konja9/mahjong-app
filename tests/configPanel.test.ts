@@ -22,14 +22,14 @@ const sections = (html: string) => [...html.matchAll(/<section class="cfg-sec"><
 const has = (html: string, group: string) => html.includes(`data-group="${group}"`);
 
 describe('出題設定のパネル', () => {
-  it('パチンコには稽古だけの行（問題数・鳴き）が出ず、「成績を見る」がある', () => {
+  it('パチンコには稽古だけの行（問題数・鳴き）が出ない。「成績を見る」はメニューへ移した', () => {
     const d = doc(configPanelHtml(view({ mode: 'fu' }, false)));
     expect(sections(d)).toEqual(['答え方', '状況']);
     expect(btn(d, 'answer', 'steps')).toBeNull();
     // 制限時間はなしで固定
     expect(has(d, 'time')).toBe(false);
     expect(has(d, 'count')).toBe(false);
-    expect(d).toMatch(/data-summary>成績を見る/);
+    expect(d).not.toContain('data-summary');
     expect(d).not.toContain('精算');
   });
   it('稽古のパネルは回答・問題数・鳴き・親子・和了だけ（形・分布・段階・出題・制限時間はない）', () => {

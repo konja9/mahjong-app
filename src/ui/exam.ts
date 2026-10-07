@@ -152,3 +152,29 @@ export function examResultHtml(rank: Rank, j: Judge, slots: number, missed: numb
       <div class="lu-buttons"><button class="lu-btn lu-read" type="button" data-lu="exam">もう一度</button><button class="lu-btn" type="button" data-lu="close">やめる</button></div>
     </div>`;
 }
+
+/** 台のダイアログの「昇段試験」タブ：全段位の状態と、次の試験の条件・［受ける］ */
+export function examTabHtml(s: ExamState, level: number, canStart: boolean): string {
+  const next = nextRank(s.rank);
+  const head = next
+    ? `<div class="ex-next">
+        <div><small>次の試験</small><b>${next.name}</b></div>
+        <div class="shop-desc">${next.about}・${next.pass}問以上正解${next.avgSec ? `・平均 ${next.avgSec}秒以内` : ''}${next.input ? '・数値入力' : ''}</div>
+        ${
+          level >= next.level
+            ? `<button class="shop-btn buy" type="button" data-exam-start${canStart ? '' : ' disabled'}>受ける</button>${canStart ? '' : '<div class="shop-desc">BONUS 中と台が回っている間は受けられません</div>'}`
+            : `<div class="shop-desc">Lv ${next.level} で受けられます（今は Lv ${level}）</div>`
+        }
+      </div>`
+    : '<div class="ex-next"><div><small>段位</small><b>名人</b></div><div class="shop-desc">すべての昇段試験に受かりました</div></div>';
+  const rows = RANKS.map((r, i) => {
+    const passed = i < s.rank;
+    const state = passed
+      ? `<span class="shop-state">合格 ${s.passedAt[i] ?? ''}</span>`
+      : i === s.rank && level >= r.level
+        ? '<span class="shop-state ex-open">受けられる</span>'
+        : `<span class="shop-lock">Lv ${r.level}</span>`;
+    return `<div class="shop-row${passed ? ' cur' : ''}${!passed && level < r.level ? ' locked' : ''}"><div class="mis"><div class="shop-name">${r.name}</div><div class="shop-desc">${r.about}・${r.pass}問${r.avgSec ? `・平均${r.avgSec}秒` : ''}</div></div><div class="shop-acts">${state}</div></div>`;
+  }).join('');
+  return `${head}${rows}<p class="help-note">試験は10問。yan・台・経験値は動きません。受かると改造の枠が増えることがあります。何度でも受け直せます。</p>`;
+}

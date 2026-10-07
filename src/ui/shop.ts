@@ -251,14 +251,14 @@ export function itemsHtml(s: ShopState, balance: number, canPreview = true, tab:
     body = group('BGM（BONUS・RUSH の曲）', of('bgm')) + '<p class="help-note">BONUS と RUSH の間に流れる曲です（通常時・稽古・スタート画面の曲は固定）。試聴は BONUS・RUSH 中以外にできます。</p>';
   else
     body =
-      '<p class="help-note top">装備すると、計器の上の経験値の帯（Lv の横）にプレートで表示されます。色はレア度（コモン・レア・エピック・レジェンド）。</p>' +
+      '<p class="help-note top">装備すると、計器の Lv の下にプレートで表示されます。色はレア度（コモン・レア・エピック・レジェンド）。</p>' +
       group('称号', titles.filter((i) => !i.unlock)) +
       group(`実力の称号 <span class="muted small">${earnedCount}/${titles.filter((i) => i.unlock).length}</span>`, titles.filter((i) => i.unlock)) +
       '<p class="help-note">実力の称号は買えません。パチンコで条件を満たすと自動で手に入ります。</p>';
   return `<div class="cfg-group help-tabs items-tabs" role="tablist">${tabs}</div>${body}`;
 }
 
-const TITLES: Record<ShopView, string> = { machine: '台選び', items: '交換所' };
+const TITLES: Record<ShopView, string> = { machine: '台・改造・昇段', items: '交換所' };
 
 /** 台の改造（パーツの一覧と枠）。canChange：付け替えできるか（BONUS 中・回転中はできない） */
 export interface PartsView {
@@ -291,7 +291,7 @@ export function partsHtml(v: PartsView): string {
 }
 
 /** 台選びのダイアログのタブ */
-export type MachineTab = 'machines' | 'parts';
+export type MachineTab = 'machines' | 'parts' | 'exam';
 
 /** ダイアログの中身 */
 export function shopHtml(
@@ -300,7 +300,7 @@ export function shopHtml(
   balance: number,
   canSwitch: boolean,
   tab: ItemsTab = 'title',
-  parts?: { view: PartsView; tab: MachineTab },
+  parts?: { view: PartsView; tab: MachineTab; examHtml?: string },
 ): string {
   // canSwitch：台選びでは台を切り替えられるか、交換所では試聴できるか
   let body: string;
@@ -311,12 +311,13 @@ export function shopHtml(
           [
             ['machines', '台'],
             ['parts', '改造'],
+            ['exam', '昇段試験'],
           ] as [MachineTab, string][]
         )
           .map(([k, l]) => `<button class="cfg${k === t ? ' on' : ''}" role="tab" aria-selected="${k === t}" data-machine-tab="${k}">${l}${k === 'parts' ? `<small>${parts.view.state.equip.length}/${parts.view.slots}</small>` : ''}</button>`)
           .join('')}</div>`
       : '';
-    body = tabs + (parts && t === 'parts' ? partsHtml(parts.view) : machinesHtml(s, balance, canSwitch));
+    body = tabs + (parts && t === 'parts' ? partsHtml(parts.view) : parts && t === 'exam' ? (parts.examHtml ?? '') : machinesHtml(s, balance, canSwitch));
   } else body = itemsHtml(s, balance, canSwitch, tab);
   return `<div class="settings help shop">
     <div class="set-head"><span>${TITLES[view]}</span><span class="shop-wallet">所持yan <b>${balance.toLocaleString()}</b> yan</span><button class="icon-btn" data-shop-close aria-label="閉じる">×</button></div>

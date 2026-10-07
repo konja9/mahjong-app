@@ -6,7 +6,9 @@ import { EAST } from '../core/tiles';
 import { adPrivacyRequired, showAdPrivacyOptions } from './ads';
 import { buyRemoveAds, onPurchaseChange, purchaseState, restoreRemoveAds } from './purchase';
 import { type TalkEvent, Talker, correctEvent } from './charaTalk';
-import { pickNews } from './news';
+import { gossipLine, pickNews } from './news';
+import { type MenuBadges, type MenuItem, hasBadge, menuBadges, menuHtml } from './menu';
+import { lockPageScroll, scrollToView } from './scroll';
 import { type BgmTrack, bgm, configureAudio, sfx, suspendAudio, unlockAudio } from './audio';
 import { LevelUpFx } from './effects/levelup';
 import { Fx, type WinTier } from './effects/pachinko';
@@ -47,7 +49,7 @@ import type { ChapterId, TutorialAction } from './tutorial/script';
 import { SPECS } from './machine/specs';
 import { effectiveSpec } from './machine/mods';
 import { PARTS, type PartId, applyParts, equipPart, loadParts, rewardsFor, saveParts, slotsFor, unequipPart } from './machine/parts';
-import { type Rank, canTakeExam, examResultHtml, judge, loadExam, nextRank, rankName, recordPass, saveExam } from './exam';
+import { type Rank, canTakeExam, examResultHtml, examTabHtml, judge, loadExam, nextRank, rankName, recordPass, saveExam } from './exam';
 import {
   FINAL_LEVEL,
   KEIKO_EXP,
@@ -138,10 +140,10 @@ const volLabel = (v: number): string => (v <= 0 ? 'オフ' : String(Math.round(v
 /** 答えないままこの時間がたったら、パチふとくんが一言（ミリ秒） */
 const IDLE_TALK_MS = 20000;
 
-/** 世紀末ニュース：最初の1本までの時間・次の1本までの間・出せなかったときに見直す間（ミリ秒） */
-const NEWS_FIRST_MS = 8000;
-const NEWS_GAP_MS = 25000;
-const NEWS_RETRY_MS = 4000;
+/** パチふとくんの世間話：次の話までの間・話せなかったときに見直す間・問題が出てから話し出すまでの静かな時間（ミリ秒） */
+const GOSSIP_GAP_MS = 40000;
+const GOSSIP_RETRY_MS = 5000;
+const GOSSIP_QUIET_MS = 6000;
 export class App {
   private s: Settings = loadSettings();
   private session = newSession();
@@ -262,7 +264,6 @@ export class App {
           level,
           cleared: level >= FINAL_LEVEL,
           unread: unreadChapters(this.lv).length,
-          exam: canTakeExam(this.exam.rank, level) ? nextRank(this.exam.rank)!.name : null,
         };
       },
       onShown: (on) => {
@@ -275,28 +276,29 @@ export class App {
       still: () => this.s.effects === 'off' || matchMedia('(prefers-reduced-motion: reduce)').matches,
     });
     this.start.show();
-    this.scheduleNews(NEWS_FIRST_MS);
+    this.scheduleGossip(GOSSIP_GAP_MS);
   }
 
-  private newsTimer = 0;
+  private gossipTimer = 0;
   private recentNews: string[] = [];
 
-  /** 液晶の世紀末ニュース：台が止まっている間に1本ずつ流す。出せないときは少しあとに見直す */
-  private scheduleNews(ms: number): void {
-    clearTimeout(this.newsTimer);
-    this.newsTimer = window.setTimeout(() => {
+  /** パチふとくんの世間話（世紀末ニュース）：回答中に何もない時間が続いたら、ときどき話す */
+  private scheduleGossip(ms: number): void {
+    clearTimeout(this.gossipTimer);
+    this.gossipTimer = window.setTimeout(() => {
       const ok =
         !this.keiko &&
         !this.examRun &&
-        this.s.effects !== 'off' &&
+        !this.round &&
+        !this.busy &&
         !this.start.shown &&
         !this.tut.active &&
         !this.levelUp.shown &&
         document.visibilityState === 'visible' &&
-        (this.phase === 'answering' || this.phase === 'result') &&
-        this.panel.canNews;
+        this.phase === 'answering' &&
+        performance.now() - this.startedAt > GOSSIP_QUIET_MS;
       if (!ok) {
-        this.scheduleNews(NEWS_RETRY_MS);
+        this.scheduleGossip(GOSSIP_RETRY_MS);
         return;
       }
       const text = pickNews(
@@ -309,9 +311,12 @@ export class App {
         },
         this.recentNews,
       );
-      this.recentNews = [text, ...this.recentNews].slice(0, 8);
-      this.panel.news(text, matchMedia('(prefers-reduced-motion: reduce)').matches);
-      this.scheduleNews(NEWS_GAP_MS);
+      const r = this.talker.gossip(gossipLine(text), performance.now(), this.s.effects !== 'off');
+      if (r.line) {
+        this.recentNews = [text, ...this.recentNews].slice(0, 12);
+        this.panel.say(r.line, r.face);
+        this.scheduleGossip(GOSSIP_GAP_MS);
+      } else this.scheduleGossip(GOSSIP_RETRY_MS);
     }, ms);
   }
 
@@ -372,7 +377,7 @@ export class App {
     el.innerHTML = this.steps ? this.steps.html() : '';
     // スマホでは下の入力欄に隠れないよう、今の段階を画面の中ほどに出す
     if (this.compact && this.steps && !this.steps.done && this.steps.results.length) {
-      el.querySelector('li.now')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      scrollToView(el.querySelector('li.now'), 'center');
     }
   }
 
@@ -474,7 +479,7 @@ export class App {
   /** 出題モードの切り替え。ミドル以上の台は実戦のみ */
   private setMode(m: Mode): void {
     if (!this.keiko && this.spec.jissenOnly && m !== 'jissen') {
-      this.toast(`${this.spec.name}の台は実戦のみです。液晶帯の台選びで甘デジに戻すと切り替えられます`);
+      this.toast(`${this.spec.name}の台は実戦のみです。メニューの「台選び」で甘デジに戻すと切り替えられます`);
       return;
     }
     this.update({ mode: m });
@@ -805,7 +810,7 @@ export class App {
     const v = r ? r.total : this.daily.net;
     el.classList.toggle('bonus', !!r);
     el.classList.toggle('minus', !r && v < 0);
-    el.querySelector('small')!.textContent = r ? '出玉' : '本日の収支';
+    el.querySelector('small')!.textContent = r ? '出玉' : '本日';
     renderOdometer(el.querySelector('b')!, `${v > 0 ? '+' : v < 0 ? '−' : '±'}${Math.abs(v).toLocaleString()}`);
   }
 
@@ -852,7 +857,7 @@ export class App {
     if (rw.cash) this.toast(`祝い金 +${rw.cash.toLocaleString()} yan`, null, true);
     this.pendingRewards = { parts: [], cash: 0 };
     const r = nextRank(this.exam.rank);
-    if (r && ups.includes(r.level)) this.toast(`${r.name}の昇段試験が受けられるようになった。スタート画面から挑戦しな`, null, true);
+    if (r && ups.includes(r.level)) this.toast(`${r.name}の昇段試験が受けられるようになった。メニューの「昇段試験」から挑戦しな`, null, true);
     this.tip('levelUp');
   }
 
@@ -938,6 +943,7 @@ export class App {
     this.panel.machine.spec = this.spec;
     this.panel.render();
     this.renderShop();
+    this.renderMenuDot();
     return true;
   }
 
@@ -1681,6 +1687,8 @@ export class App {
   // ------------------------------------------------------------ 入力
 
   private bind(): void {
+    // スマホ幅でページ全体がずれてヘッダーが隠れないようにする
+    lockPageScroll(this.root, () => this.compact);
     addEventListener('keydown', (e) => this.onKey(e));
     addEventListener('mousemove', () => document.body.classList.remove('typing'));
     // UI のタッチ音：ボタン・タブなどを押したら鳴らす（4択とテンキーは自分の音があるので除く）。
@@ -1756,11 +1764,9 @@ export class App {
         b.blur();
       }
     });
-    $('#open-settings').addEventListener('click', () => this.openSettings());
-    $('#open-help').addEventListener('click', () => this.openHelp());
-    $('#open-shop').addEventListener('click', () => this.openShop('items'));
-    $('#exp-strip').addEventListener('click', () => this.openStory());
-    $('#open-story').addEventListener('click', () => this.openStory());
+    $('#open-menu').addEventListener('click', () => this.openMenu());
+    $('#exp-strip').addEventListener('click', () => this.openMenu());
+    this.bindMenu();
     this.bindStory();
     this.renderExpStrip();
     this.bindShop();
@@ -1984,10 +1990,6 @@ export class App {
       this.playTutorial(ALL_CHAPTERS);
       return;
     }
-    if (c === 'exam') {
-      this.startExam();
-      return;
-    }
     if (this.s.playMode !== c) this.update({ playMode: c });
   }
 
@@ -2044,6 +2046,16 @@ export class App {
       case 'armJackpot':
         this.tutJackpotIn = 2;
         return;
+      case 'modeHayami':
+      case 'modeFu':
+      case 'modeJissen': {
+        // 種目を切り替えて、その種目の問題を出す（台が実戦のみなら切り替えない）
+        const mode: Mode = a === 'modeHayami' ? 'hayami' : a === 'modeFu' ? 'fu' : 'jissen';
+        if (this.round || this.spec.jissenOnly) return;
+        if (this.s.mode !== mode) this.update({ mode });
+        else if (this.phase !== 'answering') this.next();
+        return;
+      }
       case 'nextQuestion':
         if (this.phase === 'result') {
           this.fx.skip();
@@ -2071,7 +2083,7 @@ export class App {
     if (card) {
       const el = dlg.querySelector<HTMLElement>(`#h-${card}`);
       if (el) {
-        el.scrollIntoView({ block: 'start' });
+        scrollToView(el, 'start', false);
         el.classList.add('flash');
       }
     }
@@ -2150,6 +2162,11 @@ export class App {
         this.renderShop();
         return;
       }
+      if ('examStart' in d) {
+        $<HTMLDialogElement>('#shop-dialog').close();
+        this.startExam();
+        return;
+      }
       if (d.partOn || d.partOff) {
         this.equipPart((d.partOn ?? d.partOff) as PartId, !!d.partOn);
         return;
@@ -2202,6 +2219,7 @@ export class App {
         canChange: this.canChangeParts,
       },
       tab: this.machineTab,
+      examHtml: examTabHtml(this.exam, levelOf(this.lv.exp).level, !this.round && this.panel.idle && !this.examRun),
     };
     $('#shop-dialog').innerHTML = shopHtml(this.shop, this.shopView, this.wallet.balance, ok, this.shopItemsTab, parts);
   }
@@ -2252,36 +2270,128 @@ export class App {
   /** 実力の称号の条件を満たしていたら取得して知らせる */
   private grantUnlocks(): void {
     for (const it of checkUnlocks(this.shop)) {
-      this.toast(`称号を獲得：${it.name}（${RARITY_LABEL[it.rarity ?? 'common']}）。交換所で装備すると、経験値のバーに表示されます`, { tab: 'money', card: 'shop' });
+      this.toast(`称号を獲得：${it.name}（${RARITY_LABEL[it.rarity ?? 'common']}）。交換所で装備すると、計器の Lv の下に表示されます`, { tab: 'money', card: 'shop' });
     }
   }
 
-  /** 経験値のバーの称号のプレート（色はレア度）。flash で一瞬光らせる */
+  /** 計器の Lv の札の称号のプレート（色はレア度）。flash で一瞬光らせる */
   private renderTitlePlate(flash = false): void {
     this.renderExpStrip();
-    const el = $('#exp-strip .mt-title');
-    if (flash && el && !el.hidden) {
+    const el = document.querySelector<HTMLElement>('#exp-strip .mt-title');
+    if (flash && el) {
       void el.offsetWidth;
       el.classList.add('flash');
     }
   }
 
-  /** 計器の上の帯：Lv・称号・経験値のバー・次の Lv まで。Lv が上がった瞬間は光らせる */
+  /** 計器の左の Lv の札と、計器の上の経験値の線。Lv が上がった瞬間は光らせる */
   private renderExpStrip(flash = false): void {
     const el = $('#exp-strip');
     const { level, into, need } = levelOf(this.lv.exp);
-    const t = equipped(this.shop, 'title');
-    const unread = unreadChapters(this.lv).length;
-    const done = level >= FINAL_LEVEL;
-    const title = t.value ? `<span class="mt-title r-${t.rarity ?? 'common'}">${t.value}</span>` : '';
     const rank = rankName(this.exam.rank);
-    const rankTag = rank ? `<span class="xp-rank">${rank}</span>` : '';
-    el.innerHTML = `<b class="xp-lv">Lv ${level}</b>${rankTag}${title}<span class="xp-bar"><i style="width:${Math.round((into / need) * 100)}%"></i></span><small class="xp-next">${done ? '<em>完結</em> ' : ''}次まで ${(need - into).toLocaleString()}</small>${unread ? '<em class="xp-new">NEW</em>' : ''}`;
-    el.setAttribute('aria-label', `Lv ${level}。次の Lv まで ${need - into}。タップで物語を読む`);
+    const t = equipped(this.shop, 'title');
+    // 1段目：Lv と段位、2段目：装備した称号（色はレア度）
+    el.innerHTML = `<span class="xp-row"><b class="xp-lv">Lv ${level}</b>${rank ? `<span class="xp-rank">${rank}</span>` : ''}</span>${t.value ? `<span class="mt-title r-${t.rarity ?? 'common'}">${t.value}</span>` : ''}`;
+    el.setAttribute('aria-label', `Lv ${level}${rank ? `・${rank}` : ''}。次の Lv まで ${need - into}。タップでメニュー`);
+    $<HTMLElement>('#xp-line > i').style.width = `${Math.round((into / need) * 100)}%`;
     if (flash) {
       el.classList.remove('flash');
       void el.offsetWidth;
       el.classList.add('flash');
+    }
+    this.renderMenuDot();
+  }
+
+  // ------------------------------------------------------------ メニュー
+
+  private get menuBadges(): MenuBadges {
+    return menuBadges({
+      canExam: canTakeExam(this.exam.rank, levelOf(this.lv.exp).level),
+      slots: this.slots,
+      equipped: this.parts.equip.length,
+      owned: this.parts.owned.length,
+      unread: unreadChapters(this.lv).length,
+    });
+  }
+
+  /** メニューのアイコンの赤い点（やることがあるとき） */
+  private renderMenuDot(): void {
+    const dot = document.querySelector<HTMLElement>('#open-menu .menu-dot');
+    if (dot) dot.hidden = !hasBadge(this.menuBadges);
+  }
+
+  openMenu(): void {
+    const dlg = $<HTMLDialogElement>('#menu-dialog');
+    this.renderMenu();
+    this.pause('menu', true);
+    if (!dlg.open) dlg.showModal();
+  }
+
+  private renderMenu(): void {
+    const { level, into, need } = levelOf(this.lv.exp);
+    const t = equipped(this.shop, 'title');
+    $('#menu-dialog').innerHTML = menuHtml({
+      level,
+      into,
+      need,
+      rank: rankName(this.exam.rank),
+      title: t.value,
+      balance: this.wallet.balance,
+      dayNet: ensureDay(this.daily).net,
+      slots: this.slots,
+      equipped: this.parts.equip.length,
+      machine: SPECS[this.shop.machine].name,
+      keiko: this.keiko,
+      badges: this.menuBadges,
+    });
+  }
+
+  private bindMenu(): void {
+    const dlg = $<HTMLDialogElement>('#menu-dialog');
+    dlg.addEventListener('close', () => this.pause('menu', false));
+    dlg.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t === dlg || t.closest('[data-menu-close]')) {
+        dlg.close();
+        return;
+      }
+      const b = t.closest<HTMLElement>('[data-menu]');
+      if (!b) return;
+      dlg.close();
+      this.menuAction(b.dataset.menu as MenuItem);
+    });
+  }
+
+  /** メニューの各項目を開く。台・改造・昇段試験・成績は稽古ならパチンコに切り替えてから */
+  private menuAction(item: MenuItem): void {
+    const needPachinko = item === 'machine' || item === 'parts' || item === 'exam' || item === 'summary';
+    if (needPachinko && this.keiko) this.update({ playMode: 'pachinko' });
+    switch (item) {
+      case 'machine':
+      case 'parts':
+      case 'exam':
+        this.machineTab = item === 'machine' ? 'machines' : item;
+        this.openShop('machine');
+        return;
+      case 'shop':
+        this.openShop('items');
+        return;
+      case 'story':
+        this.openStory();
+        return;
+      case 'summary':
+        if (this.blockedInBonus()) return;
+        this.showSummary('summary');
+        return;
+      case 'help':
+        this.openHelp();
+        return;
+      case 'settings':
+        this.openSettings();
+        return;
+      case 'start':
+        if (!this.showStart()) this.toast('BONUS や演出の間は、スタート画面に戻れません');
+        return;
     }
   }
 
@@ -2495,7 +2605,6 @@ export class App {
       <div class="set-sec">記録</div>
       <div class="set-row"><div><div class="set-label">所持金 ${this.wallet.balance.toLocaleString()} yan</div><div class="set-desc">パチンコの所持金を ${ECONOMY.initial}yan に戻す（破産 ${this.wallet.bankrupts}回）</div></div><div class="cfg-group"><button class="cfg danger" data-set="wallet" data-v="1">リセット</button></div></div>
       <div class="set-row"><div><div class="set-label">稽古の記録</div><div class="set-desc">復習の手 ${this.kd.reviews.length}問と、要素別の正答率を消去</div></div><div class="cfg-group"><button class="cfg danger" data-set="keiko" data-v="1">リセット</button></div></div>
-      <div class="set-row"><div><div class="set-label">スタート画面</div><div class="set-desc">タイトルに戻る（台と所持金はそのまま）</div></div><div class="cfg-group"><button class="cfg" data-set="start" data-v="1">戻る</button></div></div>
       <div class="set-row"><div><div class="set-label">チュートリアル</div><div class="set-desc">パチふとくんの案内をもう一度見る</div></div><div class="cfg-group"><button class="cfg" data-set="tutorial" data-v="all">全部</button><button class="cfg" data-set="tutorial" data-v="pachinko">パチンコ</button><button class="cfg" data-set="tutorial" data-v="keiko">稽古</button><button class="cfg" data-set="tutorial" data-v="tools">道具</button></div></div>
       <div class="set-row"><div><div class="set-label">一言ガイド</div><div class="set-desc">初めての人向けのヒントをもう一度表示する</div></div><div class="cfg-group"><button class="cfg${this.tipsReset ? ' on' : ''}" data-set="tips" data-v="1">${this.tipsReset ? '表示します' : 'もう一度'}</button></div></div>
       ${this.adSettingsHtml()}
@@ -2521,12 +2630,7 @@ const SHELL = `
   </div>
   <div class="top-right">
     <button id="cfg-toggle" class="cfg-pill" type="button" aria-expanded="false" aria-controls="config"></button>
-    <button id="open-shop" class="icon-btn" aria-label="交換所"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg></button>
-    <button id="open-story" class="icon-btn" aria-label="物語（パチふとくんの記憶）"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg></button>
-    <button id="open-help" class="icon-btn" aria-label="遊び方"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
-    <button id="open-settings" class="icon-btn" aria-label="設定">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-    </button>
+    <button id="open-menu" class="icon-btn menu-btn" type="button" aria-label="メニュー"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><i class="menu-dot" hidden></i></button>
   </div>
 </header>
 <nav id="mode-tabs" class="mode-tabs" role="tablist" aria-label="出題モード"></nav>
@@ -2540,11 +2644,11 @@ const SHELL = `
     <div id="question"></div>
     <div id="steps" hidden></div>
     <div id="dock">
-      <button id="exp-strip" type="button" aria-label="経験値"></button>
       <div id="meter">
-        <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><div class="mt-top"><small>所持yan</small></div><b>0</b></div>
+        <i id="xp-line" aria-hidden="true"><i></i></i>
+        <button id="exp-strip" class="mt-cell mt-lv" type="button" aria-label="経験値"></button>
+        <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><b>0</b><small class="mt-unit">yan</small><span id="net" class="mt-net"><small>本日</small><b>±0</b></span></div>
         <div class="mt-cell mt-bet"><div id="bet" class="bet-box"></div></div>
-        <div class="mt-cell mt-net" id="net"><small>本日の収支</small><b>±0</b></div>
       </div>
       <div id="answer" aria-live="polite"></div>
       <div id="choices" role="group" aria-label="選択肢"></div>
@@ -2566,8 +2670,9 @@ const SHELL = `
 <footer>
   <span class="esc-key"><kbd>Esc</kbd> 入力を消す</span>
   <span><kbd>Tab</kbd> パス / 次へ</span>
-  <span class="muted">遊び方は右上の ? から</span>
+  <span class="muted">遊び方・設定は右上のメニューから</span>
 </footer>
+<dialog id="menu-dialog" aria-label="メニュー"></dialog>
 <dialog id="settings-dialog"></dialog>
 <dialog id="help-dialog"></dialog>
 <dialog id="shop-dialog"></dialog>

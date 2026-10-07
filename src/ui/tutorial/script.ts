@@ -21,6 +21,9 @@ export type TutorialAction =
   | 'freeBet' // チュートリアル中の BET をなしにする
   | 'paidBet' // BET を元に戻す
   | 'keikoFocus' // 稽古の重点学習・通常の出題にする
+  | 'modeHayami' // 早見に切り替えて問題を出す
+  | 'modeFu' // 符計算に切り替えて問題を出す
+  | 'modeJissen' // 実戦に切り替えて問題を出す
   | 'haltMachine'; // 台を止める（残りの保留で次の大当りが起きないように。稽古へ移るときは台がリセットされる）
 
 export type Step =
@@ -69,7 +72,7 @@ export const CHAPTERS: Chapter[] = [
       { kind: 'do', action: 'armJackpot' },
       { kind: 'say', face: 'proud', text: 'クケケ、正解だ。正解すると台に玉が入るぜ。' },
       { kind: 'spot', target: '#machine .m-holds', face: 'neutral', text: '玉が入ると、液晶のランプ（保留）が点く。保留がある限り、台は勝手に回るぜ。', next: 'tap', pad: 8 },
-      { kind: 'spot', target: '#meter', face: 'neutral', text: '下が財布だ。所持yan と、1問ごとの BET（40 yan）、本日の収支。速く正解すりゃ BET は半額、今だけはオレ様のおごりだ。', next: 'tap' },
+      { kind: 'spot', target: '#meter', face: 'neutral', text: '下が計器だ。真ん中が所持yan と本日の収支、右が1問の BET（40 yan）。速く正解すりゃ半額、今だけはオレ様のおごりだ。', next: 'tap' },
       { kind: 'do', action: 'nextQuestion' },
       { kind: 'free', face: 'grin', text: 'あと2問正解してみな。いいことがあるぜ、クケケ。', until: 'bonusStart' },
       { kind: 'say', face: 'surprise', text: '来たァ！　大当りだ！　BONUS に入るぜ！' },
@@ -78,11 +81,16 @@ export const CHAPTERS: Chapter[] = [
       { kind: 'spot', target: '#choices', face: 'neutral', text: '手牌の符を考えて答えてみな。外すとその問題の賞金はパンク（0）だ。', next: 'answered' },
       { kind: 'free', face: 'grin', text: 'その調子だ。BONUS を最後まで答えて、賞金を受け取りな。', until: 'bonusEnd' },
       { kind: 'do', action: 'paidBet' },
-      { kind: 'spot', target: '#mode-tabs [data-mode="hayami"]', face: 'neutral', text: '出題は3種類だ。「早見」は翻と符が出て、点数だけを答える。点数表を体に叩き込むモードだな。', next: 'tap', pad: 4 },
-      { kind: 'spot', target: '#mode-tabs [data-mode="fu"]', face: 'proud', text: '「符計算」は手牌から符を数える。BONUS の賞金は符で決まるから、ここを鍛えりゃ稼ぎが変わるぜ。', next: 'tap', pad: 4 },
-      { kind: 'spot', target: '#mode-tabs [data-mode="jissen"]', face: 'grin', text: '「実戦」は手牌から翻も符も数えて、点数まで出す。卓と同じ本番だ。上の台は実戦だけだぜ。', next: 'tap', pad: 4 },
+      { kind: 'say', face: 'neutral', text: '出題は3種類あって、上のタブで切り替えられる。実際に見せてやるぜ。' },
+      { kind: 'do', action: 'modeHayami' },
+      { kind: 'spot', target: '#question', face: 'neutral', text: 'これが「早見」。翻と符が出て、点数だけを答える。点数表を体に叩き込むモードだな。', next: 'tap', pad: 6 },
+      { kind: 'do', action: 'modeFu' },
+      { kind: 'spot', target: '#question', face: 'proud', text: 'これが「符計算」。手牌から符を数える。BONUS の賞金は符で決まるから、ここを鍛えりゃ稼ぎが変わるぜ。', next: 'tap', pad: 6 },
+      { kind: 'do', action: 'modeJissen' },
+      { kind: 'spot', target: '#question', face: 'grin', text: 'これが「実戦」。翻も符も数えて点数まで出す、卓と同じ本番だ。上の台は実戦だけだぜ。', next: 'tap', pad: 6 },
+      { kind: 'do', action: 'modeHayami' },
       { kind: 'say', face: 'proud', text: 'BONUS のあとに確変を引けば RUSH だ。当たりやすい時間が続くが、外すと回転が減る。腕で引っぱるんだぜ。' },
-      { kind: 'spot', target: '#exp-strip', face: 'surprise', text: '……ん？　稼いだ yan の分、経験値がたまったな。Lv が上がると、オレ様の記憶が……少し戻ってくる、らしい。', next: 'tap', pad: 4 },
+      { kind: 'spot', target: '#meter', face: 'surprise', text: '……ん？　計器の上の線が経験値だ。Lv が上がると改造パーツがもらえて、オレ様の記憶も少し戻る、らしい。', next: 'tap', pad: 4 },
       { kind: 'say', face: 'neutral', text: 'ここからは BET も本物だ。所持金が尽きたら破産だから気をつけな。' },
     ],
   },
@@ -109,10 +117,9 @@ export const CHAPTERS: Chapter[] = [
       { kind: 'free', face: 'grin', text: 'BONUS を遊び切ったら、道具の場所を教えるぜ。', until: 'idle' },
       { kind: 'do', action: 'pachinko' },
       { kind: 'spot', target: '#cfg-toggle', face: 'neutral', text: '出題の設定はここだ。答え方（選択・入力）や、親子・ロンツモを絞れるぜ。', next: 'tap', pad: 6 },
-      { kind: 'spot', target: '#open-shop', face: 'proud', text: '稼いだ yan は交換所で使え。上の台や称号は、この世界での格の証だ。', next: 'tap', pad: 6 },
-      { kind: 'spot', target: '#open-story', face: 'proud', text: '戻った記憶は、この本で読める。Lv 20 まで集めりゃ、オレ様が何者か分かるぜ。', next: 'tap', pad: 6 },
-      { kind: 'spot', target: '#open-help', face: 'neutral', text: '分からなくなったら「？」だ。符の数え方も図で載ってる。', next: 'tap', pad: 6 },
-      { kind: 'spot', target: '#open-settings', face: 'neutral', text: 'この案内は、設定の「チュートリアル」からいつでも見られるぜ。', next: 'tap', pad: 6 },
+      { kind: 'spot', target: '#open-menu', face: 'proud', text: 'ほかの道具は全部このメニューだ。台選び、改造、昇段試験、交換所、物語、遊び方、設定。', next: 'tap', pad: 6 },
+      { kind: 'say', face: 'neutral', text: 'メニューに赤い点が付いたら、やることがある合図だ。受けられる昇段試験や、付けてない改造パーツだな。' },
+      { kind: 'say', face: 'neutral', text: 'この案内は、メニューの「スタート画面へ」からいつでも見られるぜ。' },
       { kind: 'say', face: 'grin', text: 'さあ、行ってこい新顔。ギャンブル王の椅子は、数えられるヤツにしか座れないぜ。クケケケ！' },
     ],
   },

@@ -89,7 +89,7 @@ export function configPanelHtml(v: ConfigView): string {
   const lead = keiko ? '<p class="cfg-lead">変更するとすぐに反映され、1問目からになります</p>' : '';
   const foot = keiko
     ? '<button class="cfg-done sub" type="button" data-restart>最初からやり直す</button>'
-    : '<button class="cfg-done sub" type="button" data-summary>成績を見る<small>ここまでの正答率・収支・大当り履歴を見て区切る。所持金と台はそのまま</small></button>';
+    : '';
 
   return `<div class="cfg-head"><b>出題設定</b><button class="cfg-x" type="button" data-close-cfg aria-label="閉じる">×</button></div>
   <div class="cfg-body">

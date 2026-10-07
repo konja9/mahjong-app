@@ -98,11 +98,11 @@ export function tipText(id: Exclude<TipId, 'firstHit'>, fastSec: number, spec: M
     case 'rushMiss':
       return 'RUSH 中に外すと回転が1つ減る。当て続けるほど RUSH が長く続くぜ';
     case 'shop':
-      return '交換所（右上の景品のアイコン）で称号・スキン・BGM が買えるぜ。格を見せつけな';
+      return 'メニュー（右上の ≡）の交換所で称号・スキン・BGM が買えるぜ。格を見せつけな';
     case 'machine':
-      return `ミドル台を解放できるだけ稼いだな（${SPECS.middle.price.toLocaleString()} yan）。液晶帯の台の名前をタップだ`;
+      return `ミドル台を解放できるだけ稼いだな（${SPECS.middle.price.toLocaleString()} yan）。メニューの「台選び」だ`;
     case 'levelUp':
-      return 'Lv が上がるたび、オレ様の記憶が1話ずつ戻ってくる。経験値のバーか、右上の本のマークで読めるぜ';
+      return 'Lv が上がるたび、オレ様の記憶が1話ずつ戻ってくる。メニュー（右上の ≡）の「物語」で読めるぜ';
   }
 }
 

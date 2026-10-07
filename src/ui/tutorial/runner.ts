@@ -1,3 +1,4 @@
+import { scrollToView } from '../scroll';
 import { load, save } from '../storage';
 import { sfx } from '../audio';
 import { charaSvg } from './chara';
@@ -156,7 +157,7 @@ export class Tutorial {
       this.raf = requestAnimationFrame(follow);
     };
     if (s.kind === 'spot') {
-      requestAnimationFrame(() => document.querySelector(s.target)?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+      requestAnimationFrame(() => scrollToView(document.querySelector(s.target), 'nearest'));
     }
     this.raf = requestAnimationFrame(follow);
   }

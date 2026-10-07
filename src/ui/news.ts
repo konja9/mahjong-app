@@ -1,7 +1,7 @@
 import type { MachineId } from './machine/specs';
 
 /**
- * 液晶帯に流す「世紀末ニュース」。台が止まっているときに1本ずつ流す。
+ * 「世紀末ニュース」。パチふとくんが、回答中にときどき世間話として話す（gossipLine）。
  * 物語に出てくる事柄（勝者法・数え屋・ギャンブル王など）は、その話を読める Lv になってから出す（ネタばれ防止）
  */
 
@@ -20,6 +20,8 @@ interface NewsItem {
   /** 出す条件 */
   when?: (c: NewsContext) => boolean;
   text: string | ((c: NewsContext) => string);
+  /** パチふとくん自身の言葉（頭に「聞いたか？」を付けない） */
+  self?: boolean;
 }
 
 const MACHINE_NAME: Record<MachineId, string> = { ama: '甘デジ', middle: 'ミドル', max: 'MAX' };
@@ -67,8 +69,8 @@ export const NEWS: NewsItem[] = [
   { text: '連続正解で電チュー開放。玉が 2 つ入る台に行列' },
   { text: '保留ランプが金に光った台、周囲の視線を一身に' },
   // 小ネタ
-  { text: 'パチふとくん「オレ様の目の牌は、気分で変わるんだよ」' },
-  { text: 'パチふとくん、本日も液晶の中で回転中。目が回らないのかとの質問に「慣れた」' },
+  { text: 'オレ様の目の牌は、気分で変わるんだよ。クケケ', self: true },
+  { text: '目が回らないのかって？　毎日回ってりゃ慣れるさ', self: true },
   { text: '雀の字から取った通貨 yan。雀は今日も電線で数を数えている' },
 ];
 
@@ -77,6 +79,15 @@ const textOf = (n: NewsItem, c: NewsContext) => (typeof n.text === 'function' ? 
 /** 今出せる見出し */
 export function availableNews(c: NewsContext): string[] {
   return NEWS.filter((n) => (n.minLevel ?? 1) <= c.level && (!n.when || n.when(c))).map((n) => textOf(n, c));
+}
+
+/** 世間話の頭の言葉 */
+const LEADS = ['聞いたか？　', '噂じゃ、', '世紀末ニュースだ。', 'クケ、知ってるか。'];
+
+/** 見出しを、パチふとくんのしゃべり言葉にする */
+export function gossipLine(text: string, rng: () => number = Math.random): string {
+  if (NEWS.some((n) => n.self && n.text === text)) return text;
+  return LEADS[Math.floor(rng() * LEADS.length) % LEADS.length] + text;
 }
 
 /** 見出しを1本選ぶ。recent（直近に出した見出し）は避ける */

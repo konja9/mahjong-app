@@ -79,6 +79,13 @@ export class Talker {
 
   constructor(private rng: () => number = Math.random) {}
 
+  /** 世間話（世紀末ニュース）。前の一言から間があいていれば話す */
+  gossip(line: string, now: number, canSpeak = true): Reaction {
+    if (!canSpeak || now - this.lastAt < TALK_GAP) return { face: 'neutral', line: null };
+    this.lastAt = now;
+    return { face: 'grin', line };
+  }
+
   /** 出来事への反応を決める。now はミリ秒（performance.now など） */
   react(ev: TalkEvent, now: number, canSpeak = true): Reaction {
     const def = TALK[ev];
