@@ -182,23 +182,41 @@ if (want(1)) {
   await p.context().close();
 }
 
-// 2. 実戦の手牌に答えたあとの解説（面子ごとの符の図解と点数）
+// 2. 昇段試験の認定証（段位・改造の枠・帳面の頁）
 if (want(2)) {
-  const p = await open({ settings: { effects: 'off', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' }, shop: title });
+  // ゲンさんの名前は物語の第4話で明かすので、ストアの画像では伏せる（第1〜3話だけ読んだことにする）
+  const read = [1, 2, 3];
+  const p = await open({
+    settings: { effects: 'max', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' },
+    level: { exp: 52000, read },
+    shop: title,
+    extra: { 'tensu.exam.v1': { rank: 5, passedAt: ['2026-09-20', '2026-09-23', '2026-09-26', '2026-09-30', '2026-10-03'], notesRead: [1, 2, 3, 4, 5] } },
+  });
   await enter(p, 'pachinko');
-  // 符の内訳が多い手（刻子や待ちの符がある）を選ぶ
-  for (let k = 0; k < 30; k++) {
-    const rich = await p.evaluate(() => {
-      const q = window.tensu.q;
-      return q?.mode === 'jissen' && q.ev.fu.rows.filter((r) => r.fu > 0).length >= 3 && !q.ev.yakuman;
-    });
-    if (rich) break;
-    await p.evaluate(() => window.tensu.next());
-    await p.waitForTimeout(150);
-  }
-  await answerCorrect(p);
+  await p.click('#open-menu');
+  await p.waitForTimeout(300);
+  await p.click('[data-menu="exam"]');
+  await p.waitForTimeout(400);
+  await p.click('[data-exam-start]');
   await p.waitForTimeout(900);
-  await shot(p, '2-explain');
+  await p.click('[data-lu="exam"]');
+  await p.waitForTimeout(600);
+  for (let k = 0; k < 10; k++) {
+    await toAnswering(p);
+    // 自動で答えると速すぎるので、それまでの答えの秒をそれらしい値にしておく
+    if (k === 9) await p.evaluate(() => (window.tensu.examRun.times = [11.2, 8.4, 13.1, 9.7, 12.5, 7.9, 10.8, 14.2, 9.3]));
+    await answerCorrect(p);
+    await p.waitForTimeout(300);
+    await p.keyboard.press('Enter');
+  }
+  await p.waitForTimeout(2200);
+  // 閉じるボタンは写さない
+  await p.evaluate(() => {
+    document.querySelectorAll('#levelup .lu-buttons').forEach((b) => (b.style.visibility = 'hidden'));
+    const next = document.querySelector('#next-btn');
+    if (next) next.style.visibility = 'hidden';
+  });
+  await shot(p, '2-rank');
   await p.context().close();
 }
 
