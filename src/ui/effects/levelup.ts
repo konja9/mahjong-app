@@ -39,7 +39,7 @@ export function levelUpHtml(v: LevelUpView): string {
   const parts = (v.parts ?? [])
     .map(
       (p) =>
-        `<div class="lu-reward"><small>改造パーツ</small><b>${p.name}</b><span>${p.desc}</span>${v.canEquip ? `<button class="lu-mini" type="button" data-lu-equip="${p.id}">台に付ける</button>` : '<span class="lu-note">枠がいっぱい（台選びの「改造」で付け替え）</span>'}</div>`,
+        `<div class="lu-reward"><small>改造パーツ</small><b>${p.name}</b><span>${p.desc}</span>${v.canEquip ? `<button class="lu-mini" type="button" data-lu-equip="${p.id}">台に付ける</button>` : '<span class="lu-note">枠がいっぱい（メニューの「改造」で付け替え）</span>'}</div>`,
     )
     .join('');
   const cash = v.cash ? `<div class="lu-reward"><small>祝い金</small><b>+${v.cash.toLocaleString()} yan</b></div>` : '';

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RANKS, canTakeExam, judge, loadExam, nextRank, rankName, recordPass, saveExam } from '../src/ui/exam';
+import { NOTEBOOK, RANKS, canTakeExam, certText, examIntro, judge, loadExam, nextRank, notebookHtml, notebookName, rankName, recordPass, saveExam, unreadNotes } from '../src/ui/exam';
 
 describe('昇段試験', () => {
   it('2 Lv ごとに全10段階。Lv 2 で5級、Lv 20 で名人', () => {
@@ -48,9 +48,35 @@ describe('昇段試験', () => {
     expect(s.rank).toBe(0);
     recordPass(s, '2026-10-06');
     saveExam(s);
-    expect(loadExam()).toEqual({ rank: 1, passedAt: ['2026-10-06'] });
+    expect(loadExam()).toEqual({ rank: 1, passedAt: ['2026-10-06'], notesRead: [] });
     store.set('tensu.exam.v1', JSON.stringify({ rank: 99 }));
     expect(loadExam().rank).toBe(10);
     delete (globalThis as { localStorage?: unknown }).localStorage;
+  });
+});
+
+describe('昇段試験と物語', () => {
+  it('帳面は段位と同じ10頁', () => {
+    expect(NOTEBOOK).toHaveLength(RANKS.length);
+    for (const p of NOTEBOOK) expect(p.tip.length + p.scene.length).toBeLessThanOrEqual(200);
+  });
+  it('第4話を読む前は、前口上・認定証・帳面にゲンさんの名前を出さない', () => {
+    const before = [1, 2, 3];
+    expect(examIntro(RANKS[0], before)).not.toContain('ゲン');
+    expect(certText('5級', before)).not.toContain('ゲン');
+    expect(notebookName(before)).toBe('誰かの帳面');
+    expect(notebookHtml({ rank: 1, passedAt: [] }, before)).not.toContain('ゲンさん');
+    expect(certText('5級', [4])).toContain('ゲンさん');
+    expect(notebookName([4])).toBe('ゲンさんの帳面');
+  });
+  it('前口上は物語の進み具合で変わる', () => {
+    const r = RANKS[3];
+    const lines = [[], [4], [4, 11], [4, 11, 18]].map((read) => examIntro(r, read));
+    expect(new Set(lines).size).toBe(4);
+    expect(lines[3]).toContain('約束');
+  });
+  it('読んでいない帳面の頁を数える', () => {
+    expect(unreadNotes({ rank: 3, passedAt: [], notesRead: [1] })).toBe(2);
+    expect(unreadNotes({ rank: 3, passedAt: [], notesRead: [1, 2, 3] })).toBe(0);
   });
 });

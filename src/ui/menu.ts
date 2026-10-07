@@ -58,7 +58,7 @@ export function menuHtml(v: MenuView): string {
       <div class="mn-stat">
         <div class="mn-lv"><b>Lv ${v.level}</b>${v.rank ? `<span class="xp-rank">${v.rank}</span>` : '<span class="mn-norank">段位なし</span>'}${v.title ? `<span class="mn-title">${v.title}</span>` : ''}</div>
         <div class="mn-xp"><i style="width:${pct}%"></i></div>
-        <small class="mn-next">次の Lv まで ${(v.need - v.into).toLocaleString()}</small>
+        <small class="mn-next">${v.into.toLocaleString()} / ${v.need.toLocaleString()} exp</small>
         <div class="mn-money">所持 <b>${v.balance.toLocaleString()}</b> yan ・ 本日 <b class="${v.dayNet < 0 ? 'minus' : ''}">${signed(v.dayNet)}</b></div>
       </div>
     </div>

@@ -271,7 +271,24 @@ export const chapterLength = (c: Chapter): number => c.body.join('').length;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 /** 本の目次 */
-export function storyIndexHtml(s: LevelState): string {
+/** 目次の上の文（読める話の数＝物語の進み具合で変える。先の話はばらさない） */
+export function storyLead(open: number): string {
+  if (open >= STORY.length) return '全部、思い出した。ここから先は、オレ様とお前の自己満足だ。';
+  if (open >= 15) return '封の奥が、もうすぐ見える。';
+  if (open >= 10) return 'ネオンの賭場。記憶は、暗い場所へ進んでいく。';
+  if (open >= 6) return '楽しかった遊びが、少しずつ形を変えていく。';
+  if (open >= 2) return '昼間のホールの、にぎやかな記憶。……だが、その先に何かがある。';
+  return '錆びついた回路の奥で、何かが目を覚ました。yan を稼ぐたび、記憶が少しずつ戻ってくる。';
+}
+
+/** 物語の本の切り替え（記憶＝本編・帳面＝昇段試験で集める外伝） */
+export function storyTabsHtml(active: 'memory' | 'notebook', notebook: string, notesNew: boolean): string {
+  const tab = (id: string, label: string, on: boolean, extra = '') =>
+    `<button class="cfg${on ? ' on' : ''}" type="button" role="tab" aria-selected="${on}" data-story="${id}">${label}${extra}</button>`;
+  return `<div class="cfg-group help-tabs story-tabs" role="tablist">${tab('index', '記憶', active === 'memory')}${tab('notebook', notebook, active === 'notebook', notesNew ? '<em class="sc-new">NEW</em>' : '')}</div>`;
+}
+
+export function storyIndexHtml(s: LevelState, tabs = ''): string {
   const { level } = levelOf(s.exp);
   const open = unlockedChapters(level);
   const done = level >= FINAL_LEVEL;
@@ -281,11 +298,9 @@ export function storyIndexHtml(s: LevelState): string {
     const isNew = !s.read.includes(n);
     return `<li><button type="button" data-story="${n}"><span class="sc-n">${n}</span><span class="sc-t">${esc(c.title)}</span>${isNew ? '<em class="sc-new">NEW</em>' : ''}</button></li>`;
   }).join('');
-  const head = done
-    ? '<p class="story-lead">物語は完結した。ここから先の Lv は、オレ様とお前の自己満足だ。</p>'
-    : `<p class="story-lead">yan を稼いで Lv が上がるたび、パチふとくんの記憶が1話ずつ戻ってくる。Lv ${FINAL_LEVEL} で完結。</p>`;
+  const head = `<p class="story-lead">${storyLead(open)}</p>`;
   return `<div class="story-head"><h2>パチふとくんの記憶</h2><span class="story-lv">Lv ${level}${done ? ' <b class="story-clear">完結</b>' : ''}</span><button class="icon-btn" type="button" data-story-close aria-label="閉じる">✕</button></div>
-    ${head}<ol class="story-index">${items}</ol>`;
+    ${tabs}${head}<ol class="story-index">${items}</ol>`;
 }
 
 /** 1話の本文 */

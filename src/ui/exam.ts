@@ -101,6 +101,8 @@ export interface ExamState {
   rank: number;
   /** 受かった日（段位の順） */
   passedAt: string[];
+  /** 読んだ帳面の頁（1〜10） */
+  notesRead?: number[];
 }
 
 const KEY = 'tensu.exam.v1';
@@ -108,7 +110,8 @@ const KEY = 'tensu.exam.v1';
 export function loadExam(): ExamState {
   const s = load<Partial<ExamState>>(KEY, {});
   const rank = Math.min(RANKS.length, Math.max(0, Math.floor(Number(s.rank) || 0)));
-  return { rank, passedAt: Array.isArray(s.passedAt) ? s.passedAt.slice(0, rank) : [] };
+  const notesRead = Array.isArray(s.notesRead) ? s.notesRead.filter((n) => Number.isInteger(n) && n >= 1 && n <= rank) : [];
+  return { rank, passedAt: Array.isArray(s.passedAt) ? s.passedAt.slice(0, rank) : [], notesRead };
 }
 
 export const saveExam = (s: ExamState): void => save(KEY, s);
@@ -121,7 +124,7 @@ export function recordPass(s: ExamState, today: string): void {
 }
 
 /** 試験の結果（合格なら認定証、不合格なら足りなかったところ）。slots は増えた枠の数（0 は増えていない） */
-export function examResultHtml(rank: Rank, j: Judge, slots: number, missed: number[]): string {
+export function examResultHtml(rank: Rank, j: Judge, slots: number, missed: number[], read: number[] = []): string {
   const avg = `${j.avg.toFixed(1)}秒`;
   const stats = `<div class="ex-stats"><div><small>正解</small><b>${j.correct}<u>/${rank.modes.length}</u></b></div><div><small>平均の速さ</small><b>${avg}</b></div></div>`;
   if (j.pass) {
@@ -131,11 +134,12 @@ export function examResultHtml(rank: Rank, j: Judge, slots: number, missed: numb
         <div class="ex-paper">
           <small>認定証</small>
           <div class="ex-rank">${rank.name}</div>
-          <p>右の者、点数計算の腕前を確かめ、<br>ゲンさんの早見表を受け継ぐ者として<br><b>${rank.name}</b>を認める。</p>
+          <p>${certText(rank.name, read)}</p>
           ${stats}
           <div class="ex-seal" aria-hidden="true">發</div>
         </div>
-        ${slots ? `<div class="lu-reward"><small>改造の枠</small><b>${slots}つに増えた</b><span>台選びの「改造」でパーツを付けられる</span></div>` : ''}
+        ${notePageHtml(RANKS.indexOf(rank) + 1, read)}
+        ${slots ? `<div class="lu-reward"><small>改造の枠</small><b>${slots}つに増えた</b><span>メニューの「改造」でパーツを付けられる</span></div>` : ''}
         <div class="lu-buttons"><button class="lu-btn lu-read" type="button" data-lu="close">閉じる</button></div>
       </div>`;
   }
@@ -178,3 +182,123 @@ export function examTabHtml(s: ExamState, level: number, canStart: boolean): str
   }).join('');
   return `${head}${rows}<p class="help-note">試験は10問。yan・台・経験値は動きません。受かると改造の枠が増えることがあります。何度でも受け直せます。</p>`;
 }
+
+// ------------------------------------------------------------ 世界観：パチふとくんの「数えの試験」と、ゲンさんの帳面
+
+/**
+ * 昇段試験は、パチふとくんが課す「数えの試験」。場所は液晶の中の「ゲンさんの机」。
+ * 段位は、賭場で「この人には数え屋は要らない」と分かる証。
+ * 受かるたびに、ゲンさんが机で使っていた帳面の1頁が戻ってくる（物語の外伝）。
+ * ゲンさんの名前は、物語の第4話（ゲンさんが出てくる話）を読むまで伏せる
+ */
+export const GEN_CHAPTER = 4;
+
+/** 物語の第4話を読んだか（ゲンさんの名前を出してよいか） */
+export const knowsGen = (read: number[]): boolean => read.includes(GEN_CHAPTER);
+
+export interface NotePage {
+  /** 数え方のコツ（ゲンさんの手書き） */
+  tip: string;
+  /** その頁にまつわる場面 */
+  scene: string;
+}
+
+/** ゲンさんの帳面（段位の順に1頁ずつ。5級 → 名人） */
+export const NOTEBOOK: NotePage[] = [
+  {
+    tip: '一行目は「30符1翻、子ロン1000」。全部の基本はここだ。翻が1つ増えるたびに点はほぼ倍。2翻で2000、3翻で3900。100点未満は切り上げる。',
+    scene: '閉店後、学生に早見表を写させながら。「丸暗記でいい。体が覚えりゃ、卓で迷わねえ」',
+  },
+  {
+    tip: '親は子の1.5倍。子ロン1000なら親ロン1500。ツモは、子なら「子の払い-親の払い」の2つ、親なら全員から同じ額。表を見る前に、まず親か子かを確かめろ。',
+    scene: '仕事帰りの姉ちゃんに、紙ナプキンの裏で。',
+  },
+  {
+    tip: '符は副底20から足していく。門前ロンは+10、ツモは+2。最後に10の位へ切り上げる。七対子だけは25符で固定。例外は例外として覚えとけ。',
+    scene: '符で言い合う若いのの間に割って入って。「言い合う前に、副底から順に声に出せ」',
+  },
+  {
+    tip: '中張牌の明刻は2符、么九牌なら倍。暗刻はさらに倍、槓子は刻子の4倍。役牌の雀頭は2符。嵌張・辺張・単騎も2符。一つずつ指で数えろ。急ぐのはそれからだ。',
+    scene: '麻雀だこのある指で、牌を一枚ずつ指しながら。',
+  },
+  {
+    tip: '満貫からは符は関係ねえ。子の満貫8000、跳満12000、倍満16000。卓でいちばん損するのは、満貫を知らずに安く払うことだ。',
+    scene: '景品のチョコを一つかじりながら。',
+  },
+  {
+    tip: '速く数えるコツは、よく出る形を形ごと覚えること。平和ツモは20符、喰いタンは30符。見た瞬間に分かれば、残りの時間で確かめられる。',
+    scene: '閉店間際、壁の時計を見上げながら。',
+  },
+  {
+    tip: '子のツモは「子の払い-親の払い」。30符3翻なら1000-2000。親のツモは全員から同じで2000オール。ツモの+2符を忘れるな。平和だけは例外だ。',
+    scene: '夜の店で、眠そうな客の肩を叩いて。',
+  },
+  {
+    tip: '高い符は、暗刻と槓子と待ちから来る。么九牌の暗槓は一つで32符。見落とせば点が一段変わる。手牌を見たら、まず重い面子から数えろ。',
+    scene: '店のすみの机で、最後まで残った客と。',
+  },
+  {
+    tip: '全部当てるやつは、間違えないんじゃねえ。間違えたときに気づくんだ。答えを出したら、もう一度だけ副底から数え直せ。一度でいい。',
+    scene: '帳面に、太い字で書きつけてあった。',
+  },
+  {
+    tip: '数え方は、誰にも取り上げられねえ。家も yan も取られても、これだけは残る。だから、次のやつに渡せ。オレが机でやったみたいにな。',
+    scene: '帳面の最後の頁。字が少し震えている。',
+  },
+];
+
+/** 帳面の呼び名（ゲンさんを知る前は伏せる） */
+export const notebookName = (read: number[]): string => (knowsGen(read) ? 'ゲンさんの帳面' : '誰かの帳面');
+
+/** 帳面の1頁（認定証の下・物語の本で読む） */
+export function notePageHtml(n: number, read: number[]): string {
+  const p = NOTEBOOK[n - 1];
+  if (!p) return '';
+  return `<div class="ex-note"><small>${notebookName(read)}　第${n}頁</small><p class="ex-note-tip">${p.tip}</p><p class="ex-note-scene">${p.scene}</p></div>`;
+}
+
+/** 試験の前の、パチふとくんの前口上（物語の進み具合で変わる） */
+export function examIntro(rank: Rank, read: number[]): string {
+  const lead = read.includes(18)
+    ? '約束だからな。数え方を、最後まで叩き込んでやる。'
+    : read.includes(11)
+      ? 'ここは液晶の中の、あのジジイの机だ。数え屋に三割くれてやる気がねえなら、座りな。'
+      : knowsGen(read)
+        ? '誰かがこうやって、卓のそばで数え方を教えてた気がするんだ。……まあいい、座りな。'
+        : 'オレ様の試験だ。なんで試験なんかするのかって？　……分からねえ。体が勝手にやりたがるんだ。';
+  const cond = `${rank.about}、${rank.pass}問以上正解${rank.avgSec ? `・平均 ${rank.avgSec}秒以内` : ''}${rank.input ? '・数値入力' : ''}`;
+  return `${lead}<br><b>${rank.name}</b>の試験は ${cond}。全部、お前の力で数えな。`;
+}
+
+/** 認定証の文（ゲンさんを知る前は名前を出さない） */
+export function certText(rankName: string, read: number[]): string {
+  return knowsGen(read)
+    ? `右の者、点数を自分の力で数える腕前を確かめ、<br>ゲンさんの早見表を受け継ぐ者として<br><b>${rankName}</b>を認める。`
+    : `右の者、点数を自分の力で数える腕前を確かめ、<br><b>${rankName}</b>を認める。`;
+}
+
+/** 試験の前口上の画面 */
+export function examIntroHtml(rank: Rank, read: number[]): string {
+  return `<div class="lu-inner ex-intro" role="dialog" aria-label="昇段試験">
+      <div class="lu-chara">${charaSvg('neutral')}</div>
+      <div class="lu-title">昇段試験</div>
+      <p class="lu-say">${examIntro(rank, read)}</p>
+      <div class="lu-buttons"><button class="lu-btn lu-read" type="button" data-lu="exam">始める</button><button class="lu-btn" type="button" data-lu="close">やめる</button></div>
+    </div>`;
+}
+
+/** 物語の本の「帳面」：集めた頁（まだの頁は段位を示して伏せる） */
+export function notebookHtml(s: ExamState, read: number[]): string {
+  const pages = NOTEBOOK.map((_, i) => {
+    const n = i + 1;
+    if (n > s.rank) return `<div class="ex-note locked"><small>第${n}頁</small><p>${RANKS[i].name}に受かると読める</p></div>`;
+    return notePageHtml(n, read);
+  }).join('');
+  const lead = knowsGen(read)
+    ? 'ゲンさんの手書きの帳面。昇段試験に受かるたびに、1頁ずつ戻ってくる。'
+    : '誰かの手書きの帳面。昇段試験に受かるたびに、1頁ずつ戻ってくる。';
+  return `<p class="story-lead">${lead}</p><div class="ex-notebook">${pages}</div>`;
+}
+
+/** まだ読んでいない帳面の頁があるか */
+export const unreadNotes = (s: ExamState): number => Math.max(0, s.rank - (s.notesRead ?? []).filter((n) => n <= s.rank).length);

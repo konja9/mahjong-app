@@ -15,7 +15,7 @@ import {
   unlockedChapters,
   unreadChapters,
 } from '../src/ui/level';
-import { STORY, chapterLength, storyChapterHtml, storyIndexHtml } from '../src/ui/story';
+import { STORY, chapterLength, storyChapterHtml, storyIndexHtml, storyLead } from '../src/ui/story';
 import { simulateDetail } from './sim';
 
 describe('経験値と Lv', () => {
@@ -94,6 +94,14 @@ describe('本日の収支（朝5時で区切る）', () => {
     expect(ensureDay({ day: '2026-10-06', net: 500 }, '2026-10-06').net).toBe(500);
     expect(ensureDay({ day: '2026-10-06', net: 500 }, '2026-10-07')).toEqual({ day: '2026-10-07', net: 0 });
     expect(ensureDay(undefined, '2026-10-07').net).toBe(0);
+  });
+});
+
+describe('物語の目次の文', () => {
+  it('「Lv 20 で完結」は出さず、進み具合で文が変わる', () => {
+    const leads = [1, 3, 7, 12, 17, 20].map(storyLead);
+    expect(new Set(leads).size).toBe(6);
+    for (const l of leads) expect(l).not.toContain('完結');
   });
 });
 

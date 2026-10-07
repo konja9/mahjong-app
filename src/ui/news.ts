@@ -12,6 +12,8 @@ export interface NewsContext {
   dayNet: number;
   machine: MachineId;
   rush: boolean;
+  /** 段位の名前（なしは空） */
+  rank?: string;
 }
 
 interface NewsItem {
@@ -61,6 +63,9 @@ export const NEWS: NewsItem[] = [
   { when: (c) => c.balance < 300, text: '財布の軽い雀士、甘デジの前で深呼吸。まずは BET を守れ' },
   { when: (c) => c.rush, text: 'RUSH 継続中の台あり。周りの客が固唾をのむ' },
   { when: (c) => c.level >= 10, text: (c) => `Lv ${c.level} の雀士、数え屋いらずと評判に` },
+  { when: (c) => !!c.rank, text: (c) => `${c.rank}の札を下げた新顔、卓で一度も払い過ぎず` },
+  { minLevel: 11, when: (c) => !!c.rank, text: (c) => `${c.rank}の雀士が来た日、数え屋は店の外で煙草を吸っていた` },
+  { minLevel: 11, text: '段位持ちの雀士には、数え屋も声をかけない。数えの段位は、賭場の通行証だ' },
   // 台・遊びのニュース
   { text: 'MAX 台、本日も沈黙。ギャンブル王の椅子に一番近い台' },
   { text: 'ミドル台の BONUS、10 ラウンド完走者に拍手' },

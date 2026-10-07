@@ -49,7 +49,7 @@ import type { ChapterId, TutorialAction } from './tutorial/script';
 import { SPECS } from './machine/specs';
 import { effectiveSpec } from './machine/mods';
 import { PARTS, type PartId, applyParts, equipPart, loadParts, rewardsFor, saveParts, slotsFor, unequipPart } from './machine/parts';
-import { type Rank, canTakeExam, examResultHtml, examTabHtml, judge, loadExam, nextRank, rankName, recordPass, saveExam } from './exam';
+import { type Rank, canTakeExam, examIntroHtml, examResultHtml, examTabHtml, notebookHtml, notebookName, unreadNotes, judge, loadExam, nextRank, rankName, recordPass, saveExam } from './exam';
 import {
   FINAL_LEVEL,
   KEIKO_EXP,
@@ -68,7 +68,7 @@ import {
   type PendingLevelUp,
   mergeLevelUp,
 } from './level';
-import { STORY, storyChapterHtml, storyIndexHtml } from './story';
+import { STORY, storyChapterHtml, storyIndexHtml, storyTabsHtml } from './story';
 import { renderOdometer } from './odometer';
 import { type ItemsTab, type MachineTab, RARITY_LABEL, type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, saveShop, shopHtml, unlockMachine } from './shop';
 import { type TipId, Tips, tipLink, tipText } from './tips';
@@ -311,6 +311,7 @@ export class App {
           dayNet: ensureDay(this.daily).net,
           machine: this.shop.machine,
           rush: this.panel.rush,
+          rank: rankName(this.exam.rank),
         },
         this.recentNews,
       );
@@ -856,7 +857,7 @@ export class App {
     } else if (lv < FINAL_LEVEL) {
       this.toast(`Lv ${lv}！ パチふとくんの記憶が戻ってきた。第${lv}話「${STORY[lv - 1].title}」が読める`, null, true, lv);
     } else this.toast(`Lv ${lv}！`, null, true);
-    for (const id of rw.parts) this.toast(`改造パーツ「${PARTS[id].name}」を手に入れた。台選びの「改造」で台に付けられるぜ`, null, true);
+    for (const id of rw.parts) this.toast(`改造パーツ「${PARTS[id].name}」を手に入れた。メニューの「改造」で台に付けられるぜ`, null, true);
     if (rw.cash) this.toast(`祝い金 +${rw.cash.toLocaleString()} yan`, null, true);
     this.pendingRewards = { parts: [], cash: 0 };
     const r = nextRank(this.exam.rank);
@@ -953,9 +954,16 @@ export class App {
   // ------------------------------------------------------------ 昇段試験
 
   /** 次の昇段試験を始める（受けられなければ何もしない） */
-  private startExam(): void {
+  private async startExam(intro = true): Promise<void> {
     const rank = nextRank(this.exam.rank);
     if (!rank || !canTakeExam(this.exam.rank, levelOf(this.lv.exp).level)) return;
+    // パチふとくんの前口上（物語の進み具合で変わる）。［始める］で試験へ
+    if (intro) {
+      this.pause('examIntro', true);
+      const act = await this.levelUp.showHtml('exam-intro', examIntroHtml(rank, this.lv.read));
+      this.pause('examIntro', false);
+      if (act !== 'exam') return;
+    }
     if (this.keiko) this.update({ playMode: 'pachinko' });
     this.endRound();
     this.fx.reset();
@@ -1022,12 +1030,18 @@ export class App {
       this.renderExpStrip(true);
     }
     const slotUp = this.slots > before;
-    const html = examResultHtml(x.rank, j, slotUp ? this.slots : 0, x.missed);
+    const html = examResultHtml(x.rank, j, slotUp ? this.slots : 0, x.missed, this.lv.read);
+    // 認定証の下に帳面の頁を出すので、その頁は読んだことにする
+    if (j.pass) {
+      this.exam.notesRead = [...new Set([...(this.exam.notesRead ?? []), this.exam.rank])];
+      saveExam(this.exam);
+    }
     if (j.pass) sfx.levelUp();
     else sfx.miss();
     const act = await this.levelUp.showHtml(j.pass ? 'exam-pass' : 'exam-fail', html);
     this.endExam();
-    if (act === 'exam') this.startExam();
+    // 不合格の［もう一度］は前口上なしですぐに
+    if (act === 'exam') void this.startExam(false);
   }
 
   /** 試験を終えて、ふだんのパチンコに戻る（途中でやめたときも） */
@@ -2298,7 +2312,7 @@ export class App {
       `<b class="xp-lv">Lv ${level}</b>${rank ? `<span class="xp-rank">${rank}</span>` : ''}` +
       `${t.value ? `<span class="mt-title r-${t.rarity ?? 'common'}">${t.value}</span>` : ''}` +
       `<span class="xp-bar"><i style="width:${Math.round((into / need) * 100)}%"></i></span>` +
-      `<small class="xp-next">${done ? '<em>完結</em> ' : ''}次の Lv まで <b>${(need - into).toLocaleString()}</b> exp</small>`;
+      `<small class="xp-next">${done ? '<em>完結</em> ' : ''}<b>${into.toLocaleString()}</b>/${need.toLocaleString()} exp</small>`;
     el.setAttribute('aria-label', `Lv ${level}${rank ? `・${rank}` : ''}。次の Lv まで ${need - into} exp。タップでメニュー`);
     if (flash) {
       el.classList.remove('flash');
@@ -2316,7 +2330,7 @@ export class App {
       slots: this.slots,
       equipped: this.parts.equip.length,
       owned: this.parts.owned.length,
-      unread: unreadChapters(this.lv).length,
+      unread: unreadChapters(this.lv).length + unreadNotes(this.exam),
     });
   }
 
@@ -2414,7 +2428,7 @@ export class App {
       const b = t.closest<HTMLElement>('[data-story]');
       if (!b) return;
       const v = b.dataset.story!;
-      this.renderStory(v === 'index' ? 0 : Number(v));
+      this.renderStory(v === 'index' ? 0 : v === 'notebook' ? 'notebook' : Number(v));
     });
     dlg.addEventListener('close', () => {
       this.pause('story', false);
@@ -2434,14 +2448,20 @@ export class App {
     this.renderStory(chapter);
   }
 
-  private renderStory(chapter: number): void {
+  private renderStory(chapter: number | 'notebook'): void {
     const dlg = $<HTMLDialogElement>('#story-dialog');
     const open = Math.min(levelOf(this.lv.exp).level, FINAL_LEVEL);
-    if (chapter >= 1 && chapter <= open) {
+    const tabs = (active: 'memory' | 'notebook') => storyTabsHtml(active, notebookName(this.lv.read), unreadNotes(this.exam) > 0);
+    if (chapter === 'notebook') {
+      // 帳面を開いたら、ここまでの頁は読んだことにする
+      this.exam.notesRead = Array.from({ length: this.exam.rank }, (_, i) => i + 1);
+      saveExam(this.exam);
+      dlg.innerHTML = `<div class="story"><div class="story-head"><h2>パチふとくんの記憶</h2><button class="icon-btn" type="button" data-story-close aria-label="閉じる">✕</button></div>${tabs('notebook')}${notebookHtml(this.exam, this.lv.read)}</div>`;
+    } else if (chapter >= 1 && chapter <= open) {
       markRead(this.lv, chapter);
       saveLevel(this.lv);
       dlg.innerHTML = `<div class="story">${storyChapterHtml(chapter, this.lv)}</div>`;
-    } else dlg.innerHTML = `<div class="story">${storyIndexHtml(this.lv)}</div>`;
+    } else dlg.innerHTML = `<div class="story">${storyIndexHtml(this.lv, tabs('memory'))}</div>`;
     dlg.querySelector('.story-body')?.scrollTo(0, 0);
     dlg.scrollTo(0, 0);
   }

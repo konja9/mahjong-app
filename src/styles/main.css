@@ -3952,3 +3952,61 @@ body.exam #open-shop {
   background-clip: border-box;
   filter: none;
 }
+
+/* ============================================================ 帳面（昇段試験で集める外伝）と前口上 */
+.ex-note {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 4px;
+  background: #efe3c4;
+  color: #2a1a0c;
+  box-shadow: 0 0 0 1px #b8a070, 0 6px 16px rgba(0, 0, 0, 0.4);
+  text-align: left;
+}
+.ex-note small {
+  color: #7a1e14;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.ex-note p {
+  margin: 0;
+}
+.ex-note-tip {
+  font-family: 'Shippori Mincho', 'Noto Serif JP', serif;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.ex-note-scene {
+  font-size: 12px;
+  color: #6b5236;
+}
+.ex-note.locked {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--sub);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.ex-note.locked small {
+  color: var(--sub);
+}
+.ex-notebook {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+#levelup .ex-note {
+  animation: lu-fade 0.4s 0.6s ease-out both;
+}
+#levelup.exam-intro .lu-title {
+  font-size: clamp(30px, 9vw, 44px);
+}
+#levelup.exam-intro .lu-say {
+  line-height: 1.8;
+}
+.story-tabs {
+  margin: 4px 0 8px;
+}
+.story-tabs .sc-new {
+  margin-left: 6px;
+}
