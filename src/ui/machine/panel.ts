@@ -458,11 +458,11 @@ export class MachinePanel {
   }
 
   /** 台の改造の5つの枠（付けているパーツ・空いた枠・鍵のかかった枠）を、液晶帯の下の段に並べる */
-  setParts(ids: PartId[], slots: number, ranks: string[]): void {
+  setParts(ids: PartId[], slots: number, ranks: string[], nextReady = false): void {
     const el = this.root.querySelector<HTMLElement>('.m-parts');
     if (!el) return;
     const names = Object.fromEntries(ids.map((id) => [id, PARTS[id].name]));
-    el.innerHTML = slotRowHtml({ equip: ids, slots, ranks, names });
+    el.innerHTML = slotRowHtml({ equip: ids, slots, ranks, names, nextReady });
   }
 
   render(pop = false): void {

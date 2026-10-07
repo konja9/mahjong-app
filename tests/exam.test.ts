@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NOTEBOOK, RANKS, canTakeExam, certText, examIntro, examResultHtml, examTabHtml, judge, opensSlot, loadExam, nextRank, notebookHtml, notebookName, rankName, recordPass, saveExam, unreadNotes } from '../src/ui/exam';
+import { NOTEBOOK, RANKS, canTakeExam, certText, examIntro, examResultHtml, examTabHtml, judge, opensSlot, loadExam, nextRank, notebookHtml, notebookName, rankName, recordPass, saveExam, unreadNotes, slotExamReady } from '../src/ui/exam';
 
 describe('昇段試験', () => {
   it('2 Lv ごとに全10段階。Lv 2 で5級、Lv 20 で名人', () => {
@@ -100,5 +100,16 @@ describe('昇段試験と改造の枠', () => {
     expect(examTabHtml({ rank: 1, passedAt: ['x'] }, 4, true)).not.toContain('ex-slot-mark');
     expect(examIntro(RANKS[0], [])).toContain('枠の鍵が一つ開く');
     expect(examIntro(RANKS[1], [])).not.toContain('枠の鍵');
+  });
+});
+
+describe('改造の枠を開ける試験を受けられるか', () => {
+  it('次の試験が枠の開く段位で、Lv が足りているときだけ', () => {
+    expect(slotExamReady(0, 1)).toBe(false); // 5級は Lv2 から
+    expect(slotExamReady(0, 2)).toBe(true); // 5級で1つ目の枠
+    expect(slotExamReady(1, 10)).toBe(false); // 次は4級（枠は開かない）
+    expect(slotExamReady(2, 6)).toBe(true); // 3級で2つ目の枠
+    expect(slotExamReady(2, 5)).toBe(false);
+    expect(slotExamReady(10, 30)).toBe(false); // 名人のあとは試験なし
   });
 });

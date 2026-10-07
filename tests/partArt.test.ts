@@ -32,12 +32,16 @@ describe('改造パーツの絵', () => {
     expect(html.match(/part-thumb unknown/g)).toHaveLength(PART_ORDER.length - 2);
   });
   it('改造の画面：5つの枠のうち、開いていない枠は鍵で、次に開く鍵が光る', () => {
-    const html = partsHtml({ state: { owned: ['fast', 'tank'], equip: ['tank'] }, slots: 2, rank: '3級', nextSlotRank: '1級', slotRanks: RANKS5, canChange: true });
+    const html = partsHtml({ state: { owned: ['fast', 'tank'], equip: ['tank'] }, slots: 2, rank: '3級', nextSlotRank: '1級', slotRanks: RANKS5, nextReady: true, canChange: true });
     expect(html.match(/class="slot on/g)).toHaveLength(1);
     expect(html.match(/class="slot open/g)).toHaveLength(1);
     expect(html.match(/class="slot locked/g)).toHaveLength(3);
     expect(html.match(/slot locked next/g)).toHaveLength(1);
     expect(html).toContain('あと3つの枠が鍵の中');
+  });
+  it('次の鍵が光るのは、その枠を開ける試験を受けられるときだけ', () => {
+    expect(slotRowHtml({ equip: [], slots: 1, ranks: RANKS5 })).not.toContain('locked next');
+    expect(slotRowHtml({ equip: [], slots: 1, ranks: RANKS5, nextReady: true }).match(/slot locked next/g)).toHaveLength(1);
   });
   it('枠が0のときは付けられず、5級の昇段試験をすすめる', () => {
     const html = partsHtml({ state: { owned: ['fast'], equip: [] }, slots: 0, rank: '', nextSlotRank: '5級', slotRanks: RANKS5, canChange: true });

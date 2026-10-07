@@ -52,7 +52,7 @@ import { SPECS, allows, fallbackMode, modesLabel } from './machine/specs';
 import { lockSvg } from './machine/partArt';
 import { effectiveSpec } from './machine/mods';
 import { PARTS, type PartId, SLOT_RANKS, applyParts, equipPart, loadParts, nextSlotRank, rewardsFor, saveParts, slotsFor, unequipPart } from './machine/parts';
-import { type Rank, canTakeExam, examIntroHtml, examResultHtml, examTabHtml, notebookHtml, notebookName, unreadNotes, judge, loadExam, nextRank, rankName, recordPass, saveExam } from './exam';
+import { type Rank, canTakeExam, examIntroHtml, examResultHtml, examTabHtml, notebookHtml, notebookName, unreadNotes, judge, loadExam, nextRank, rankName, recordPass, saveExam, slotExamReady } from './exam';
 import {
   FINAL_LEVEL,
   type DailyNet,
@@ -873,6 +873,8 @@ export class App {
     saveLevel(this.lv);
     this.renderExpStrip(ups.length > 0);
     if (!ups.length) return;
+    // 試験が受けられるようになったら、改造の枠の次の鍵を光らせる
+    this.renderSlots();
     // Lv アップの報酬：改造パーツ（なければ祝い金）
     const rw = rewardsFor(this.parts, ups);
     saveParts(this.parts);
@@ -963,7 +965,12 @@ export class App {
 
   /** 台の上の改造の5つの枠を描き直す */
   private renderSlots(): void {
-    this.panel.setParts(this.parts.equip, this.slots, SLOT_RANKS.map(rankName));
+    this.panel.setParts(this.parts.equip, this.slots, SLOT_RANKS.map(rankName), this.slotReady);
+  }
+
+  /** 次の改造の枠を開ける昇段試験を、今受けられるか（枠の鍵を光らせる） */
+  private get slotReady(): boolean {
+    return slotExamReady(this.exam.rank, levelOf(this.lv.exp).level);
   }
 
   /** 台に付けられる改造パーツの枠 */
@@ -1074,12 +1081,13 @@ export class App {
       this.renderExpStrip(true);
     }
     const slotUp = this.slots > before;
-    if (slotUp) this.renderSlots();
+    // 受かって次の試験に進むと、鍵の光り方も変わる
+    this.renderSlots();
     const next = nextSlotRank(this.exam.rank);
     const slot = j.pass
       ? {
           opened: slotUp ? this.slots : null,
-          row: slotRowHtml({ equip: this.parts.equip, slots: this.slots, ranks: SLOT_RANKS.map(rankName), opened: slotUp ? this.slots - 1 : undefined, labels: true }),
+          row: slotRowHtml({ equip: this.parts.equip, slots: this.slots, ranks: SLOT_RANKS.map(rankName), opened: slotUp ? this.slots - 1 : undefined, labels: true, nextReady: this.slotReady }),
           next: next ? rankName(next) : null,
         }
       : null;
@@ -2354,6 +2362,7 @@ export class App {
         rank: rankName(this.exam.rank),
         nextSlotRank: nextSlot ? rankName(nextSlot) : null,
         slotRanks: SLOT_RANKS.map(rankName),
+        nextReady: this.slotReady,
         canChange: this.canChangeParts,
       },
       tab: this.machineTab,

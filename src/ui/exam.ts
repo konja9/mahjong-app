@@ -1,5 +1,5 @@
 import type { Filters, HandConstraints, Mode } from '../core/generator';
-import { SLOT_RANKS } from './machine/parts';
+import { SLOT_RANKS, nextSlotRank } from './machine/parts';
 import { load, save } from './storage';
 import { charaSvg } from './tutorial/chara';
 
@@ -76,6 +76,11 @@ export const nextRank = (rank: number): Rank | null => RANKS[rank] ?? null;
 export function canTakeExam(rank: number, level: number): boolean {
   const r = nextRank(rank);
   return !!r && level >= r.level;
+}
+
+/** 改造の枠を開ける昇段試験を、今受けられるか（次の試験が枠の開く段位で、Lv も足りている） */
+export function slotExamReady(rank: number, level: number): boolean {
+  return canTakeExam(rank, level) && nextSlotRank(rank) === rank + 1;
 }
 
 export interface ExamResult {

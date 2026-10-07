@@ -272,13 +272,15 @@ export interface PartsView {
   nextSlotRank: string | null;
   /** 5つの枠それぞれの、鍵が開く段位の名前 */
   slotRanks: string[];
+  /** 次の枠を開ける昇段試験を今受けられる */
+  nextReady?: boolean;
   canChange: boolean;
 }
 
 export function partsHtml(v: PartsView): string {
   const used = v.state.equip.length;
   const names = Object.fromEntries(v.state.equip.map((id) => [id, PARTS[id].name]));
-  const row = slotRowHtml({ equip: v.state.equip, slots: v.slots, ranks: v.slotRanks, labels: true, names });
+  const row = slotRowHtml({ equip: v.state.equip, slots: v.slots, ranks: v.slotRanks, labels: true, names, nextReady: v.nextReady });
   const sleeping = v.slotRanks.length - v.slots;
   const desc = v.nextSlotRank
     ? `あと${sleeping}つの枠が鍵の中。次は<b>${v.nextSlotRank}</b>の昇段試験で開く`

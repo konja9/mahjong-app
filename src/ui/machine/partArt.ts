@@ -187,11 +187,13 @@ export interface SlotRowView {
   opened?: number;
   /** 鍵の枠の下に段位の名前を書く */
   labels?: boolean;
+  /** 次の鍵の枠を開ける昇段試験を今受けられる（そのときだけ次の鍵を光らせる） */
+  nextReady?: boolean;
   /** 付けているパーツの名前（title 用） */
   names?: Partial<Record<PartId, string>>;
 }
 
-/** 台の改造の5つの枠：付けているパーツ・開いた空の枠・鍵のかかった枠。次に開く鍵は光らせる */
+/** 台の改造の5つの枠：付けているパーツ・開いた空の枠・鍵のかかった枠。次に開く鍵は、その試験を受けられるときだけ光らせる */
 export function slotRowHtml(v: SlotRowView): string {
   return v.ranks
     .map((rank, i) => {
@@ -199,7 +201,7 @@ export function slotRowHtml(v: SlotRowView): string {
       const label = v.labels ? `<small>${i < v.slots ? '&nbsp;' : rank}</small>` : '';
       if (i < v.slots && id) return `<span class="slot on" title="${v.names?.[id] ?? ''}"><i>${partSvg(id)}</i>${label}</span>`;
       if (i < v.slots) return `<span class="slot open${i === v.opened ? ' opened' : ''}" title="空いている枠"><i>${i === v.opened ? lockSvg() : ''}</i>${label}</span>`;
-      return `<span class="slot locked${i === v.slots ? ' next' : ''}" title="${rank}の昇段試験で開く"><i>${lockSvg()}</i>${label}</span>`;
+      return `<span class="slot locked${i === v.slots && v.nextReady ? ' next' : ''}" title="${rank}の昇段試験で開く"><i>${lockSvg()}</i>${label}</span>`;
     })
     .join('');
 }
