@@ -23,11 +23,12 @@ mkdirSync(RAW, { recursive: true });
 const DONE = { done: ['prologue', 'pachinko', 'keiko', 'tools'] };
 
 /** 新しいページ。settings と level は保存データとして先に入れておく */
-async function open({ settings, level = { exp: 5200, read: [1, 2, 3, 4] }, shop }) {
+async function open({ settings, level = { exp: 5200, read: [1, 2, 3, 4] }, shop, extra = {} }) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 732 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
   const p = await ctx.newPage();
   await p.addInitScript(
-    ([s, l, sh, d]) => {
+    ([s, l, sh, d, x]) => {
+      for (const [k, v] of Object.entries(x)) localStorage.setItem(k, JSON.stringify(v));
       localStorage.setItem('tensu.settings.v1', JSON.stringify(s));
       localStorage.setItem('tensu.level.v1', JSON.stringify(l));
       localStorage.setItem('tensu.tutorial.v1', JSON.stringify(d));
@@ -35,7 +36,7 @@ async function open({ settings, level = { exp: 5200, read: [1, 2, 3, 4] }, shop 
       // 一言ガイドは見たことにして、画面の上に出ないようにする
       localStorage.setItem('tensu.tips.v1', JSON.stringify(['enter', 'reach', 'jackpot', 'rush', 'miss', 'fast', 'low', 'firstHit', 'denchuSoon', 'denchu', 'bonusFu', 'ladder', 'bonusMiss', 'roundUp', 'uwanose', 'rushMiss', 'shop', 'machine', 'levelUp']));
     },
-    [{ sfxVolume: 0, bgmVolume: 0, ...settings }, level, shop ?? null, DONE],
+    [{ sfxVolume: 0, bgmVolume: 0, ...settings }, level, shop ?? null, DONE, extra],
   );
   await p.goto(`${BASE}?debug`);
   await p.waitForTimeout(800);
@@ -144,29 +145,56 @@ const title = { owned: ['title-fu-reader'], equip: { title: 'title-fu-reader' } 
   await p.context().close();
 }
 
-// 5. 成績（正答率・速さ・場面ごと・所持金の推移・間違えた手）
+// 5. 成績（腕前：種目ごとの直近の正答率・速さ・伸び、次の昇段試験の目安）
 {
-  const p = await open({ settings: { effects: 'off', playMode: 'pachinko', mode: 'hayami', answerStyle: 'choice' }, shop: title });
-  await enter(p, 'pachinko');
-  // 途中で大当りを引いて、収支がプラスになるようにする
-  await p.evaluate(() => window.tensu.panel.machine.forceNextHit());
-  for (let k = 0; k < 40; k++) {
-    if ((await phase(p)) !== 'answering') {
-      await next(p);
-      await p.waitForTimeout(300);
-      continue;
+  // 2週間、毎日少しずつ上手くなった記録を入れておく（同じ絵になるよう乱数は固定）
+  let seed = 11;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const answers = [];
+  const days = {};
+  const total = {};
+  const start = Date.UTC(2026, 8, 24);
+  for (let k = 0; k < 14; k++) {
+    if (k === 3 || k === 8) continue;
+    const d = new Date(start + k * 86400000).toISOString().slice(0, 10);
+    for (const [m, n, base, sec] of [['hayami', 15, 0.72, 9], ['fu', 20, 0.58, 18], ['jissen', 12, 0.52, 30]]) {
+      for (let i = 0; i < n; i++) {
+        const ok = rnd() < base + k * 0.025;
+        const t = Math.round((sec - k * (sec / 30) + rnd() * 4) * 10) / 10;
+        const a = { m, ok, t, s: Math.floor(rnd() * 4), d };
+        if (m === 'hayami') Object.assign(a, { h: 1 + Math.floor(rnd() * 6), f: [30, 40, 50, 60][Math.floor(rnd() * 4)] });
+        answers.push(a);
+        const ds = ((days[d] ??= {})[m] ??= { n: 0, c: 0, tSum: 0, tN: 0 });
+        ds.n++;
+        if (ok) ds.c++;
+        ds.tSum += t;
+        ds.tN++;
+        const tt = (total[m] ??= { n: 0, c: 0 });
+        tt.n++;
+        if (ok) tt.c++;
+      }
     }
-    // 途中でもう一度大当りを引いて、収支をプラスにする
-    if (k === 15) await p.evaluate(() => window.tensu.panel.machine.forceNextHit());
-    // たまに間違える（成績に苦手が出るように）
-    if (k % 13 === 7) {
-      const a = await p.evaluate(() => window.tensu.debugAnswer());
-      await p.click(`#choices [data-choice="${Number(a) % 4}"]`);
-    } else await answerCorrect(p);
-    await p.waitForTimeout(250);
-    await next(p);
   }
-  await p.evaluate(() => window.tensu.showSummary('summary'));
+  const record = {
+    since: '2026-09-24',
+    answers: answers.slice(-600),
+    days,
+    total,
+    streak: 3,
+    bestStreak: 21,
+    exams: [
+      { d: '2026-09-26', rank: 1, correct: 7, avg: 9, pass: false },
+      { d: '2026-09-28', rank: 1, correct: 9, avg: 8, pass: true },
+      { d: '2026-10-03', rank: 2, correct: 8, avg: 12, pass: true },
+    ],
+  };
+  const p = await open({
+    settings: { effects: 'off', playMode: 'pachinko', mode: 'fu', answerStyle: 'choice' },
+    shop: title,
+    extra: { 'tensu.record.v1': record, 'tensu.exam.v1': { rank: 2, passedAt: ['2026-09-28', '2026-10-03'], notesRead: [1, 2] } },
+  });
+  await enter(p, 'pachinko');
+  await p.evaluate(() => window.tensu.openRecord('skill'));
   await p.waitForTimeout(700);
   await shot(p, '5-summary');
   await p.context().close();

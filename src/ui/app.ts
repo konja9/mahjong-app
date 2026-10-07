@@ -56,6 +56,7 @@ import {
   PACHINKO_EXP,
   type DailyNet,
   addExp,
+  dayKey,
   ensureDay,
   keikoExp,
   levelOf,
@@ -68,13 +69,15 @@ import {
   type PendingLevelUp,
   mergeLevelUp,
 } from './level';
+import { loadRecord, recordAnswer, recordExam, recent, saveRecord } from './record';
+import { type RecordTab, recordHtml } from './recordView';
 import { STORY, storyChapterHtml, storyIndexHtml, storyTabsHtml } from './story';
 import { renderOdometer } from './odometer';
 import { type ItemsTab, type MachineTab, RARITY_LABEL, type ShopView, buyItem, checkUnlocks, equipItem, equipped, loadShop, saveShop, shopHtml, unlockMachine } from './shop';
 import { type TipId, Tips, tipLink, tipText } from './tips';
 import { TILE_DEFS, handHtml, tilesInline } from './tileView';
 import { PRIVACY_POLICY_URL } from './links';
-import { ELEMENTS, WEAK_MIN, type KeikoSource, accuracy, addReview, loadKeiko, markReview, nextReview, pickWeak, recordElement, recordFuAnswer, reviewCount, saveKeiko, weakAllowed, weakWant } from './keiko';
+import { ELEMENTS, WEAK_MIN, type KeikoSource, addReview, loadKeiko, markReview, nextReview, pickWeak, recordElement, recordFuAnswer, reviewCount, saveKeiko, weakAllowed, weakWant } from './keiko';
 import { type Study, studySteps } from '../core/steps';
 import { StepRun } from './steps';
 
@@ -159,6 +162,10 @@ export class App {
   private wallet: Wallet = loadWallet();
   /** 稽古の記録（復習と要素別の正答率） */
   private kd = loadKeiko();
+  /** 成績の記録（1問ごと・日ごと・受験記録） */
+  private rec = loadRecord(dayKey());
+  private recTab: RecordTab = 'skill';
+  private recMode: Mode | null = null;
   /** 出題中の問題が復習の手なら、その key */
   private reviewKey: string | null = null;
   /** 苦手ドリルで狙っている要素 */
@@ -1023,6 +1030,8 @@ export class App {
     const x = this.examRun!;
     const j = judge(x.rank, { correct: x.correct, times: x.times });
     const before = this.slots;
+    recordExam(this.rec, { rank: this.exam.rank + 1, correct: j.correct, avg: j.avg, pass: j.pass }, dayKey());
+    saveRecord(this.rec);
     if (j.pass) {
       recordPass(this.exam, new Date().toISOString().slice(0, 10));
       saveExam(this.exam);
@@ -1277,7 +1286,24 @@ export class App {
           ? this.choices[this.picked].label
           : this.input;
     const diag = correct || timeout || this.steps ? [] : this.diagnose();
-    if (!this.tutFree) this.recordKeiko(correct, diag);
+    if (!this.tutFree) {
+      this.recordKeiko(correct, diag);
+      recordAnswer(
+        this.rec,
+        {
+          mode: this.q.mode,
+          ok: correct,
+          sec: this.steps ? undefined : elapsed,
+          keiko: this.keiko,
+          input: !this.isChoice && !this.steps,
+          dealer,
+          tsumo,
+          ...(this.q.mode === 'hayami' ? { han: this.q.han, fu: this.q.fu } : {}),
+        },
+        dayKey(),
+      );
+      saveRecord(this.rec);
+    }
 
     if (correct) {
       ss.correct++;
@@ -1579,21 +1605,14 @@ export class App {
   }
 
   /** 稽古の結果：要素別の正答率（これまでの累計）と、復習に入った手の数 */
-  private elementsHtml(): string {
-    const rows = ELEMENTS.map((el) => {
-      const st = this.kd.elements[el];
-      const a = accuracy(st);
-      const p = a === null ? 0 : Math.round(a * 100);
-      return `<div class="cat"><span>${ELEMENT_NAMES[el]}</span><span class="bar"><i style="width:${p}%"></i></span><span>${st && st.n ? `${st.c}/${st.n}` : '—'}</span></div>`;
-    }).join('');
-    const added = this.session.reviewAdded
-      ? `<div class="muted small">間違えた ${this.session.reviewAdded}問を復習に入れました（出題の「復習」で解き直せます）</div>`
-      : '';
-    return `<div><div class="ex-h">要素別 <span class="muted">これまでの累計</span></div>${rows}${added}</div>`;
+  /** 稽古で間違えた問題を復習に入れたことの知らせ */
+  private reviewAddedHtml(): string {
+    const n = this.session.reviewAdded;
+    return n ? `<div class="muted small">間違えた ${n}問を復習に入れました（出題の「復習」で解き直せます）</div>` : '';
   }
 
-  /** end: 規定問題数の終了 / summary: パチンコで「成績を見る」 / bankrupt: 破産 */
-  private showSummary(kind: 'end' | 'summary' | 'bankrupt' = 'end'): void {
+  /** end: 稽古の規定問題数の終了 / bankrupt: 破産（ふだんの成績はメニューの「成績」） */
+  private showSummary(kind: 'end' | 'bankrupt' = 'end'): void {
     this.setPhase('summary');
     cancelAnimationFrame(this.betRaf);
     this.toggleConfigSheet(false);
@@ -1628,6 +1647,12 @@ export class App {
         stat('平均回答', `${avg.toFixed(1)}<small>s</small>`),
         stat('最大連続', String(ss.maxStreak)),
       ].join('');
+      // 今回の稽古の前の、手牌の問題の直近50問と比べる
+      const before = recent(this.rec, ['fu', 'jissen'], 50, ss.answered);
+      if (before.acc !== null && before.n >= 10) {
+        const d = Math.round(acc - before.acc * 100);
+        head = `<div class="sum-cmp">ふだん（直近${before.n}問）の正答率 ${Math.round(before.acc * 100)}% より <b class="${d >= 0 ? 'up' : 'down'}">${d > 0 ? '+' : d < 0 ? '−' : '±'}${Math.abs(d)}pt</b></div>`;
+      }
     } else {
       const diff = ss.net;
       const d = this.panel.machine.data;
@@ -1637,13 +1662,8 @@ export class App {
         stat('大当り', `${d.hits}<small>回</small>`),
         stat('最大RUSH', `${d.maxChain}<small>連</small>`),
       ].join('');
-      if (kind === 'bankrupt') {
-        head = `<div class="bankrupt"><span>破産</span><small>所持金が尽きました</small></div>`;
-        again = `${ECONOMY.initial.toLocaleString()}yan で再起`;
-      } else {
-        head = `<div class="sum-title">ここまでの成績</div><div class="muted small">所持金 ${this.wallet.balance.toLocaleString()} yan（台と所持金はそのまま続きから）</div>`;
-        again = '続ける（成績は新しく数え直し）';
-      }
+      head = `<div class="bankrupt"><span>破産</span><small>所持金が尽きました</small></div>`;
+      again = `${ECONOMY.initial.toLocaleString()}yan で再起`;
     }
 
     // 大当り履歴（新しい順。数字は何回転目で当ったか）
@@ -1668,21 +1688,22 @@ export class App {
       <div class="sum-cols">
         <div><div class="ex-h">状況別 <span class="muted">${weakText}</span></div>${cats}</div>
         ${misses ? `<div><div class="ex-h">間違えた問題</div><ul class="misses">${misses}</ul></div>` : ''}
-        ${this.keiko ? this.elementsHtml() : ''}
+        ${this.keiko ? this.reviewAddedHtml() : ''}
       </div>
-      <button class="again-btn" type="button" data-again>${again}</button>
+      <div class="sum-actions"><button class="again-btn" type="button" data-again>${again}</button><button class="rec-open" type="button" data-open-record>成績を開く</button></div>
       ${this.compact ? '' : `<div class="hint"><kbd>Tab</kbd> / <kbd>Enter</kbd> ${again.replace(/（.*）$/, '')}</div>`}`;
     const slump = sum.querySelector<HTMLElement>('.sum-slump');
     if (slump) this.renderSlump(slump, this.wallet.history, 600, 120);
     sum.querySelector('[data-again]')?.addEventListener('click', () => this.restartFromSummary(kind));
+    sum.querySelector('[data-open-record]')?.addEventListener('click', () => this.openRecord(this.keiko ? 'weak' : 'machine'));
     this.summaryKind = kind;
     if (kind === 'bankrupt') this.panel.stop();
     this.fx.sessionEnd(kind !== 'bankrupt' && acc >= 80);
   }
 
-  private summaryKind: 'end' | 'summary' | 'bankrupt' = 'end';
+  private summaryKind: 'end' | 'bankrupt' = 'end';
 
-  private restartFromSummary(kind: 'end' | 'summary' | 'bankrupt' = this.summaryKind): void {
+  private restartFromSummary(kind: 'end' | 'bankrupt' = this.summaryKind): void {
     if (kind === 'bankrupt') {
       this.wallet = freshWallet(this.wallet.bankrupts + 1);
       saveWallet(this.wallet);
@@ -1758,11 +1779,6 @@ export class App {
       } else if (this.phase === 'summary') this.restartFromSummary();
     });
     $('#config').addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).closest('[data-summary]')) {
-        if (this.blockedInBonus()) return;
-        this.showSummary('summary');
-        return;
-      }
       if ((e.target as HTMLElement).closest('[data-restart]')) {
         // 稽古のやり直し（途中まで答えていたら確認する）
         if (!this.session.answered || confirm('最初からやり直しますか？ ここまでの成績は消えます')) {
@@ -1785,6 +1801,7 @@ export class App {
     $('#exp-strip').addEventListener('click', () => this.openMenu());
     this.bindMenu();
     this.bindStory();
+    this.bindRecord();
     this.renderExpStrip();
     this.bindShop();
     this.bindGuide();
@@ -2395,15 +2412,7 @@ export class App {
         this.openStory();
         return;
       case 'summary':
-        if (this.blockedInBonus()) return;
-        // 稽古は、ここまでの稽古の成績（区切って最初から）。パチンコは収支・大当り履歴も
-        if (this.keiko) {
-          if (!this.session.answered) {
-            this.toast('まだ稽古の記録がありません。何問か解いてから見てみな');
-            return;
-          }
-          this.showSummary('end');
-        } else this.showSummary('summary');
+        this.openRecord();
         return;
       case 'help':
         this.openHelp();
@@ -2415,6 +2424,83 @@ export class App {
         if (!this.showStart()) this.toast('BONUS や演出の間は、スタート画面に戻れません');
         return;
     }
+  }
+
+  // ------------------------------------------------------------ 成績
+
+  private bindRecord(): void {
+    const dlg = $<HTMLDialogElement>('#record-dialog');
+    dlg.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t === dlg || t.closest('[data-rec-close]')) {
+        dlg.close();
+        return;
+      }
+      const tab = t.closest<HTMLElement>('[data-rec-tab]');
+      if (tab) {
+        this.recTab = tab.dataset.recTab as RecordTab;
+        this.renderRecord();
+        return;
+      }
+      const m = t.closest<HTMLElement>('[data-rec-mode]');
+      if (m) {
+        this.recMode = m.dataset.recMode as Mode;
+        this.renderRecord();
+        return;
+      }
+      const drill = t.closest<HTMLButtonElement>('[data-rec-drill]');
+      if (drill && !drill.disabled) {
+        if (this.blockedInBonus()) return;
+        dlg.close();
+        if (this.examRun) {
+          this.toast('昇段試験の間は、稽古に切り替えられません');
+          return;
+        }
+        this.update({ playMode: 'keiko', keikoSource: 'weak' });
+      }
+    });
+    dlg.addEventListener('close', () => this.pause('record', false));
+  }
+
+  /** 成績を開く（腕前のタブから） */
+  openRecord(tab: RecordTab = 'skill'): void {
+    const dlg = $<HTMLDialogElement>('#record-dialog');
+    this.recTab = tab;
+    this.pause('record', true);
+    if (!dlg.open) dlg.showModal();
+    this.renderRecord();
+  }
+
+  private renderRecord(): void {
+    const dlg = $<HTMLDialogElement>('#record-dialog');
+    // 推移のタブは、いちばん解いている種目から見せる
+    const mode =
+      this.recMode ??
+      (['hayami', 'fu', 'jissen'] as Mode[]).reduce((a, b) => ((this.rec.total[b]?.n ?? 0) > (this.rec.total[a]?.n ?? 0) ? b : a), this.s.mode);
+    const d = this.panel.machine.data;
+    const ss = this.session;
+    dlg.innerHTML = recordHtml({
+      tab: this.recTab,
+      mode,
+      rec: this.rec,
+      day: dayKey(),
+      rank: this.exam.rank,
+      keiko: this.keiko && ss.answered ? { n: ss.answered, c: ss.correct } : null,
+      elements: ELEMENTS.map((el) => ({ name: ELEMENT_NAMES[el], c: this.kd.elements[el]?.c ?? 0, n: this.kd.elements[el]?.n ?? 0 })),
+      weakReady: !!pickWeak(this.kd, () => 0),
+      machine: {
+        name: SPECS[this.shop.machine].name,
+        balance: this.wallet.balance,
+        dayNet: ensureDay(this.daily).net,
+        hits: d.hits,
+        maxChain: d.maxChain,
+        bankrupts: this.wallet.bankrupts,
+        log: d.log,
+      },
+    });
+    const slump = dlg.querySelector<HTMLElement>('.sum-slump');
+    if (slump) this.renderSlump(slump, this.wallet.history, 600, 120);
+    dlg.querySelector('.record')?.scrollTo(0, 0);
   }
 
   // ------------------------------------------------------------ 物語（パチふとくんの記憶）
@@ -2704,5 +2790,6 @@ const SHELL = `
 <dialog id="help-dialog"></dialog>
 <dialog id="shop-dialog"></dialog>
 <dialog id="story-dialog" aria-label="物語"></dialog>
+<dialog id="record-dialog" aria-label="成績"></dialog>
 ${TILE_DEFS}
 `;

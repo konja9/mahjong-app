@@ -39,7 +39,7 @@ export interface MenuView {
   slots: number;
   equipped: number;
   machine: string;
-  /** 稽古中（台・改造・昇段試験・成績はパチンコに切り替えて開く） */
+  /** 稽古中（台・改造・昇段試験はパチンコに切り替えて開く） */
   keiko: boolean;
   badges: MenuBadges;
 }
@@ -68,7 +68,7 @@ export function menuHtml(v: MenuView): string {
       ${tile('exam', '昇段試験', v.rank ? `今は ${v.rank}` : 'まだ段位なし', v.badges.exam)}
       ${tile('shop', '交換所', '称号・スキン・BGM')}
       ${tile('story', '物語', 'パチふとくんの記憶', v.badges.story)}
-      ${tile('summary', '成績を見る', v.keiko ? 'ここまでの稽古の成績' : '正答率・収支で区切る')}
+      ${tile('summary', '成績', '腕前の推移・苦手・収支')}
       ${tile('help', '遊び方', '符の数え方・台のしくみ')}
       ${tile('settings', '設定', '演出・音・ルール')}
       ${tile('start', 'スタート画面へ', 'チュートリアルもここから')}
