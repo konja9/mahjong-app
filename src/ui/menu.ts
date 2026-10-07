@@ -5,7 +5,7 @@ import { charaSvg } from './tutorial/chara';
  * 台選び・改造・昇段試験・交換所・物語・成績・遊び方・設定・スタート画面はここから開く
  */
 
-export type MenuItem = 'machine' | 'parts' | 'exam' | 'shop' | 'story' | 'summary' | 'help' | 'settings' | 'start';
+export type MenuItem = 'machine' | 'parts' | 'exam' | 'shop' | 'story' | 'summary' | 'games' | 'help' | 'settings' | 'start';
 
 export interface MenuBadges {
   /** 受けられる昇段試験がある */
@@ -42,6 +42,8 @@ export interface MenuView {
   /** 稽古中（台・改造・昇段試験はパチンコに切り替えて開く） */
   keiko: boolean;
   badges: MenuBadges;
+  /** アプリ版で Google Play Games が使える（「実績・ランキング」を出す） */
+  games?: boolean;
 }
 
 const signed = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : '±'}${Math.abs(v).toLocaleString()}`;
@@ -69,6 +71,7 @@ export function menuHtml(v: MenuView): string {
       ${tile('shop', '交換所', '称号・スキン・BGM')}
       ${tile('story', '物語', 'パチふとくんの記憶', v.badges.story)}
       ${tile('summary', '成績', '腕前の推移・苦手・収支')}
+      ${v.games ? tile('games', '実績・ランキング', 'Google Play Games') : ''}
       ${tile('help', '遊び方', '符の数え方・台のしくみ')}
       ${tile('settings', '設定', '演出・音・ルール')}
       ${tile('start', 'スタート画面へ', 'チュートリアルもここから')}

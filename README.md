@@ -236,9 +236,13 @@ npm run android:open   # Android Studio で開く（実機・エミュレータ�
   - 起動のたびに Google Play に購入を問い合わせ、買ってあれば広告を出しません。返金されると次の起動から広告に戻ります。通信できないときは前回の結果を使います。
   - コンビニ払いなどの支払い待ちは購入済みにせず、支払いが済んでアプリに戻ったときに反映します。
   - 実機で試すには、AAB を Play Console の内部テストに一度アップロードし、自分の Google アカウントを**ライセンス テスター**に登録します（テスト用のカードで、実際には請求されません）。
+- **Google Play Games Services**（アプリ版だけ）：ネイティブ側は自前の小さな Capacitor プラグイン（`android/…/PlayGamesPlugin.java`、`play-services-games-v2`）、JS 側は `src/ui/games.ts`。Web 版と、Play Console の ID がまだ入っていない間（`res/values/games-ids.xml` が仮の `0`）は何もしません。
+  - ログインは起動時に自動（v2 の仕様）。メニューの「実績・ランキング」（使えるときだけ出る）から、実績・ランキング・クラウドへの保存と読み込み。
+  - クラウドセーブ：`localStorage` の `tensu.*` を1つにまとめて保存（広告削除の購入状態は除く。`src/ui/cloudSave.ts`）。起動時に、クラウドの方が進んでいれば（経験値 → 段位 → 累計正解数）使うかを聞き、端末の方が進んでいれば黙って保存。保存は画面が隠れたとき・Lv アップ・昇段試験の合格・物語を読んだとき（60秒に1回まで）。
+  - 実績15個は `src/ui/achievements.ts`、ID は `src/ui/gamesIds.ts`。アイコンは `npx -p playwright -p tsx tsx scripts/achievements.mjs` で `store/play-games/` に書き出し。設定の手順は `store/play-games.md`。
 - **ストア掲載情報**：`store/listing.md`（アプリ名・説明文・分類）と、`store/` の画像（アイコン、フィーチャー グラフィック、スクリーンショット6枚）。主役は「退屈な点数計算の練習がパチンコで楽しくできる」こと、世界観は味付け。スクリーンショットの並びは 1 ゲームの肝（RUSH 中の早見） → 2 BONUS で稼ぐ（BONUS 獲得の画面） → 3 稽古（初心者から上級者まで） → 4 上達が見える（成績） → 5 段位が上がる（昇段試験の認定証と帳面、改造パーツ） → 6 世界観と締め。元の画面（`store/raw/`）は開発サーバーを立てて `npx -p playwright node scripts/store-raw.mjs http://localhost:5179/` で撮り、`npx -p playwright -p tsx tsx scripts/store.mjs` で見出しと絵を付けて書き出します。`ONLY=5` を付けると、その番号の元画面だけを撮り直します。1枚目とフィーチャー グラフィック（どちらも大当りの元画面を使う）は、`CANDIDATES=3` で store-raw を走らせるとリーチから BONUS の始まりまでの候補を `store/candidates/raw/` に連続で撮ります。選んだものを `store/candidates/pick/` に置いて `CANDIDATES=1` で store.mjs を走らせると、両方を合成した候補と一覧（`sheet.png`）ができます（`store/candidates/` はコミットしない）。
 - バージョンは `package.json` の `version` から作ります（`1.2.3` → versionName `1.2.3`、versionCode `10203`）。Play に上げるたびに上げてください。
-- **版の流れ**：0.1.4（最初のクローズドテスト）→ **0.2.0**（Lv・物語・昇段試験・改造・成績・稽古・BGM。リリースノートとテスターへのお願いは `store/release-notes-0.2.0.md`）→ 0.3.0（予定：Google Play Games Services。ログイン、クラウドセーブ＝保存キーをまとめて1つのスナップショットに、実績、リーダーボード。Web 版では何もしない＝`src/ui/native.ts` と同じくアプリ版だけ。実績とリーダーボードの中身は 0.2.0 のベータの感想を見てから決める）→ 本番公開。
+- **版の流れ**：0.1.4（最初のクローズドテスト）→ **0.2.0**（Lv・物語・昇段試験・改造・成績・稽古・BGM。リリースノートとテスターへのお願いは `store/release-notes-0.2.0.md`）→ **0.3.0**（Google Play Games Services：ログイン、クラウドセーブ、実績15個、ランキング2つ。稽古の段階練習の手牌の固定、物語の画面の中央寄せ、「広告を消す」をヘッダーへ。`store/release-notes-0.3.0.md`）→ 本番公開。
 
 ### 公開（GitHub Pages）
 

@@ -29,7 +29,7 @@ export interface LevelUpView {
 }
 
 /** 閉じ方：物語を読む・昇段試験へ・閉じる */
-export type LevelUpAction = 'read' | 'exam' | 'close';
+export type LevelUpAction = 'read' | 'exam' | 'close' | 'cloud';
 
 export function levelUpHtml(v: LevelUpView): string {
   const say = v.final

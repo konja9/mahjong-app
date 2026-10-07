@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Google Play Games Services のプロジェクト ID。
+  Play Console の「Play Games サービス → 設定と管理 → 構成」に出る数字（例：123456789012）に書き換える。
+  仮の 0 の間は、アプリは Play Games を使わずに動く（PlayGamesPlugin.configured）。
+  手順は store/play-games.md
+-->
+<resources>
+    <string name="game_services_project_id" translatable="false">0</string>
+</resources>

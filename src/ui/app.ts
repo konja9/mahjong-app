@@ -71,6 +71,10 @@ import {
   mergeLevelUp,
 } from './level';
 import { loadRecord, recordAnswer, recordExam, recent, saveRecord } from './record';
+import { type AchievementState, loadAchievementLog, newAchievements, saveAchievementLog } from './achievements';
+import { ACHIEVEMENT_IDS, LEADERBOARD_IDS } from './gamesIds';
+import { gamesAvailable, isSignedIn, loadSnapshot, saveSnapshot, showAchievements, showLeaderboard, signIn, submitScore, unlockAchievement } from './games';
+import { applySave, decide, packSave, parseSave, progressOf, progressValue } from './cloudSave';
 import { type RecordTab, recordHtml } from './recordView';
 import { STORY, storyChapterHtml, storyIndexHtml, storyTabsHtml } from './story';
 import { renderOdometer } from './odometer';
@@ -166,6 +170,11 @@ export class App {
   /** 成績の記録（1問ごと・日ごと・受験記録） */
   private rec = loadRecord(dayKey());
   private recTab: RecordTab = 'skill';
+  /** Google Play Games：実績のための数えと送った実績、ログインしているか、最後にクラウドへ保存した時刻 */
+  private ach = loadAchievementLog();
+  private gamesOn = false;
+  private gamesAvail = false;
+  private cloudSavedAt = 0;
   private recMode: Mode | null = null;
   /** 出題中の問題が復習の手なら、その key */
   private reviewKey: string | null = null;
@@ -253,7 +262,10 @@ export class App {
           this.openShop('machine');
         }
       },
-      onEvent: (e) => this.tip(e),
+      onEvent: (e) => {
+        this.tip(e);
+        if (e === 'rush') this.countAchievement('rushes');
+      },
       onTalk: (e) => this.talk(e),
       onCharaTap: () => this.talk('tap'),
     });
@@ -712,6 +724,10 @@ export class App {
   private startRound(premium: boolean): Promise<JackpotResult> {
     return new Promise((resolve) => {
       this.round = { n: 0, total: 0, combo: 0, extra: 0, perfect: true, premium, short: this.tutFree, resolve };
+      if (!this.tutFree) {
+        this.countAchievement('hits');
+        if (premium) this.countAchievement('premiums');
+      }
       queueMicrotask(() => this.tut.notify('bonusStart'));
       this.tips.first('firstHit');
       // 回答待ちの問題があれば、その問題を ROUND 1 にする（BET なし・賞金あり）。
@@ -939,6 +955,7 @@ export class App {
       (id) => this.equipPart(id as PartId),
     );
     this.pause('levelup', false);
+    void this.syncGames(true);
     if (act === 'read' && chapter) this.openStory(chapter.n);
     else if (act === 'exam') this.startExam();
     else this.tip('levelUp');
@@ -1052,6 +1069,7 @@ export class App {
     if (j.pass) {
       recordPass(this.exam, new Date().toISOString().slice(0, 10));
       saveExam(this.exam);
+      void this.syncGames(true);
       applyParts(this.parts, this.slots);
       this.renderExpStrip(true);
     }
@@ -1333,6 +1351,7 @@ export class App {
 
     if (correct) {
       ss.correct++;
+      if (!this.tutFree && !this.examRun && handFu(this.q).yakuman) this.countAchievement('yakuman');
       ss.streak++;
       ss.maxStreak = Math.max(ss.maxStreak, ss.streak);
       ss.times.push(elapsed);
@@ -1828,6 +1847,8 @@ export class App {
     this.bindMenu();
     this.bindStory();
     this.bindRecord();
+    this.bindGames();
+    void this.initGames();
     this.renderExpStrip();
     this.bindShop();
     this.bindGuide();
@@ -1853,6 +1874,7 @@ export class App {
     // 隠れたら音を止め、画面ロックや別アプリから戻ったら起こし直す（iOS は止まったままになる）
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'visible') {
+        void this.syncGames(true);
         suspendAudio();
         return;
       }
@@ -2405,6 +2427,7 @@ export class App {
       machine: SPECS[this.shop.machine].name,
       keiko: this.keiko,
       badges: this.menuBadges,
+      games: this.gamesAvail,
     });
   }
 
@@ -2444,6 +2467,9 @@ export class App {
       case 'summary':
         this.openRecord();
         return;
+      case 'games':
+        this.openGames();
+        return;
       case 'help':
         this.openHelp();
         return;
@@ -2454,6 +2480,148 @@ export class App {
         if (!this.showStart()) this.toast('BONUS や演出の間は、スタート画面に戻れません');
         return;
     }
+  }
+
+  // ------------------------------------------------------------ Google Play Games（アプリ版だけ）
+
+  /** 起動時：使えてログインできていれば、クラウドの記録と比べる。クラウドの方が進んでいれば聞く */
+  private async initGames(): Promise<void> {
+    this.gamesAvail = await gamesAvailable();
+    if (!this.gamesAvail) return;
+    this.gamesOn = await isSignedIn();
+    if (!this.gamesOn) return;
+    const cloud = parseSave(await loadSnapshot());
+    const local = packSave(localStorage);
+    if (cloud && decide(local, cloud) === 'ask') {
+      // 演出やダイアログの途中なら、終わるまで待ってから聞く
+      for (let i = 0; i < 60 && (this.busy || document.querySelector('#levelup, dialog[open]')); i++) await new Promise((r) => setTimeout(r, 1000));
+      const p = progressOf(cloud);
+      const here = progressOf(local);
+      const act = await this.levelUp.showHtml(
+        'cloud-ask',
+        `<div class="lu-inner" role="dialog" aria-label="クラウドの記録">
+          <div class="lu-chara">${charaSvg('surprise')}</div>
+          <div class="lu-title">クラウドの記録</div>
+          <p class="lu-say">おっと、クラウドに <b>${p.label}</b> の記録があるぜ。<br>この端末は <b>${here.label}</b>。どっちで続ける？</p>
+          <div class="lu-buttons"><button class="lu-btn lu-read" type="button" data-lu="cloud">クラウドを使う</button><button class="lu-btn" type="button" data-lu="close">この端末を使う</button></div>
+        </div>`,
+      );
+      if (act === 'cloud') {
+        applySave(localStorage, cloud);
+        location.reload();
+        return;
+      }
+    }
+    await this.syncGames(true);
+  }
+
+  /** 実績のための数え（大当り・RUSH・PREMIUM・役満）を1つ増やす */
+  private countAchievement(k: 'hits' | 'rushes' | 'premiums' | 'yakuman'): void {
+    this.ach[k]++;
+    saveAchievementLog(this.ach);
+    void this.syncGames();
+  }
+
+  private achievementState(): AchievementState {
+    return {
+      hits: this.ach.hits,
+      rushes: this.ach.rushes,
+      premiums: this.ach.premiums,
+      yakuman: this.ach.yakuman,
+      rank: this.exam.rank,
+      slots: this.slots,
+      ownedParts: this.parts.owned.length,
+      level: levelOf(this.lv.exp).level,
+      notesRead: this.exam.notesRead?.length ?? 0,
+      bestStreak: this.rec.bestStreak,
+      totalCorrect: Object.values(this.rec.total).reduce((s, t) => s + (t?.c ?? 0), 0),
+    };
+  }
+
+  /** 新しく取れた実績を送り、ランキングに送り、クラウドへ保存する（クラウドは60秒に1回まで。force で今すぐ） */
+  private async syncGames(force = false): Promise<void> {
+    if (!this.gamesOn) return;
+    const st = this.achievementState();
+    for (const id of newAchievements(st, this.ach.sent)) {
+      if (ACHIEVEMENT_IDS[id] && (await unlockAchievement(ACHIEVEMENT_IDS[id]))) {
+        this.ach.sent.push(id);
+        saveAchievementLog(this.ach);
+      }
+    }
+    if (!force && performance.now() - this.cloudSavedAt < 60_000) return;
+    this.cloudSavedAt = performance.now();
+    void submitScore(LEADERBOARD_IDS.bestStreak, st.bestStreak);
+    void submitScore(LEADERBOARD_IDS.totalCorrect, st.totalCorrect);
+    const save = packSave(localStorage);
+    if (await saveSnapshot(JSON.stringify(save), progressOf(save).label, progressValue(save))) {
+      this.cloudSavedLabel = new Date().toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+  }
+
+  private cloudSavedLabel = '';
+
+  /** メニューの「実績・ランキング」 */
+  private openGames(): void {
+    const dlg = $<HTMLDialogElement>('#games-dialog');
+    this.renderGames();
+    this.pause('games', true);
+    if (!dlg.open) dlg.showModal();
+  }
+
+  private renderGames(): void {
+    const b = (act: string, label: string, sub = '') =>
+      `<button class="mn-tile" type="button" data-games="${act}"><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</button>`;
+    const body = this.gamesOn
+      ? `<div class="mn-grid">
+          ${b('achievements', '実績を見る', '15個の実績')}
+          ${b('streak', 'ランキング', '最大連続正解')}
+          ${b('correct', 'ランキング', '累計正解数')}
+          ${b('save', 'クラウドに保存', this.cloudSavedLabel ? `最後の保存 ${this.cloudSavedLabel}` : 'まだ保存していない')}
+          ${b('load', 'クラウドから読み込む', '端末の記録を置き換える')}
+        </div>`
+      : `<p class="muted">Google Play Games にログインすると、実績・ランキング・クラウドセーブが使えます。</p>
+        <div class="mn-grid">${b('signin', 'ログイン', 'Google Play Games')}</div>`;
+    $('#games-dialog').innerHTML = `<div class="settings menu games">
+      <div class="set-head"><span>実績・ランキング</span><button class="icon-btn" data-games-close aria-label="閉じる">×</button></div>
+      ${body}
+    </div>`;
+  }
+
+  private bindGames(): void {
+    const dlg = $<HTMLDialogElement>('#games-dialog');
+    dlg.addEventListener('close', () => this.pause('games', false));
+    dlg.addEventListener('click', async (e) => {
+      const t = e.target as HTMLElement;
+      if (t === dlg || t.closest('[data-games-close]')) {
+        dlg.close();
+        return;
+      }
+      const act = t.closest<HTMLElement>('[data-games]')?.dataset.games;
+      if (!act) return;
+      if (act === 'signin') {
+        this.gamesOn = await signIn();
+        if (this.gamesOn) void this.syncGames(true);
+        else this.toast('ログインできませんでした。あとでもう一度試してみな');
+        this.renderGames();
+        this.renderMenu();
+      } else if (act === 'achievements') void showAchievements();
+      else if (act === 'streak') void showLeaderboard(LEADERBOARD_IDS.bestStreak || undefined);
+      else if (act === 'correct') void showLeaderboard(LEADERBOARD_IDS.totalCorrect || undefined);
+      else if (act === 'save') {
+        await this.syncGames(true);
+        this.toast(this.cloudSavedLabel ? 'クラウドに保存したぜ' : '保存できませんでした。通信を確かめてみな');
+        this.renderGames();
+      } else if (act === 'load') {
+        const cloud = parseSave(await loadSnapshot());
+        if (!cloud) {
+          this.toast('クラウドに記録がありません');
+          return;
+        }
+        if (!confirm(`クラウドの記録（${progressOf(cloud).label}）で、この端末の記録を置き換えますか？`)) return;
+        applySave(localStorage, cloud);
+        location.reload();
+      }
+    });
   }
 
   // ------------------------------------------------------------ 成績
@@ -2578,6 +2746,7 @@ export class App {
     } else if (chapter >= 1 && chapter <= open) {
       markRead(this.lv, chapter);
       saveLevel(this.lv);
+      void this.syncGames();
       dlg.innerHTML = `<div class="story">${storyChapterHtml(chapter, this.lv)}</div>`;
     } else dlg.innerHTML = `<div class="story">${storyIndexHtml(this.lv, tabs('memory'))}</div>`;
     dlg.querySelector('.story-body')?.scrollTo(0, 0);
@@ -2822,5 +2991,6 @@ const SHELL = `
 <dialog id="shop-dialog"></dialog>
 <dialog id="story-dialog" aria-label="物語"></dialog>
 <dialog id="record-dialog" aria-label="成績"></dialog>
+<dialog id="games-dialog" aria-label="実績・ランキング"></dialog>
 ${TILE_DEFS}
 `;
