@@ -164,10 +164,11 @@ function skillHtml(v: RecordView): string {
 
 function chart(ps: DayPoint[], val: (p: DayPoint) => number | null, o: { min: number; max: number; unit: string; flags: Map<string, string>; fmt: (v: number) => string; invert?: boolean }): string {
   const w = 320;
-  const h = 130;
+  const h = 140;
   const l = 30;
   const r = 8;
-  const top = 10;
+  // 上の余白に段位の旗の文字を置く（いちばん上の目盛りの数字と重ならないように）
+  const top = 22;
   const bottom = 20;
   const x = (i: number) => (ps.length === 1 ? (l + w - r) / 2 : l + (i / (ps.length - 1)) * (w - l - r));
   // invert：小さい値ほど上（速さは速いほど上に描く）
@@ -180,7 +181,7 @@ function chart(ps: DayPoint[], val: (p: DayPoint) => number | null, o: { min: nu
     .map((g) => `<line x1="${l}" x2="${w - r}" y1="${y(g).toFixed(1)}" y2="${y(g).toFixed(1)}" class="grid"/><text x="${l - 4}" y="${(y(g) + 3).toFixed(1)}" class="ax" text-anchor="end">${o.fmt(g)}</text>`)
     .join('');
   const flags = ps
-    .map((p, i) => (o.flags.has(p.d) ? `<g class="flag"><line x1="${x(i).toFixed(1)}" x2="${x(i).toFixed(1)}" y1="${top}" y2="${h - bottom}"/><text x="${x(i).toFixed(1)}" y="${top - 1}" text-anchor="middle">${o.flags.get(p.d)}</text></g>` : ''))
+    .map((p, i) => (o.flags.has(p.d) ? `<g class="flag"><line x1="${x(i).toFixed(1)}" x2="${x(i).toFixed(1)}" y1="${top}" y2="${h - bottom}"/><text x="${x(i).toFixed(1)}" y="11" text-anchor="${x(i) < l + 12 ? 'start' : x(i) > w - r - 12 ? 'end' : 'middle'}">${o.flags.get(p.d)}</text></g>` : ''))
     .join('');
   const line = pts.length > 1 ? `<polyline points="${pts.map((q) => `${x(q.i).toFixed(1)},${y(q.v).toFixed(1)}`).join(' ')}" class="line"/>` : '';
   const dots = pts

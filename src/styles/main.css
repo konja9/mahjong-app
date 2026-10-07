@@ -4399,3 +4399,10 @@ body.exam #open-shop {
     height: min(640px, calc(100vh - 64px - 2 * var(--ad-h)));
   }
 }
+/* スマホ幅ではほかのダイアログと同じ下からのシート（幅いっぱいにして左に寄らないように） */
+@media (max-width: 640px) {
+  #record-dialog,
+  #story-dialog {
+    width: 100vw;
+  }
+}
