@@ -82,7 +82,7 @@ const title = { owned: ['title-fu-reader'], equip: { title: 'title-fu-reader' } 
     else if (/大当/.test(t)) break;
   }
   // 白く光る瞬間を過ぎ、「大当り」の文字と集中線がはっきり見えるところで撮る
-  await p.waitForTimeout(1400);
+  await p.waitForTimeout(600);
   await shot(p, '1-jackpot');
   await p.context().close();
 }
@@ -150,14 +150,16 @@ const title = { owned: ['title-fu-reader'], equip: { title: 'title-fu-reader' } 
   await enter(p, 'pachinko');
   // 途中で大当りを引いて、収支がプラスになるようにする
   await p.evaluate(() => window.tensu.panel.machine.forceNextHit());
-  for (let k = 0; k < 30; k++) {
+  for (let k = 0; k < 40; k++) {
     if ((await phase(p)) !== 'answering') {
       await next(p);
       await p.waitForTimeout(300);
       continue;
     }
+    // 途中でもう一度大当りを引いて、収支をプラスにする
+    if (k === 15) await p.evaluate(() => window.tensu.panel.machine.forceNextHit());
     // たまに間違える（成績に苦手が出るように）
-    if (k % 9 === 7) {
+    if (k % 13 === 7) {
       const a = await p.evaluate(() => window.tensu.debugAnswer());
       await p.click(`#choices [data-choice="${Number(a) % 4}"]`);
     } else await answerCorrect(p);

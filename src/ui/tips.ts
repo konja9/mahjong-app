@@ -102,7 +102,7 @@ export function tipText(id: Exclude<TipId, 'firstHit'>, fastSec: number, spec: M
     case 'machine':
       return `ミドル台を解放できるだけ稼いだな（${SPECS.middle.price.toLocaleString()} yan）。メニューの「台選び」だ`;
     case 'levelUp':
-      return 'Lv が上がるたび、オレ様の記憶が1話ずつ戻ってくる。メニュー（右上の ≡）の「物語」で読めるぜ';
+      return 'Lv が上がるたび、改造パーツが手に入って、オレ様の記憶も1話ずつ戻る。2 Lv ごとに昇段試験もあるぜ。全部メニュー（右上の ≡）からだ';
   }
 }
 

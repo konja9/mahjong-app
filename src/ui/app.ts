@@ -2174,11 +2174,6 @@ export class App {
         this.renderShop();
         return;
       }
-      if (d.machineTab) {
-        this.machineTab = d.machineTab as MachineTab;
-        this.renderShop();
-        return;
-      }
       if ('examStart' in d) {
         $<HTMLDialogElement>('#shop-dialog').close();
         this.startExam();
@@ -2382,9 +2377,9 @@ export class App {
     });
   }
 
-  /** メニューの各項目を開く。台・改造・昇段試験・成績は稽古ならパチンコに切り替えてから */
+  /** メニューの各項目を開く。台・改造・昇段試験は稽古ならパチンコに切り替えてから。成績は今のモードの成績 */
   private menuAction(item: MenuItem): void {
-    const needPachinko = item === 'machine' || item === 'parts' || item === 'exam' || item === 'summary';
+    const needPachinko = item === 'machine' || item === 'parts' || item === 'exam';
     if (needPachinko && this.keiko) this.update({ playMode: 'pachinko' });
     switch (item) {
       case 'machine':
@@ -2401,7 +2396,14 @@ export class App {
         return;
       case 'summary':
         if (this.blockedInBonus()) return;
-        this.showSummary('summary');
+        // 稽古は、ここまでの稽古の成績（区切って最初から）。パチンコは収支・大当り履歴も
+        if (this.keiko) {
+          if (!this.session.answered) {
+            this.toast('まだ稽古の記録がありません。何問か解いてから見てみな');
+            return;
+          }
+          this.showSummary('end');
+        } else this.showSummary('summary');
         return;
       case 'help':
         this.openHelp();
