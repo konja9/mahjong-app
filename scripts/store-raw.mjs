@@ -164,8 +164,9 @@ if (process.env.CANDIDATES?.startsWith('game')) {
   console.log(`候補を ${dir} に書き出しました`);
 }
 
-// 1. 大当りの瞬間（演出あり。実戦の手牌）
-if (want(1)) {
+// 1. 1枚目の元画面は、CANDIDATES=game:hayami で撮った候補から選んで store/raw/1-jackpot.png に置いている。
+//    大当りの瞬間を撮り直したいときだけ ONLY=1 で走らせる
+if (ONLY?.includes(1)) {
   const p = await open({ settings: { effects: 'max', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' }, shop: title });
   await enter(p, 'pachinko');
   await p.evaluate(() => window.tensu.panel.machine.forceNextHit());
@@ -182,46 +183,8 @@ if (want(1)) {
   await p.context().close();
 }
 
-// 2. 昇段試験の認定証（段位・改造の枠・帳面の頁）
+// 2. BONUS 中（符のマスと賞金）と、BONUS が終わったときの獲得
 if (want(2)) {
-  // ゲンさんの名前は物語の第4話で明かすので、ストアの画像では伏せる（第1〜3話だけ読んだことにする）
-  const read = [1, 2, 3];
-  const p = await open({
-    settings: { effects: 'max', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' },
-    level: { exp: 52000, read },
-    shop: title,
-    extra: { 'tensu.exam.v1': { rank: 5, passedAt: ['2026-09-20', '2026-09-23', '2026-09-26', '2026-09-30', '2026-10-03'], notesRead: [1, 2, 3, 4, 5] } },
-  });
-  await enter(p, 'pachinko');
-  await p.click('#open-menu');
-  await p.waitForTimeout(300);
-  await p.click('[data-menu="exam"]');
-  await p.waitForTimeout(400);
-  await p.click('[data-exam-start]');
-  await p.waitForTimeout(900);
-  await p.click('[data-lu="exam"]');
-  await p.waitForTimeout(600);
-  for (let k = 0; k < 10; k++) {
-    await toAnswering(p);
-    // 自動で答えると速すぎるので、それまでの答えの秒をそれらしい値にしておく
-    if (k === 9) await p.evaluate(() => (window.tensu.examRun.times = [11.2, 8.4, 13.1, 9.7, 12.5, 7.9, 10.8, 14.2, 9.3]));
-    await answerCorrect(p);
-    await p.waitForTimeout(300);
-    await p.keyboard.press('Enter');
-  }
-  await p.waitForTimeout(2200);
-  // 閉じるボタンは写さない
-  await p.evaluate(() => {
-    document.querySelectorAll('#levelup .lu-buttons').forEach((b) => (b.style.visibility = 'hidden'));
-    const next = document.querySelector('#next-btn');
-    if (next) next.style.visibility = 'hidden';
-  });
-  await shot(p, '2-rank');
-  await p.context().close();
-}
-
-// 3. BONUS 中（符のマスと賞金）
-if (want(3)) {
   const p = await open({ settings: { effects: 'off', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' }, shop: title });
   await enter(p, 'pachinko');
   await p.evaluate(() => window.tensu.panel.machine.forceNextHit());
@@ -241,24 +204,57 @@ if (want(3)) {
     await next(p);
   }
   await p.waitForTimeout(500);
-  await shot(p, '3-bonus');
+  await shot(p, '2-bonus');
+  await p.context().close();
+}
+if (want(2)) {
+  // BONUS を最後まで正解し、「BONUS 獲得 +○○ yan」の数字が数え上がって止まった瞬間を撮る
+  const p = await open({ settings: { effects: 'max', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' }, shop: title });
+  await enter(p, 'pachinko');
+  await p.evaluate(() => window.tensu.panel.machine.forceNextHit());
+  let done = false;
+  for (let k = 0; k < 30 && !done; k++) {
+    if (!(await toAnswering(p))) break;
+    const inBonus = await p.evaluate(() => !!window.tensu.round);
+    await answerCorrect(p);
+    if (!inBonus) continue;
+    // 答えたあとに BONUS が終わると獲得の画面が出る
+    let last = '';
+    for (let t = 0; t < 120; t++) {
+      await p.waitForTimeout(100);
+      const v = await p.evaluate(() => document.querySelector('#overlay .payout-n')?.textContent ?? '');
+      if (!v) {
+        if (last) break;
+        if (await p.evaluate(() => document.body.dataset.phase === 'result' && !document.body.classList.contains('busy'))) break;
+        await p.evaluate(() => window.tensu.fx.awaitingPush && window.tensu.fx.pressPush());
+        continue;
+      }
+      if (v === last && v !== '+0') {
+        await shot(p, '2-payout');
+        done = true;
+        break;
+      }
+      last = v;
+    }
+  }
+  if (!done) console.log('BONUS 獲得の画面を撮れませんでした');
   await p.context().close();
 }
 
-// 4. 稽古（重点学習の途中）
-if (want(4)) {
+// 3. 稽古（重点学習の途中）
+if (want(3)) {
   const p = await open({ settings: { effects: 'off', playMode: 'keiko', keikoStudy: 'focus', keikoSource: 'normal', answerStyle: 'choice' } });
   await enter(p, 'keiko');
   for (let k = 0; k < 3; k++) {
     await answerCorrect(p);
     await p.waitForTimeout(350);
   }
-  await shot(p, '4-keiko');
+  await shot(p, '3-keiko');
   await p.context().close();
 }
 
-// 5. 成績（腕前：種目ごとの直近の正答率・速さ・伸び、次の昇段試験の目安）
-if (want(5)) {
+// 4. 成績（腕前：種目ごとの直近の正答率・速さ・伸び、次の昇段試験の目安）
+if (want(4)) {
   // 2週間、毎日少しずつ上手くなった記録を入れておく（同じ絵になるよう乱数は固定）
   let seed = 11;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -308,7 +304,67 @@ if (want(5)) {
   await enter(p, 'pachinko');
   await p.evaluate(() => window.tensu.openRecord('skill'));
   await p.waitForTimeout(700);
-  await shot(p, '5-summary');
+  await shot(p, '4-summary');
+  await p.context().close();
+}
+
+// 5. 昇段試験の認定証（段位・帳面の頁）と、改造パーツの画面
+if (want(5)) {
+  // ゲンさんの名前は物語の第4話で明かすので、ストアの画像では伏せる（第1〜3話だけ読んだことにする）
+  const read = [1, 2, 3];
+  const p = await open({
+    settings: { effects: 'max', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' },
+    level: { exp: 52000, read },
+    shop: title,
+    extra: { 'tensu.exam.v1': { rank: 5, passedAt: ['2026-09-20', '2026-09-23', '2026-09-26', '2026-09-30', '2026-10-03'], notesRead: [1, 2, 3, 4, 5] } },
+  });
+  await enter(p, 'pachinko');
+  await p.click('#open-menu');
+  await p.waitForTimeout(300);
+  await p.click('[data-menu="exam"]');
+  await p.waitForTimeout(400);
+  await p.click('[data-exam-start]');
+  await p.waitForTimeout(900);
+  await p.click('[data-lu="exam"]');
+  await p.waitForTimeout(600);
+  for (let k = 0; k < 10; k++) {
+    await toAnswering(p);
+    // 自動で答えると速すぎるので、それまでの答えの秒をそれらしい値にしておく
+    if (k === 9) await p.evaluate(() => (window.tensu.examRun.times = [11.2, 8.4, 13.1, 9.7, 12.5, 7.9, 10.8, 14.2, 9.3]));
+    await answerCorrect(p);
+    await p.waitForTimeout(300);
+    await p.keyboard.press('Enter');
+  }
+  await p.waitForTimeout(2200);
+  // 閉じるボタンは写さない
+  await p.evaluate(() => {
+    document.querySelectorAll('#levelup .lu-buttons').forEach((b) => (b.style.visibility = 'hidden'));
+    const next = document.querySelector('#next-btn');
+    if (next) next.style.visibility = 'hidden';
+  });
+  await shot(p, '5-rank');
+  await p.context().close();
+}
+if (want(5)) {
+  // 改造：Lv 12・初段で、枠（3つ）をパーツで埋めた状態
+  const p = await open({
+    settings: { effects: 'off', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' },
+    level: { exp: 52000, read: [1, 2, 3] },
+    shop: title,
+    extra: {
+      'tensu.exam.v1': { rank: 5, passedAt: [], notesRead: [1, 2, 3, 4, 5] },
+      'tensu.parts.v1': {
+        owned: ['fast', 'tank', 'cushion', 'lens', 'denchu', 'st', 'combo', 'kakuhen', 'uwanose', 'premium', 'round'],
+        equip: ['tank', 'st', 'kakuhen'],
+      },
+    },
+  });
+  await enter(p, 'pachinko');
+  await p.click('#open-menu');
+  await p.waitForTimeout(300);
+  await p.click('[data-menu="parts"]');
+  await p.waitForTimeout(600);
+  await shot(p, '5-parts');
   await p.context().close();
 }
 
