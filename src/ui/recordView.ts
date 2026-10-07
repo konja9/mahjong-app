@@ -162,7 +162,7 @@ function skillHtml(v: RecordView): string {
 
 // ------------------------------------------------------------ 推移
 
-function chart(ps: DayPoint[], val: (p: DayPoint) => number | null, o: { min: number; max: number; unit: string; flags: Map<string, string>; fmt: (v: number) => string }): string {
+function chart(ps: DayPoint[], val: (p: DayPoint) => number | null, o: { min: number; max: number; unit: string; flags: Map<string, string>; fmt: (v: number) => string; invert?: boolean }): string {
   const w = 320;
   const h = 130;
   const l = 30;
@@ -170,7 +170,11 @@ function chart(ps: DayPoint[], val: (p: DayPoint) => number | null, o: { min: nu
   const top = 10;
   const bottom = 20;
   const x = (i: number) => (ps.length === 1 ? (l + w - r) / 2 : l + (i / (ps.length - 1)) * (w - l - r));
-  const y = (v: number) => top + (1 - (v - o.min) / (o.max - o.min || 1)) * (h - top - bottom);
+  // invert：小さい値ほど上（速さは速いほど上に描く）
+  const y = (v: number) => {
+    const f = (v - o.min) / (o.max - o.min || 1);
+    return top + (o.invert ? f : 1 - f) * (h - top - bottom);
+  };
   const pts = ps.map((p, i) => ({ p, i, v: val(p) })).filter((q): q is { p: DayPoint; i: number; v: number } => q.v !== null);
   const grid = [o.min, (o.min + o.max) / 2, o.max]
     .map((g) => `<line x1="${l}" x2="${w - r}" y1="${y(g).toFixed(1)}" y2="${y(g).toFixed(1)}" class="grid"/><text x="${l - 4}" y="${(y(g) + 3).toFixed(1)}" class="ax" text-anchor="end">${o.fmt(g)}</text>`)
@@ -201,11 +205,13 @@ function trendHtml(v: RecordView): string {
     const accs = ps.map((p) => p.acc);
     const min = Math.max(0, Math.min(0.5, Math.floor(Math.min(...accs) * 10) / 10));
     const avgs = ps.map((p) => p.avg).filter((a): a is number => a !== null);
-    const maxSec = Math.max(10, Math.ceil(Math.max(0, ...avgs) / 5) * 5);
+    // 記録の速い〜遅いを5秒単位で広げた範囲（0秒からにすると線が端に寄る）
+    const minSec = Math.max(0, Math.floor(Math.min(...avgs) / 5) * 5);
+    const maxSec = Math.max(minSec + 5, Math.ceil(Math.max(...avgs) / 5) * 5);
     charts = `<div class="rec-charts"><div class="rec-sec"><div class="ex-h">正答率 <span class="muted">遊んだ日ごと（点の大きさは問題数）</span></div>
         ${chart(ps, (p) => p.acc, { min, max: 1, unit: '%', flags, fmt: (x) => `${Math.round(x * 100)}` })}</div>
-      ${avgs.length ? `<div class="rec-sec"><div class="ex-h">平均の速さ <span class="muted">秒・下ほど速い</span></div>
-        ${chart(ps, (p) => p.avg, { min: 0, max: maxSec, unit: '秒', flags, fmt: (x) => x.toFixed(0) })}</div>` : ''}</div>`;
+      ${avgs.length ? `<div class="rec-sec"><div class="ex-h">平均の速さ <span class="muted">秒・上ほど速い</span></div>
+        ${chart(ps, (p) => p.avg, { min: minSec, max: maxSec, unit: '秒', flags, fmt: (x) => (Number.isInteger(x) ? String(x) : x.toFixed(1)), invert: true })}</div>` : ''}</div>`;
   }
   const exams = v.rec.exams
     .slice()

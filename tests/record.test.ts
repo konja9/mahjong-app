@@ -173,4 +173,15 @@ describe('成績の画面', () => {
     expect(t).toContain('class="flag"');
     expect(t).toContain('合格');
   });
+  it('平均の速さのグラフは、速い日ほど上に描く', () => {
+    const rec = freshRecord('2026-10-01');
+    fill(rec, 5, { sec: 30 }, '2026-10-01');
+    fill(rec, 5, { sec: 12 }, '2026-10-02');
+    const t = recordHtml(view({ rec, tab: 'trend' }));
+    expect(t).toContain('上ほど速い');
+    const speed = t.slice(t.indexOf('平均の速さ'));
+    const cys = [...speed.matchAll(/<circle cx="[\d.]+" cy="([\d.]+)"/g)].map((m) => Number(m[1]));
+    expect(cys).toHaveLength(2);
+    expect(cys[1]).toBeLessThan(cys[0]);
+  });
 });
