@@ -240,7 +240,10 @@ export class App {
       onJackpot: ({ premium }) => this.startRound(premium),
       onTap: () => {
         // 演出中・BONUS 中は誤タップで開かないようにする
-        if (!this.keiko && !this.busy && !this.round) this.openShop('machine');
+        if (!this.keiko && !this.busy && !this.round) {
+          this.machineTab = 'machines';
+          this.openShop('machine');
+        }
       },
       onEvent: (e) => this.tip(e),
       onTalk: (e) => this.talk(e),
@@ -2284,16 +2287,19 @@ export class App {
     }
   }
 
-  /** 計器の左の Lv の札と、計器の上の経験値の線。Lv が上がった瞬間は光らせる */
+  /** 計器の上の経験値の帯：Lv・段位・称号・バー・次の Lv まで。Lv が上がった瞬間は光らせる */
   private renderExpStrip(flash = false): void {
     const el = $('#exp-strip');
     const { level, into, need } = levelOf(this.lv.exp);
     const rank = rankName(this.exam.rank);
     const t = equipped(this.shop, 'title');
-    // 1段目：Lv と段位、2段目：装備した称号（色はレア度）
-    el.innerHTML = `<span class="xp-row"><b class="xp-lv">Lv ${level}</b>${rank ? `<span class="xp-rank">${rank}</span>` : ''}</span>${t.value ? `<span class="mt-title r-${t.rarity ?? 'common'}">${t.value}</span>` : ''}`;
-    el.setAttribute('aria-label', `Lv ${level}${rank ? `・${rank}` : ''}。次の Lv まで ${need - into}。タップでメニュー`);
-    $<HTMLElement>('#xp-line > i').style.width = `${Math.round((into / need) * 100)}%`;
+    const done = level >= FINAL_LEVEL;
+    el.innerHTML =
+      `<b class="xp-lv">Lv ${level}</b>${rank ? `<span class="xp-rank">${rank}</span>` : ''}` +
+      `${t.value ? `<span class="mt-title r-${t.rarity ?? 'common'}">${t.value}</span>` : ''}` +
+      `<span class="xp-bar"><i style="width:${Math.round((into / need) * 100)}%"></i></span>` +
+      `<small class="xp-next">${done ? '<em>完結</em> ' : ''}次の Lv まで <b>${(need - into).toLocaleString()}</b> exp</small>`;
+    el.setAttribute('aria-label', `Lv ${level}${rank ? `・${rank}` : ''}。次の Lv まで ${need - into} exp。タップでメニュー`);
     if (flash) {
       el.classList.remove('flash');
       void el.offsetWidth;
@@ -2644,10 +2650,9 @@ const SHELL = `
     <div id="question"></div>
     <div id="steps" hidden></div>
     <div id="dock">
+      <button id="exp-strip" type="button" aria-label="経験値"></button>
       <div id="meter">
-        <i id="xp-line" aria-hidden="true"><i></i></i>
-        <button id="exp-strip" class="mt-cell mt-lv" type="button" aria-label="経験値"></button>
-        <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><b>0</b><small class="mt-unit">yan</small><span id="net" class="mt-net"><small>本日</small><b>±0</b></span></div>
+        <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><small class="mt-label">所持</small><b>0</b><small class="mt-unit">yan</small><span id="net" class="mt-net"><small>本日</small><b>±0</b></span></div>
         <div class="mt-cell mt-bet"><div id="bet" class="bet-box"></div></div>
       </div>
       <div id="answer" aria-live="polite"></div>

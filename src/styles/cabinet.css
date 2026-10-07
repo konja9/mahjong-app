@@ -2037,101 +2037,6 @@ body[data-phase='summary'] #exp-strip {
   background: var(--main);
 }
 
-/* ============================================================ 1行の計器（Lv・所持yan＋本日・BET）と経験値の線 */
-#meter,
-:root[data-play='pachinko'] #meter {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1.5fr) minmax(0, 1fr);
-  gap: 6px;
-  padding-top: 7px;
-}
-:root[data-play='keiko'] #meter {
-  grid-template-columns: auto;
-  justify-content: start;
-}
-:root[data-play='keiko'] #meter .mt-credit,
-:root[data-play='keiko'] #meter .mt-bet {
-  display: none;
-}
-body[data-phase='summary'] #meter,
-:root[data-play='pachinko'] body[data-phase='summary'] #meter {
-  display: none;
-}
-#xp-line {
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  top: 0;
-  height: 3px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-}
-#xp-line > i {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--main) 50%, transparent), var(--main));
-  box-shadow: 0 0 6px color-mix(in srgb, var(--main) 60%, transparent);
-  transition: width 0.6s;
-}
-#meter .mt-cell {
-  min-height: 40px;
-  padding: 4px 10px;
-}
-/* Lv の札（タップでメニュー） */
-#dock #meter #exp-strip {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 1px;
-  width: auto;
-  height: auto;
-  padding: 4px 10px;
-  border: 0;
-  color: var(--sub);
-  font: inherit;
-  cursor: pointer;
-}
-#dock #meter #exp-strip .xp-lv {
-  font-size: 14px;
-}
-#dock #meter #exp-strip .xp-rank {
-  font-size: 10px;
-}
-/* 所持yan と、その横の本日の収支（BONUS 中は出玉） */
-#meter .mt-credit {
-  flex-direction: row;
-  align-items: baseline;
-  gap: 4px;
-}
-#meter .mt-unit {
-  display: inline;
-  font-size: 10px;
-}
-#meter .mt-credit .mt-net {
-  display: flex;
-  align-items: baseline;
-  gap: 3px;
-  margin-left: auto;
-  padding: 0;
-  background: none;
-  box-shadow: none;
-}
-#meter .mt-credit .mt-net b {
-  font-size: 13px;
-  color: var(--sub);
-}
-#meter .mt-credit .mt-net.minus b {
-  color: #ff8a98;
-}
-#meter .mt-credit .mt-net.bonus b,
-#meter .mt-credit .mt-net.bonus small {
-  color: var(--gold-hot);
-}
-
 /* ============================================================ ヘッダー：メニューのボタン */
 .menu-btn {
   position: relative;
@@ -2306,18 +2211,6 @@ body.exam #open-menu {
     display: none;
   }
 }
-#dock #meter #exp-strip .xp-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-#dock #meter #exp-strip .mt-title {
-  max-width: 96px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 9px;
-}
 
 /* PC 幅：ページを下へ送ってもヘッダー（パチンコ・稽古・出題・メニュー）を上に残す。液晶帯はその下に貼り付く */
 @media (min-width: 641px) {
@@ -2333,5 +2226,132 @@ body.exam #open-menu {
   }
   :root[data-play='pachinko'] #machine {
     top: calc(var(--ad-h, 0px) + 64px);
+  }
+}
+
+/* ============================================================ 計器：液晶の表示窓（押すボタンと見分けるため、へこんだ窓にする） */
+#meter,
+:root[data-play='pachinko'] #meter {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #050403, #0c0907);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.85),
+    inset 0 0 0 1px color-mix(in srgb, var(--main) 45%, transparent),
+    0 1px 0 rgba(255, 236, 190, 0.06);
+}
+:root[data-play='keiko'] #meter,
+body[data-phase='summary'] #meter,
+:root[data-play='pachinko'] body[data-phase='summary'] #meter {
+  display: none;
+}
+#meter .mt-cell {
+  min-height: 38px;
+  padding: 4px 12px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+#meter .mt-cell + .mt-cell {
+  border-left: 1px solid color-mix(in srgb, var(--main) 25%, transparent);
+}
+/* 数字は液晶のように金色に光らせる */
+#meter .mt-cell b {
+  color: #f3dc8f;
+  text-shadow: 0 0 8px rgba(242, 201, 76, 0.45);
+}
+#meter .mt-cell small {
+  color: color-mix(in srgb, var(--main) 55%, var(--sub));
+}
+#meter .mt-credit {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 5px;
+}
+#meter .mt-label {
+  display: inline;
+}
+#meter .mt-unit {
+  display: inline;
+  font-size: 10px;
+}
+#meter .mt-credit .mt-net {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-left: auto;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+#meter .mt-credit .mt-net b {
+  font-size: 13px;
+  color: color-mix(in srgb, #f3dc8f 75%, var(--sub));
+  text-shadow: none;
+}
+#meter .mt-credit .mt-net.minus b {
+  color: #ff8a98;
+}
+#meter .mt-credit .mt-net.bonus b,
+#meter .mt-credit .mt-net.bonus small {
+  color: var(--gold-hot);
+}
+#meter .mt-credit.low b {
+  color: var(--error);
+  text-shadow: none;
+}
+
+/* ============================================================ 経験値の帯（計器の上。押す箱に見えないよう、背景なしの文字とバー） */
+#dock #exp-strip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  height: 22px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--sub);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+#dock #exp-strip .xp-lv {
+  font-size: 13px;
+}
+#dock #exp-strip .mt-title {
+  flex: 0 1 auto;
+  max-width: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#dock #exp-strip .xp-bar {
+  flex: 1;
+  min-width: 40px;
+  height: 6px;
+}
+#dock #exp-strip .xp-next {
+  flex: none;
+  font-size: 10px;
+}
+#dock #exp-strip .xp-next b {
+  color: var(--text);
+  font-size: 11px;
+}
+#dock #exp-strip.flash {
+  border-radius: 6px;
+}
+@media (max-width: 380px) {
+  #dock #exp-strip .mt-title {
+    display: none;
+  }
+  #dock #exp-strip .xp-next {
+    display: inline;
   }
 }

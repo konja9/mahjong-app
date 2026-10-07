@@ -49,3 +49,15 @@ describe('世間話とスタート画面', () => {
     expect(startHtml({ first: false, balance: 1000, level: 10, cleared: false })).not.toContain('昇段試験');
   });
 });
+
+describe('台のダイアログ', () => {
+  it('タブはなく、メニューで選んだ画面の見出しだけが出る', async () => {
+    const { shopHtml, freshShop } = await import('../src/ui/shop');
+    const view = { state: { owned: [], equip: [] }, slots: 1, rank: '', nextSlotRank: '5級', canChange: true };
+    for (const [tab, title] of [['machines', '台選び'], ['parts', '改造'], ['exam', '昇段試験']] as const) {
+      const h = shopHtml(freshShop(), 'machine', 1000, true, 'title', { view, tab, examHtml: '<p>exam</p>' });
+      expect(h).toContain(`<span>${title}</span>`);
+      expect(h).not.toContain('data-machine-tab');
+    }
+  });
+});

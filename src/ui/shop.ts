@@ -258,7 +258,8 @@ export function itemsHtml(s: ShopState, balance: number, canPreview = true, tab:
   return `<div class="cfg-group help-tabs items-tabs" role="tablist">${tabs}</div>${body}`;
 }
 
-const TITLES: Record<ShopView, string> = { machine: '台・改造・昇段', items: '交換所' };
+const TITLES: Record<ShopView, string> = { machine: '台選び', items: '交換所' };
+const MACHINE_TITLES: Record<MachineTab, string> = { machines: '台選び', parts: '改造', exam: '昇段試験' };
 
 /** 台の改造（パーツの一覧と枠）。canChange：付け替えできるか（BONUS 中・回転中はできない） */
 export interface PartsView {
@@ -290,7 +291,7 @@ export function partsHtml(v: PartsView): string {
   return head + rows + note + `<p class="help-note">改造パーツは Lv が上がるたびに1つ手に入ります（Lv ${PART_ORDER.length + 1} まで）。付けると台が少し有利になります。</p>`;
 }
 
-/** 台選びのダイアログのタブ */
+/** 台のダイアログで出す画面（メニューの台選び・改造・昇段試験） */
 export type MachineTab = 'machines' | 'parts' | 'exam';
 
 /** ダイアログの中身 */
@@ -303,24 +304,16 @@ export function shopHtml(
   parts?: { view: PartsView; tab: MachineTab; examHtml?: string },
 ): string {
   // canSwitch：台選びでは台を切り替えられるか、交換所では試聴できるか
+  // 台のダイアログは、メニューで選んだ画面（台選び・改造・昇段試験）だけを出す
   let body: string;
+  let title: string = TITLES[view];
   if (view === 'machine') {
     const t = parts?.tab ?? 'machines';
-    const tabs = parts
-      ? `<div class="cfg-group help-tabs items-tabs" role="tablist">${(
-          [
-            ['machines', '台'],
-            ['parts', '改造'],
-            ['exam', '昇段試験'],
-          ] as [MachineTab, string][]
-        )
-          .map(([k, l]) => `<button class="cfg${k === t ? ' on' : ''}" role="tab" aria-selected="${k === t}" data-machine-tab="${k}">${l}${k === 'parts' ? `<small>${parts.view.state.equip.length}/${parts.view.slots}</small>` : ''}</button>`)
-          .join('')}</div>`
-      : '';
-    body = tabs + (parts && t === 'parts' ? partsHtml(parts.view) : parts && t === 'exam' ? (parts.examHtml ?? '') : machinesHtml(s, balance, canSwitch));
+    title = MACHINE_TITLES[t];
+    body = parts && t === 'parts' ? partsHtml(parts.view) : parts && t === 'exam' ? (parts.examHtml ?? '') : machinesHtml(s, balance, canSwitch);
   } else body = itemsHtml(s, balance, canSwitch, tab);
   return `<div class="settings help shop">
-    <div class="set-head"><span>${TITLES[view]}</span><span class="shop-wallet">所持yan <b>${balance.toLocaleString()}</b> yan</span><button class="icon-btn" data-shop-close aria-label="閉じる">×</button></div>
+    <div class="set-head"><span>${title}</span><span class="shop-wallet">所持yan <b>${balance.toLocaleString()}</b> yan</span><button class="icon-btn" data-shop-close aria-label="閉じる">×</button></div>
     <div class="help-body">${body}</div>
   </div>`;
 }
