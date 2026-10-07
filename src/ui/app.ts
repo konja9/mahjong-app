@@ -1515,7 +1515,7 @@ export class App {
 
   private renderQuestion(): void {
     const q = this.q;
-    // 実戦（パチンコ）と稽古では、答えのボタンのすぐ上から点数表を開ける（昇段試験では出さない）
+    // 実戦（パチンコ）と稽古では、答えのボタンのすぐ下から点数表を開ける（昇段試験では出さない）
     const table = !this.examRun && (this.keiko || q.mode === 'jissen');
     $('#answer-tools').innerHTML = table ? '<button type="button" class="st-open" data-score-table>点数表</button>' : '';
     const el = $('#question');
@@ -3015,9 +3015,9 @@ const SHELL = `
         <div class="mt-cell mt-credit" id="wallet" aria-live="polite"><small class="mt-label">所持</small><b>0</b><small class="mt-unit">yan</small><span id="net" class="mt-net"><small>本日</small><b>±0</b></span></div>
         <div class="mt-cell mt-bet"><div id="bet" class="bet-box"></div></div>
       </div>
-      <div id="answer-tools"></div>
       <div id="answer" aria-live="polite"></div>
       <div id="choices" role="group" aria-label="選択肢"></div>
+      <div id="answer-tools"></div>
       <div id="hint" class="hint"></div>
       <button id="next-btn" type="button">次へ</button>
     </div>

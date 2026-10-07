@@ -2622,10 +2622,14 @@ body[data-phase='summary'] #meter,
 }
 
 /* 点数表：問題の上の「点数表」ボタンと、表（遊び方の「点数」タブ・ポップアップ） */
+/* 4択の下の中央（親指の届く下の余白に置く）。答えのボタンと押し間違えないよう少し離す */
 #answer-tools {
   display: flex;
-  justify-content: flex-end;
-  margin: 2px 0 -4px;
+  justify-content: center;
+  margin-top: 2px;
+}
+#answer-tools .st-open {
+  padding: 4px 16px;
 }
 #answer-tools:empty {
   display: none;

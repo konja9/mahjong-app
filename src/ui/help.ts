@@ -138,7 +138,7 @@ function score(rules: Rules): string {
       'score-table',
       '点数表',
       '',
-      `${scoreTableHtml(rules)}<p class="small">20符はツモ（平和ツモ）だけ、25符は七対子（2翻から）。1翻のツモ・ロンの組み合わせでありえないマスは「—」です。実戦と稽古では、答えのボタンの上の「点数表」からいつでも開けます。</p>`,
+      `${scoreTableHtml(rules)}<p class="small">20符はツモ（平和ツモ）だけ、25符は七対子（2翻から）。1翻のツモ・ロンの組み合わせでありえないマスは「—」です。実戦と稽古では、答えのボタンの下の「点数表」からいつでも開けます。</p>`,
     ) +
     card(
       'score-tips',
