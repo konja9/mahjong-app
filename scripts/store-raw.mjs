@@ -183,30 +183,7 @@ if (ONLY?.includes(1)) {
   await p.context().close();
 }
 
-// 2. BONUS 中（符のマスと賞金）と、BONUS が終わったときの獲得
-if (want(2)) {
-  const p = await open({ settings: { effects: 'off', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' }, shop: title });
-  await enter(p, 'pachinko');
-  await p.evaluate(() => window.tensu.panel.machine.forceNextHit());
-  for (let k = 0; k < 12; k++) {
-    if (await p.evaluate(() => document.body.classList.contains('bonus'))) break;
-    if ((await phase(p)) === 'answering') await answerCorrect(p);
-    await p.waitForTimeout(1500);
-    await next(p);
-  }
-  // ROUND 3 の出題まで進めて、光ったマスと賞金・連続の倍率が見える状態にする
-  for (let k = 0; k < 8; k++) {
-    if ((await phase(p)) === 'answering') {
-      if (await p.evaluate(() => (window.tensu.round?.n ?? 0) >= 3)) break;
-      await answerCorrect(p);
-      await p.waitForTimeout(900);
-    }
-    await next(p);
-  }
-  await p.waitForTimeout(500);
-  await shot(p, '2-bonus');
-  await p.context().close();
-}
+// 2. BONUS が終わったときの獲得
 if (want(2)) {
   // BONUS を最後まで正解し、「BONUS 獲得 +○○ yan」の数字が数え上がって止まった瞬間を撮る
   const p = await open({ settings: { effects: 'max', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' }, shop: title });

@@ -113,13 +113,12 @@ function coreHtml(raw = '1-jackpot') {
 const SHOTS = [
   // 1. ゲームの肝
   { name: '1-core', html: coreHtml() },
-  // 2. BONUS で稼ぐ（BONUS 中の出題と、終わったときの獲得）
+  // 2. BONUS で稼ぐ（BONUS が終わったときの獲得）
   {
     name: '2-bonus',
     html: page(`${rays(1080, 1920, 540, 1100, 44, 0.1)}
       ${caption('大当りで、<br><em>一気に稼げ！</em>', 'BONUS は、符が高い手ほど賞金アップ。', 82)}
-      ${phone('2-bonus', 36, 440, 720, 0, 1)}
-      ${phone('2-payout', 768, 1140, 290, 5, 2)}`),
+      ${bigPhone('2-payout')}`),
   },
   // 3. 稽古モード（初心者から上級者まで）
   {
