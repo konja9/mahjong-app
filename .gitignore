@@ -4,3 +4,4 @@ dist
 .DS_Store
 public/assets/sfx/*.wav
 __pycache__/
+store/candidates/

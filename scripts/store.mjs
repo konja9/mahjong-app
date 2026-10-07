@@ -10,8 +10,10 @@
  * 使い方：npx -p playwright -p tsx tsx scripts/store.mjs
  *   store/raw/ の画面は scripts/store-raw.mjs で撮る（412×732、3倍）。
  *   PLAYWRIGHT_FROM（playwright のある node_modules）・CHROME（ブラウザの実行ファイル）で場所を指定できる。
+ *   CANDIDATES=1 で、store/candidates/pick/ の元画面ごとに1枚目とフィーチャー グラフィックを合成し、
+ *   store/candidates/ に書き出す（見比べる用の一覧 sheet.png も作る）。ストアの画像は書き換えない。
  */
-import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -84,7 +86,7 @@ const chara = (face, x, y, h, rot = 0) => {
   return `<div class="chara" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;transform:rotate(${rot}deg)">${charaSvg(face)}</div>`;
 };
 const phone = (raw, x, y, w, rot = 0, z = 1) =>
-  `<div class="phone" style="left:${x}px;top:${y}px;width:${w}px;height:${(w * 16) / 9}px;transform:rotate(${rot}deg);z-index:${z}"><img src="${url(`store/raw/${raw}.png`)}"></div>`;
+  `<div class="phone" style="left:${x}px;top:${y}px;width:${w}px;height:${(w * 16) / 9}px;transform:rotate(${rot}deg);z-index:${z}"><img src="${url(raw.includes('/') ? raw : `store/raw/${raw}.png`)}"></div>`;
 /** 吹き出し。tail は尻尾の向き（left・right・down） */
 const bubble = (text, x, y, size, tail = 'left') => {
   const pos = { left: 'left:-14px;top:40%', right: 'right:-14px;top:40%', down: 'left:30%;bottom:-14px' }[tail];
@@ -101,14 +103,16 @@ function page(body, w = 1080, h = 1920) {
 /** 大きなスマホの画面（中央）。画面の情報が読めるよう、キャンバスの幅の 3/4 ほどで見せる */
 const bigPhone = (raw, top = 440, w = 800) => phone(raw, (1080 - w) / 2, top, w, 0, 1);
 
+/** 1枚目（raw は元画面の名前か、ROOT からのパス） */
+function coreHtml(raw = '1-jackpot') {
+  return page(`${rays(1080, 1920, 540, 1100, 44, 0.08)}
+      ${caption('麻雀の点数計算を、<br><em>パチンコ</em>で覚える', '正解で台が回り、大当りで BONUS。暗記がゲームに。', 82)}
+      ${bigPhone(raw)}`);
+}
+
 const SHOTS = [
   // 1. ゲームの肝
-  {
-    name: '1-core',
-    html: page(`${rays(1080, 1920, 540, 1100, 44, 0.08)}
-      ${caption('麻雀の点数計算を、<br><em>パチンコ</em>で覚える', '正解で台が回り、大当りで BONUS。暗記がゲームに。', 82)}
-      ${bigPhone('1-jackpot')}`),
-  },
+  { name: '1-core', html: coreHtml() },
   // 2. 実戦で困らない
   {
     name: '2-real',
@@ -156,7 +160,7 @@ const SHOTS = [
   },
 ];
 
-function featureHtml() {
+function featureHtml(raw = '1-jackpot') {
   return page(
     `${rays(1024, 500, 800, 250, 40, 0.12)}
     <div style="position:absolute;left:44px;top:34px;width:430px">${logoSvg({ layout: 'wide', sub: true })}</div>
@@ -164,7 +168,7 @@ function featureHtml() {
       <h1 style="font-size:44px">麻雀の点数計算を、<br><em>パチンコ</em>で楽しく。</h1>
       <p class="flavor" style="margin-top:16px;font-size:24px">ギャンブル世紀末を、数えて成り上がれ。</p>
     </div>
-    ${phone('1-jackpot', 610, 40, 220, -6, 1).replace('border-radius:48px', 'border-radius:22px').replace('0 0 0 7px #1a140c,0 0 0 11px', '0 0 0 3px #1a140c,0 0 0 5px')}
+    ${phone(raw, 610, 40, 220, -6, 1).replace('border-radius:48px', 'border-radius:22px').replace('0 0 0 7px #1a140c,0 0 0 11px', '0 0 0 3px #1a140c,0 0 0 5px')}
     ${chara('proud', 760, 150, 330, 6)}`,
     1024,
     500,
@@ -186,6 +190,31 @@ const render = async (html, w, h, out) => {
   await pg.waitForTimeout(200);
   await pg.screenshot({ path: out, type: 'png' });
 };
+
+if (process.env.CANDIDATES) {
+  // 1枚目とフィーチャー グラフィックの候補を、選んだ元画面ごとに作って並べる
+  const dir = join(STORE, 'candidates');
+  const picks = readdirSync(join(dir, 'pick')).filter((f) => f.endsWith('.png')).sort();
+  const cells = [];
+  for (const [i, f] of picks.entries()) {
+    const n = String(i + 1).padStart(2, '0');
+    const raw = `store/candidates/pick/${f}`;
+    await render(coreHtml(raw), 1080, 1920, join(dir, `${n}-core.png`));
+    await render(featureHtml(raw), 1024, 500, join(dir, `${n}-feature.png`));
+    cells.push(`<figure><b>${n}</b><img class="c" src="${url(`store/candidates/${n}-core.png`)}"><img class="f" src="${url(`store/candidates/${n}-feature.png`)}"></figure>`);
+  }
+  const cols = Math.min(4, picks.length);
+  await render(
+    `<!doctype html><html><head><meta charset="utf-8">${FONTS}<style>body{margin:0;background:#222;display:grid;grid-template-columns:repeat(${cols},420px);gap:16px;padding:16px;width:${cols * 436 + 16}px}figure{margin:0;display:flex;flex-direction:column;gap:8px;color:#fff;font:900 40px 'Noto Sans JP'}.c{width:420px}.f{width:420px}</style></head><body>${cells.join('')}</body></html>`,
+    cols * 436 + 16,
+    Math.ceil(picks.length / cols) * (747 + 205 + 72) + 32,
+    join(dir, 'sheet.png'),
+  );
+  rmSync(TMP, { force: true });
+  await browser.close();
+  console.log(`候補を ${dir} に書き出しました（一覧は sheet.png）`);
+  process.exit(0);
+}
 
 rmSync(join(STORE, 'screenshots'), { recursive: true, force: true });
 mkdirSync(join(STORE, 'screenshots'), { recursive: true });

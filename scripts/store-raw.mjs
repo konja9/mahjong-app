@@ -5,8 +5,11 @@
  * 使い方：npx vite --port 5179 &   （別の端末で）
  *        npx -p playwright node scripts/store-raw.mjs http://localhost:5179/
  *   PLAYWRIGHT_FROM（playwright のある node_modules）・CHROME（ブラウザの実行ファイル）で場所を指定できる。
+ *   ONLY=1,5 で、その番号の画面だけを撮る（ほかの元画面はそのまま）。
+ *   CANDIDATES=1 で、1枚目（大当り）の候補をリーチから BONUS の始まりまで連続で store/candidates/raw/ に撮る。
+ *   選んだ候補を store/raw/1-jackpot.png にコピーしてから scripts/store.mjs を走らせる。
  */
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,8 +73,38 @@ async function next(p) {
 const shot = (p, name) => p.screenshot({ path: join(RAW, `${name}.png`) });
 const title = { owned: ['title-fu-reader'], equip: { title: 'title-fu-reader' } };
 
+const ONLY = process.env.ONLY ? process.env.ONLY.split(',').map(Number) : null;
+const want = (n) => !process.env.CANDIDATES && (!ONLY || ONLY.includes(n));
+
+// 1枚目の候補：大当りまでの流れを何回か回し、リーチ演出から BONUS の始まりまでを連続で撮る
+if (process.env.CANDIDATES) {
+  const dir = join(ROOT, 'store', 'candidates', 'raw');
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  const runs = Number(process.env.CANDIDATES) > 1 ? Number(process.env.CANDIDATES) : 3;
+  for (let run = 1; run <= runs; run++) {
+    const p = await open({ settings: { effects: 'max', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' }, shop: title });
+    await enter(p, 'pachinko');
+    await p.evaluate(() => window.tensu.panel.machine.forceNextHit());
+    await answerCorrect(p);
+    let after = -1;
+    for (let k = 0; k < 70; k++) {
+      await p.waitForTimeout(350);
+      await p.screenshot({ path: join(dir, `r${run}-${String(k).padStart(2, '0')}.png`) });
+      const t = await p.evaluate(() => document.querySelector('#overlay')?.textContent ?? '');
+      // PUSH ボタンは撮ってから押す
+      if (/PUSH/.test(t)) await p.evaluate(() => window.tensu.fx.pressPush?.());
+      // BONUS の出題が始まったら、少し撮って次へ
+      if (after < 0 && (await p.evaluate(() => !!window.tensu.round || document.body.classList.contains('bonus')))) after = k;
+      if (after >= 0 && k - after >= 3) break;
+    }
+    await p.context().close();
+  }
+  console.log(`候補を ${dir} に書き出しました`);
+}
+
 // 1. 大当りの瞬間（演出あり。実戦の手牌）
-{
+if (want(1)) {
   const p = await open({ settings: { effects: 'max', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' }, shop: title });
   await enter(p, 'pachinko');
   await p.evaluate(() => window.tensu.panel.machine.forceNextHit());
@@ -89,7 +122,7 @@ const title = { owned: ['title-fu-reader'], equip: { title: 'title-fu-reader' } 
 }
 
 // 2. 実戦の手牌に答えたあとの解説（面子ごとの符の図解と点数）
-{
+if (want(2)) {
   const p = await open({ settings: { effects: 'off', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' }, shop: title });
   await enter(p, 'pachinko');
   // 符の内訳が多い手（刻子や待ちの符がある）を選ぶ
@@ -109,7 +142,7 @@ const title = { owned: ['title-fu-reader'], equip: { title: 'title-fu-reader' } 
 }
 
 // 3. BONUS 中（符のマスと賞金）
-{
+if (want(3)) {
   const p = await open({ settings: { effects: 'off', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' }, shop: title });
   await enter(p, 'pachinko');
   await p.evaluate(() => window.tensu.panel.machine.forceNextHit());
@@ -134,7 +167,7 @@ const title = { owned: ['title-fu-reader'], equip: { title: 'title-fu-reader' } 
 }
 
 // 4. 稽古（重点学習の途中）
-{
+if (want(4)) {
   const p = await open({ settings: { effects: 'off', playMode: 'keiko', keikoStudy: 'focus', keikoSource: 'normal', answerStyle: 'choice' } });
   await enter(p, 'keiko');
   for (let k = 0; k < 3; k++) {
@@ -146,7 +179,7 @@ const title = { owned: ['title-fu-reader'], equip: { title: 'title-fu-reader' } 
 }
 
 // 5. 成績（腕前：種目ごとの直近の正答率・速さ・伸び、次の昇段試験の目安）
-{
+if (want(5)) {
   // 2週間、毎日少しずつ上手くなった記録を入れておく（同じ絵になるよう乱数は固定）
   let seed = 11;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -201,7 +234,7 @@ const title = { owned: ['title-fu-reader'], equip: { title: 'title-fu-reader' } 
 }
 
 // 6. スタート画面
-{
+if (want(6)) {
   const p = await open({ settings: { effects: 'off' }, level: { exp: 52000, read: [1, 2, 3, 4, 5, 6, 7, 8, 9] } });
   await p.waitForTimeout(500);
   await shot(p, '6-start');

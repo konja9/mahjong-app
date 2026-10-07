@@ -236,7 +236,7 @@ npm run android:open   # Android Studio で開く（実機・エミュレータ�
   - 起動のたびに Google Play に購入を問い合わせ、買ってあれば広告を出しません。返金されると次の起動から広告に戻ります。通信できないときは前回の結果を使います。
   - コンビニ払いなどの支払い待ちは購入済みにせず、支払いが済んでアプリに戻ったときに反映します。
   - 実機で試すには、AAB を Play Console の内部テストに一度アップロードし、自分の Google アカウントを**ライセンス テスター**に登録します（テスト用のカードで、実際には請求されません）。
-- **ストア掲載情報**：`store/listing.md`（アプリ名・説明文・分類）と、`store/` の画像（アイコン、フィーチャー グラフィック、スクリーンショット6枚）。主役は「退屈な点数計算の練習がパチンコで楽しくできる」こと、世界観は味付け。スクリーンショットの並びは 1 ゲームの肝 → 2 実戦で困らない（図解の解説） → 3 パチンコ → 4 稽古（初心者から上級者まで） → 5 上達が見える（成績） → 6 世界観と締め。元の画面（`store/raw/`）は開発サーバーを立てて `npx -p playwright node scripts/store-raw.mjs http://localhost:5179/` で撮り、`npx -p playwright -p tsx tsx scripts/store.mjs` で見出しと絵を付けて書き出します。
+- **ストア掲載情報**：`store/listing.md`（アプリ名・説明文・分類）と、`store/` の画像（アイコン、フィーチャー グラフィック、スクリーンショット6枚）。主役は「退屈な点数計算の練習がパチンコで楽しくできる」こと、世界観は味付け。スクリーンショットの並びは 1 ゲームの肝 → 2 実戦で困らない（図解の解説） → 3 パチンコ → 4 稽古（初心者から上級者まで） → 5 上達が見える（成績） → 6 世界観と締め。元の画面（`store/raw/`）は開発サーバーを立てて `npx -p playwright node scripts/store-raw.mjs http://localhost:5179/` で撮り、`npx -p playwright -p tsx tsx scripts/store.mjs` で見出しと絵を付けて書き出します。`ONLY=5` を付けると、その番号の元画面だけを撮り直します。1枚目とフィーチャー グラフィック（どちらも大当りの元画面を使う）は、`CANDIDATES=3` で store-raw を走らせるとリーチから BONUS の始まりまでの候補を `store/candidates/raw/` に連続で撮ります。選んだものを `store/candidates/pick/` に置いて `CANDIDATES=1` で store.mjs を走らせると、両方を合成した候補と一覧（`sheet.png`）ができます（`store/candidates/` はコミットしない）。
 - バージョンは `package.json` の `version` から作ります（`1.2.3` → versionName `1.2.3`、versionCode `10203`）。Play に上げるたびに上げてください。
 
 ### 公開（GitHub Pages）
