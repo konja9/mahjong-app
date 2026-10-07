@@ -8,6 +8,7 @@
  *   ONLY=1,5 で、その番号の画面だけを撮る（ほかの元画面はそのまま）。
  *   CANDIDATES=1 で、1枚目（大当り）の候補をリーチから BONUS の始まりまで連続で store/candidates/raw/ に撮る。
  *   CANDIDATES=game で、答えている最中のゲーム画面（通常時・BONUS 中・RUSH 中、3つの出題）の候補を撮る。
+ *   CANDIDATES=game:hayami のように種目を付けると、その種目だけで通常時・BONUS 中・RUSH 中を撮る。
  *   選んだ候補を store/raw/1-jackpot.png にコピーしてから scripts/store.mjs を走らせる。
  */
 import { mkdirSync, rmSync } from 'node:fs';
@@ -92,17 +93,23 @@ async function toAnswering(p) {
 }
 
 // 1枚目の候補（答えている最中のゲーム画面）：下に「次へ」が出ない、台と手牌と4択がそろった画面
-if (process.env.CANDIDATES === 'game') {
+if (process.env.CANDIDATES?.startsWith('game')) {
+  const only = process.env.CANDIDATES.split(':')[1];
   const dir = join(ROOT, 'store', 'candidates', 'raw');
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   const snap = async (p, name) => {
     // 正解の吹き出しや一言ガイドが消えるのを少し待つ
     await p.waitForTimeout(900);
+    // 一言ガイドの帯が上にかぶらないよう閉じる
+    await p.evaluate(() => {
+      const tip = document.querySelector('#tip');
+      if (tip) tip.hidden = true;
+    });
     await p.screenshot({ path: join(dir, `${name}.png`) });
   };
   // 通常時（実戦・符計算・早見）。何問か正解して、保留を貯めた状態でも撮る
-  for (const [mode, n] of [['jissen', 6], ['fu', 3], ['hayami', 2]]) {
+  for (const [mode, n] of only ? [[only, 8]] : [['jissen', 6], ['fu', 3], ['hayami', 2]]) {
     const p = await open({ settings: { effects: 'max', playMode: 'pachinko', mode, answerStyle: 'choice' }, shop: title });
     await enter(p, 'pachinko');
     for (let k = 0; k < n; k++) {
@@ -113,9 +120,9 @@ if (process.env.CANDIDATES === 'game') {
     }
     await p.context().close();
   }
-  // BONUS 中と RUSH 中（実戦）
+  // BONUS 中と RUSH 中（種目の指定がなければ実戦）
   {
-    const p = await open({ settings: { effects: 'max', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' }, shop: title });
+    const p = await open({ settings: { effects: 'max', playMode: 'pachinko', mode: only ?? 'jissen', answerStyle: 'choice' }, shop: title });
     await enter(p, 'pachinko');
     await p.evaluate(() => window.tensu.panel.machine.forceNextHit());
     let bonus = 0;
