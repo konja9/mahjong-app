@@ -28,12 +28,12 @@ const ff = (args) => execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...args
 
 /** 映像の切れ目：clip の from 秒から dur 秒を、完成の at 秒に置く */
 const SEGS = [
-  { key: 'a', from: clips.a.jackpot - 0.5, dur: 3, at: 0 },
+  { key: 'a', from: clips.a.jackpot + 0.4, dur: 3, at: 0 },
   { key: 'b', from: clips.b.q1 - 0.2, dur: 7, at: 3 },
   { key: 'c', from: clips.c.bq - 0.2, dur: 3.5, at: 10 },
   { key: 'c', from: clips.c.payout - 0.05, dur: 2.5, at: 13.5 },
   { key: 'd', from: clips.d.start - 0.2, dur: 6, at: 16 },
-  { key: 'e', from: clips.e.cert - 0.3, dur: 5, at: 22 },
+  { key: 'e', from: clips.e.cert + 0.2, dur: 5, at: 22 },
   { key: 'end', dur: 3, at: 27 },
 ];
 const TOTAL = 30;

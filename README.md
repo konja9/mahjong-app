@@ -236,6 +236,7 @@ npm run android:open   # Android Studio で開く（実機・エミュレータ�
   - 起動のたびに Google Play に購入を問い合わせ、買ってあれば広告を出しません。返金されると次の起動から広告に戻ります。通信できないときは前回の結果を使います。
   - コンビニ払いなどの支払い待ちは購入済みにせず、支払いが済んでアプリに戻ったときに反映します。
   - 実機で試すには、AAB を Play Console の内部テストに一度アップロードし、自分の Google アカウントを**ライセンス テスター**に登録します（テスト用のカードで、実際には請求されません）。
+- **宣伝動画（30秒）**：縦 9:16（`store/promo/promo-9x16.mp4`、ショート動画・SNS・広告）と横 16:9（`store/promo/promo-16x9.mp4`、YouTube に上げて Play Console の「プロモーション動画」に URL を入れる）。構成は 0〜3秒 大当り → 3〜10秒 遊び方（点数を答えると台が回る）→ 10〜16秒 符が高いほど賞金アップ（BONUS）→ 16〜22秒 図解で一段ずつ（稽古）→ 22〜27秒 段位（昇段試験の認定証と枠の鍵）→ 27〜30秒 名前と案内。無音でも分かるよう、場面ごとに短い字幕を付ける。作り方：開発サーバーを立てて `npx -p playwright node scripts/promo-capture.mjs http://localhost:5179/`（場面ごとに Chrome の画面配信のコマを 1080×1920 で撮る。`ONLY=c` で場面を選んで撮り直せる）→ `npx -p playwright -p tsx tsx scripts/promo.mjs`（字幕・枠を PNG にして重ね、BGM と効果音を時刻に合わせて合成。`PROMO_CTA="…"` で最後の案内の文を変えられる。既定は「Google Play で配信中」）。1秒ごとのコマの一覧（`sheet-9x16.png`・`sheet-16x9.png`）で確かめる。
 - **Google Play Games Services**（アプリ版だけ）：ネイティブ側は自前の小さな Capacitor プラグイン（`android/…/PlayGamesPlugin.java`、`play-services-games-v2`）、JS 側は `src/ui/games.ts`。Web 版と、Play Console の ID がまだ入っていない間（`res/values/games-ids.xml` が仮の `0`）は何もしません。
   - ログインは起動時に自動（v2 の仕様）。メニューの「実績・ランキング」（使えるときだけ出る）から、実績・ランキング・クラウドへの保存と読み込み。
   - クラウドセーブ：`localStorage` の `tensu.*` を1つにまとめて保存（広告削除の購入状態は除く。`src/ui/cloudSave.ts`）。起動時に、クラウドの方が進んでいれば（経験値 → 段位 → 累計正解数）使うかを聞き、端末の方が進んでいれば黙って保存。保存は画面が隠れたとき・Lv アップ・昇段試験の合格・物語を読んだとき（60秒に1回まで）。
