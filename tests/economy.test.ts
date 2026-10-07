@@ -15,7 +15,7 @@ import {
   uwanoseMean,
 } from '../src/ui/machine/economy';
 import { type MachineSpec, SPECS } from '../src/ui/machine/specs';
-import { mulberry32, simulate } from './sim';
+import { mulberry32, simulate, simulateDetail } from './sim';
 
 describe('yan', () => {
   it('コスト', () => {
@@ -74,6 +74,19 @@ describe('経済バランス（シミュレーション）', () => {
       expect(pro).toBeLessThan(3.4);
     }
   }, 240000);
+  it('1問あたりの稼ぎは 甘デジ < ミドル < MAX（ミドルはどの種目でも間に入る）', () => {
+    const net = (mode: Mode, id: 'ama' | 'middle' | 'max', acc: number, fast: number) => {
+      // 重い台はばらつきが大きいので、3つの種で平均する
+      const ds = [11, 21, 31].map((sd) => simulateDetail(mode, acc, fast, sd, 100000, SPECS[id]));
+      return ds.reduce((a, d) => a + d.won - d.spent, 0) / ds.reduce((a, d) => a + d.questions, 0);
+    };
+    for (const [acc, fast] of [[0.85, 0.5], [0.95, 0.8]] as const)
+      for (const mode of SPECS.middle.modes) {
+        const mid = net(mode, 'middle', acc, fast);
+        expect(mid).toBeGreaterThan(net(mode, 'ama', acc, fast));
+        expect(mid).toBeLessThan(net('jissen', 'max', acc, fast));
+      }
+  }, 480000);
   it('上の台ほど1セッション（300問）の振れ幅が大きい', () => {
     const spread = (spec: MachineSpec) => {
       const xs = Array.from({ length: 120 }, (_, i) => simulate('jissen', 0.85, 0.5, 500 + i, 300, spec));

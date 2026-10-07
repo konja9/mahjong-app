@@ -96,7 +96,7 @@ export function prizeUnits(fu: number, yakuman: boolean): number {
 
 /** 30符のマス1つあたりの yan（PREMIUM・台を込み、速答と連続は別） */
 export function fuRate(mode: Mode, premium: boolean, spec: MachineSpec = SPECS.ama): number {
-  let v = ECONOMY.modeScale[mode] * spec.prizeMult;
+  let v = ECONOMY.modeScale[mode] * spec.prizeMult * (spec.modePrize?.[mode] ?? 1);
   if (premium) v *= ECONOMY.premiumMult;
   return v;
 }

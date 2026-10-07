@@ -22,6 +22,8 @@ export interface MachineSpec {
   rounds: number;
   /** ラウンド賞金の倍率 */
   prizeMult: number;
+  /** 種目ごとの賞金の補正（ない種目は ×1）。ミドルの符計算は実戦より稼げるので抑え、甘デジと MAX の間に置く */
+  modePrize?: Partial<Record<Mode, number>>;
   /** BET の倍率 */
   betMult: number;
   /** 解放価格（0 は最初から） */
@@ -34,7 +36,7 @@ export interface MachineSpec {
 
 export const SPECS: Record<MachineId, MachineSpec> = {
   ama: { id: 'ama', name: '甘デジ', odds: 20, rushOdds: 4, st: 6, kakuhenRate: 0.6, rounds: 6, prizeMult: 1, betMult: 1, price: 0, modes: ['hayami', 'fu', 'jissen'], flavor: '新顔の登竜門。負けても笑って帰れた、あの頃の名残' },
-  middle: { id: 'middle', name: 'ミドル', odds: 60, rushOdds: 6, st: 9, kakuhenRate: 0.6, rounds: 10, prizeMult: 2.89, betMult: 1.5, price: 3000, modes: ['fu', 'jissen'], flavor: '常連たちの主戦場。勝負の重みは、ここから一段上がる' },
+  middle: { id: 'middle', name: 'ミドル', odds: 60, rushOdds: 6, st: 9, kakuhenRate: 0.6, rounds: 10, prizeMult: 2.89, modePrize: { fu: 0.92 }, betMult: 1.5, price: 3000, modes: ['fu', 'jissen'], flavor: '常連たちの主戦場。勝負の重みは、ここから一段上がる' },
   max: { id: 'max', name: 'MAX', odds: 150, rushOdds: 8, st: 12, kakuhenRate: 0.6, rounds: 15, prizeMult: 6.72, betMult: 2, price: 10000, modes: ['jissen'], flavor: 'ギャンブル王の椅子に一番近い台。座った者の半分は帰ってこない' },
 };
 
