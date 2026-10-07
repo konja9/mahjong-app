@@ -2250,9 +2250,10 @@ body[data-phase='summary'] #meter,
 #meter .mt-cell small {
   color: color-mix(in srgb, var(--main) 55%, var(--sub));
 }
+/* 所持・数字・単位・本日を、枠の上下の真ん中にそろえる（1行のまま） */
 #meter .mt-credit {
   flex-direction: row;
-  align-items: baseline;
+  align-items: center;
   gap: 5px;
 }
 #meter .mt-label {
