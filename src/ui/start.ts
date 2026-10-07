@@ -1,6 +1,7 @@
 import { sfx } from './audio';
 import { logoSvg } from './brand/logo';
 import { charaSvg } from './tutorial/chara';
+import { PREMIUM_INDEX, Reel } from './effects/reel';
 
 /**
  * スタート画面（起動するたびに最初に出す）と、ゲームに入る前のローディング画面。
@@ -118,7 +119,7 @@ export function startHtml(v: StartView): string {
 
 export function loadingHtml(line: string): string {
   return `<div class="ld-inner">
-    <div class="ld-reels" aria-hidden="true"><i><b>發</b><b>7</b><b>★</b><b>中</b><b>發</b></i><i><b>7</b><b>★</b><b>中</b><b>發</b><b>7</b></i><i><b>★</b><b>中</b><b>發</b><b>7</b><b>★</b></i></div>
+    <div class="ld-reels" aria-hidden="true"></div>
     <div class="ld-bar"><i></i></div>
     <p class="ld-line">${line}</p>
     <p class="ld-tap">タップして進む</p>
@@ -127,6 +128,8 @@ export function loadingHtml(line: string): string {
 
 /** バーが満ちるまでの時間 */
 const LOAD_MS = 1500;
+/** リールを左から順に止める間隔 */
+const STOP_GAP_MS = 150;
 
 export interface StartHost {
   view(): StartView;
@@ -145,6 +148,8 @@ export class StartScreen {
   private phase: 'off' | 'start' | 'loading' | 'ready' = 'off';
   private choice: StartChoice = 'pachinko';
   private timer = 0;
+  private stops: number[] = [];
+  private reel: Reel | null = null;
 
   constructor(private host: StartHost) {
     this.root = document.createElement('div');
@@ -172,6 +177,8 @@ export class StartScreen {
 
   private hide(): void {
     clearTimeout(this.timer);
+    this.clearStops();
+    this.reel = null;
     this.phase = 'off';
     this.root.hidden = true;
     this.root.innerHTML = '';
@@ -184,14 +191,37 @@ export class StartScreen {
     this.phase = 'loading';
     this.root.className = 'st-loading';
     this.root.innerHTML = loadingHtml(pickLine(choice, Math.random, this.host.view().level));
+    // ゲーム中と同じ牌のリールを回し、バーが満ちたらそろい目（赤5筒）で止める
+    this.reel = new Reel(this.root.querySelector<HTMLElement>('.ld-reels')!, 'mini');
     if (this.host.still()) this.ready();
-    else this.timer = window.setTimeout(() => this.ready(), LOAD_MS);
+    else {
+      this.reel.spinAll();
+      this.timer = window.setTimeout(() => this.ready(), LOAD_MS);
+    }
   }
 
   private ready(): void {
     clearTimeout(this.timer);
     this.phase = 'ready';
     this.root.classList.add('ready');
+    const reel = this.reel;
+    if (!reel) return;
+    if (this.host.still()) {
+      [0, 1, 2].forEach((i) => reel.stop(i, PREMIUM_INDEX));
+      return;
+    }
+    this.clearStops();
+    this.stops = [0, 1, 2].map((i) =>
+      window.setTimeout(() => {
+        reel.stop(i, PREMIUM_INDEX);
+        if (i === 2) reel.hit();
+      }, i * STOP_GAP_MS),
+    );
+  }
+
+  private clearStops(): void {
+    this.stops.forEach((t) => clearTimeout(t));
+    this.stops = [];
   }
 
   /** ローディング中のタップ：バーが満ちる前は満たすだけ、満ちていればゲームへ */

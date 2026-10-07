@@ -109,5 +109,6 @@ describe('スタート画面', () => {
     const h = loadingHtml('符を制する者が、卓を制す。');
     expect(h).toContain('タップして進む');
     expect(h).toContain('符を制する者が、卓を制す。');
+    expect(h).toContain('class="ld-reels"');
   });
 });

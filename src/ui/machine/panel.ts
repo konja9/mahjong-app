@@ -26,6 +26,8 @@ export interface PanelHooks {
   onTalk?(e: 'holdMax' | 'reach' | 'jackpot' | 'bonusEnd' | 'rushStart' | 'rushEnd'): void;
   /** 液晶帯のパチふとくんをタップした */
   onCharaTap?(): void;
+  /** 改造の枠をタップした（改造のタブ） */
+  onPartsTap?(): void;
 }
 
 export interface JackpotResult {
@@ -81,7 +83,7 @@ export class MachinePanel {
           <div class="m-msg" aria-live="polite"></div>
           <div class="m-bottom">
             <div class="m-holds" aria-label="保留">${Array.from({ length: maxHolds() }, () => '<span class="hold"></span>').join('')}</div>
-            <div class="m-parts slot-row" aria-label="改造の枠"></div>
+            <button class="m-parts slot-row" type="button" aria-label="改造の枠（タップで改造を開く）"></button>
             <button class="m-chara" type="button" aria-label="パチふとくん" data-silent></button>
             <div class="m-chucker" title="始動口"><span></span></div>
           </div>
@@ -95,6 +97,11 @@ export class MachinePanel {
       // 液晶帯のタップ（台選び）にはしない
       e.stopPropagation();
       this.hooks.onCharaTap?.();
+    });
+    root.querySelector('.m-parts')!.addEventListener('click', (e) => {
+      // 改造の枠は、台選びではなく改造のタブを開く
+      e.stopPropagation();
+      this.hooks.onPartsTap?.();
     });
     this.face('neutral');
     this.idleSymbols();

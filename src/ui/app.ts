@@ -255,13 +255,8 @@ export class App {
         this.checkBankrupt();
       },
       onJackpot: ({ premium }) => this.startRound(premium),
-      onTap: () => {
-        // 演出中・BONUS 中は誤タップで開かないようにする
-        if (!this.keiko && !this.busy && !this.round) {
-          this.machineTab = 'machines';
-          this.openShop('machine');
-        }
-      },
+      onTap: () => this.openMachineTab('machines'),
+      onPartsTap: () => this.openMachineTab('parts'),
       onEvent: (e) => {
         this.tip(e);
         if (e === 'rush') this.countAchievement('rushes');
@@ -2275,6 +2270,13 @@ export class App {
       this.renderShop();
     });
     dlg.addEventListener('close', () => this.pause('shop', false));
+  }
+
+  /** 台の液晶帯・改造の枠のタップ。演出中・BONUS 中は誤タップで開かないようにする */
+  private openMachineTab(tab: 'machines' | 'parts'): void {
+    if (this.keiko || this.busy || this.round) return;
+    this.machineTab = tab;
+    this.openShop('machine');
   }
 
   private openShop(view: ShopView): void {
