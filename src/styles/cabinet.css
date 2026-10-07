@@ -1971,20 +1971,6 @@ body[data-phase='summary'] #exp-strip {
   align-items: center;
   gap: 10px;
 }
-.parts-pips {
-  display: inline-flex;
-  gap: 4px;
-}
-.parts-pips i {
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-  box-shadow: inset 0 0 0 1.5px var(--main);
-}
-.parts-pips i.on {
-  background: var(--main);
-}
-
 /* ============================================================ ヘッダー：メニューのボタン */
 .menu-btn {
   position: relative;
@@ -2335,23 +2321,13 @@ body[data-phase='summary'] #meter,
   filter: brightness(0);
   opacity: 0.45;
 }
-/* 台の上：付けているパーツを保留ランプとパチふとくんの間に並べる */
+/* 台の上：改造の5つの枠を保留ランプとパチふとくんの間に並べる */
 #machine .m-parts {
   display: flex;
   align-items: center;
   min-width: 0;
   margin-left: 8px;
 }
-#machine .m-part {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
-}
-#machine .m-part + .m-part {
-  margin-left: 2px;
-}
-/* 狭い幅では少し重ねて詰める */
 /* スマホ幅では液晶帯の下の段に入りきらないので、台の枠のすぐ下の右に並べる */
 @media (max-width: 480px) {
   #machine .m-parts {
@@ -2361,9 +2337,117 @@ body[data-phase='summary'] #meter,
     margin: 4px 0 0;
   }
 }
-@media (min-width: 900px) {
-  #machine .m-part {
-    width: 22px;
-    height: 22px;
+
+/* 改造の5つの枠：付けたパーツ・空いた枠・鍵のかかった枠（次に開く鍵は光る） */
+.slot-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 3px;
+}
+.slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.slot > i {
+  display: block;
+  width: 20px;
+  height: 20px;
+  padding: 1px;
+  border-radius: 5px;
+  background: radial-gradient(circle at 50% 40%, #241d14, #0b0805);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(242, 201, 76, 0.25);
+}
+.slot.on > i {
+  box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.7), 0 0 6px rgba(242, 201, 76, 0.35);
+}
+.slot.locked .lock-art {
+  opacity: 0.5;
+  filter: saturate(0.4) brightness(0.8);
+}
+.slot.locked.next .lock-art {
+  opacity: 1;
+  filter: none;
+  animation: slot-next 2.4s ease-in-out infinite;
+}
+@keyframes slot-next {
+  50% {
+    filter: drop-shadow(0 0 4px rgba(255, 216, 74, 0.9)) brightness(1.2);
   }
+}
+.slot small {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--sub);
+  white-space: nowrap;
+}
+.slot.locked.next small {
+  color: var(--main);
+  font-weight: 700;
+}
+/* 新しく開いた枠：鍵が外れて落ち、穴が光る */
+.slot.opened .lock-art {
+  animation: slot-unlock 1.1s 0.8s ease-in both;
+}
+.slot.opened > i {
+  animation: slot-glow 1.2s 1.6s ease-out both;
+}
+@keyframes slot-unlock {
+  0% {
+    transform: none;
+    opacity: 1;
+  }
+  25% {
+    transform: translateY(-3px) rotate(-12deg);
+  }
+  100% {
+    transform: translateY(26px) rotate(40deg);
+    opacity: 0;
+  }
+}
+@keyframes slot-glow {
+  0% {
+    box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.25), 0 0 0 rgba(255, 216, 74, 0);
+  }
+  40% {
+    box-shadow: inset 0 0 0 2px #ffd84a, 0 0 18px rgba(255, 216, 74, 0.9);
+  }
+  100% {
+    box-shadow: inset 0 0 0 1.5px rgba(242, 201, 76, 0.8), 0 0 8px rgba(255, 216, 74, 0.4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slot.locked.next .lock-art,
+  .slot.opened .lock-art,
+  .slot.opened > i {
+    animation: none;
+  }
+  .slot.opened .lock-art {
+    opacity: 0;
+  }
+}
+/* 改造の画面・認定証では大きく */
+.slot-row.big {
+  gap: 8px;
+  margin: 4px 0;
+}
+.slot-row.big .slot > i {
+  width: 44px;
+  height: 44px;
+  padding: 4px;
+  border-radius: 9px;
+}
+.slot-row.big .slot small {
+  font-size: 11px;
+}
+@media (min-width: 900px) {
+  #machine .slot > i {
+    width: 24px;
+    height: 24px;
+  }
+}
+.parts-zero {
+  margin: 0 0 4px;
+  color: var(--main);
 }

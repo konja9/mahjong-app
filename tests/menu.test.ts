@@ -53,7 +53,7 @@ describe('世間話とスタート画面', () => {
 describe('台のダイアログ', () => {
   it('タブはなく、メニューで選んだ画面の見出しだけが出る', async () => {
     const { shopHtml, freshShop } = await import('../src/ui/shop');
-    const view = { state: { owned: [], equip: [] }, slots: 1, rank: '', nextSlotRank: '5級', canChange: true };
+    const view = { state: { owned: [], equip: [] }, slots: 1, rank: '', nextSlotRank: '5級', slotRanks: ['5級', '3級', '1級', '二段', '名人'], canChange: true };
     for (const [tab, title] of [['machines', '台選び'], ['parts', '改造'], ['exam', '昇段試験']] as const) {
       const h = shopHtml(freshShop(), 'machine', 1000, true, 'title', { view, tab, examHtml: '<p>exam</p>' });
       expect(h).toContain(`<span>${title}</span>`);

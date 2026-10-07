@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NOTEBOOK, RANKS, canTakeExam, certText, examIntro, judge, loadExam, nextRank, notebookHtml, notebookName, rankName, recordPass, saveExam, unreadNotes } from '../src/ui/exam';
+import { NOTEBOOK, RANKS, canTakeExam, certText, examIntro, examResultHtml, examTabHtml, judge, opensSlot, loadExam, nextRank, notebookHtml, notebookName, rankName, recordPass, saveExam, unreadNotes } from '../src/ui/exam';
 
 describe('昇段試験', () => {
   it('2 Lv ごとに全10段階。Lv 2 で5級、Lv 20 で名人', () => {
@@ -78,5 +78,27 @@ describe('昇段試験と物語', () => {
   it('読んでいない帳面の頁を数える', () => {
     expect(unreadNotes({ rank: 3, passedAt: [], notesRead: [1] })).toBe(2);
     expect(unreadNotes({ rank: 3, passedAt: [], notesRead: [1, 2, 3] })).toBe(0);
+  });
+});
+
+describe('昇段試験と改造の枠', () => {
+  const pass = { pass: true, correct: 10, avg: 8, shortCorrect: 0, shortSec: 0 };
+  it('枠の鍵が開く段位は 5級・3級・1級・二段・名人', () => {
+    expect(RANKS.filter(opensSlot).map((r) => r.name)).toEqual(['5級', '3級', '1級', '二段', '名人']);
+  });
+  it('枠が開いた合格は、鍵が開いた知らせと5つの枠の並びを出す', () => {
+    const h = examResultHtml(RANKS[0], pass, { opened: 1, row: '<span class="slot open opened"></span>', next: '3級' }, []);
+    expect(h).toContain('鍵が開いた！ 1つめの枠');
+    expect(h).toContain('slot open opened');
+  });
+  it('枠が開かない合格は、次に枠が開く段位を知らせる', () => {
+    const h = examResultHtml(RANKS[1], pass, { opened: null, row: '', next: '3級' }, []);
+    expect(h).toContain('次は<b>3級</b>で、台の枠の鍵が開く');
+  });
+  it('試験のタブと前口上に「受かると改造の枠が開く」の印', () => {
+    expect(examTabHtml({ rank: 0, passedAt: [] }, 2, true)).toContain('受かると改造の枠が開く');
+    expect(examTabHtml({ rank: 1, passedAt: ['x'] }, 4, true)).not.toContain('ex-slot-mark');
+    expect(examIntro(RANKS[0], [])).toContain('枠の鍵が一つ開く');
+    expect(examIntro(RANKS[1], [])).not.toContain('枠の鍵');
   });
 });

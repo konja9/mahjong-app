@@ -2,7 +2,7 @@ import { load, save } from '../storage';
 import { BASE_MODS, type Mods, setMods } from './mods';
 
 /**
- * 台の改造パーツ。Lv アップのたびに決まった順に1つ手に入り、昇段試験に受かるほど台に付けられる枠が増える。
+ * 台の改造パーツ。Lv アップのたびに決まった順に1つ手に入る。台には5つの枠があり、昇段試験に受かるたびに枠の鍵が1つずつ開く。
  * 効き目は mods.ts にまとめて、経済・抽選・演出がそこを見る
  */
 
@@ -126,9 +126,19 @@ export const partForLevel = (level: number): PartId | null => PART_ORDER[level -
 /** パーツがもらえない Lv の祝い金 */
 export const levelCash = (level: number): number => level * 150;
 
-/** 段位（0 は未受験、1 で5級 … 10 で名人）から、台に付けられる枠の数 */
+/** 台の改造の枠の数（台にはいつもこの数の穴があり、開いていない枠には鍵がかかっている） */
+export const MAX_SLOTS = 5;
+/** 枠の鍵が開く段位（1 で5級 … 10 で名人）：5級・3級・1級・二段・名人 */
+export const SLOT_RANKS = [1, 3, 5, 7, 10] as const;
+
+/** 段位（0 は未受験、1 で5級 … 10 で名人）から、台に付けられる枠の数（最初は0、最大5） */
 export function slotsFor(rank: number): number {
-  return 1 + [1, 3, 5, 7, 10].filter((r) => rank >= r).length;
+  return SLOT_RANKS.filter((r) => rank >= r).length;
+}
+
+/** 次に枠の鍵が開く段位（すべて開いていれば null） */
+export function nextSlotRank(rank: number): number | null {
+  return SLOT_RANKS.find((r) => r > rank) ?? null;
 }
 
 export interface PartsState {

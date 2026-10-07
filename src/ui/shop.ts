@@ -5,7 +5,7 @@
 import type { Mode } from '../core/generator';
 import { MACHINE_IDS, type MachineId, SPECS } from './machine/specs';
 import { PARTS, PART_ORDER, type PartsState } from './machine/parts';
-import { partSvg } from './machine/partArt';
+import { partSvg, slotRowHtml } from './machine/partArt';
 import { load, save } from './storage';
 
 const KEY = 'tensu.shop.v1';
@@ -270,14 +270,22 @@ export interface PartsView {
   rank: string;
   /** 次に枠が増える段位（最大なら null） */
   nextSlotRank: string | null;
+  /** 5つの枠それぞれの、鍵が開く段位の名前 */
+  slotRanks: string[];
   canChange: boolean;
 }
 
 export function partsHtml(v: PartsView): string {
   const used = v.state.equip.length;
-  const slotPips = Array.from({ length: v.slots }, (_, i) => `<i class="${i < used ? 'on' : ''}"></i>`).join('');
-  const head = `<div class="parts-head"><div><b>改造の枠 ${used}/${v.slots}</b><span class="parts-pips">${slotPips}</span></div>
-    <div class="shop-desc">${v.rank ? `段位 ${v.rank}。` : ''}${v.nextSlotRank ? `${v.nextSlotRank}の昇段試験に受かると枠が増えます` : '枠は最大です'}</div></div>`;
+  const names = Object.fromEntries(v.state.equip.map((id) => [id, PARTS[id].name]));
+  const row = slotRowHtml({ equip: v.state.equip, slots: v.slots, ranks: v.slotRanks, labels: true, names });
+  const sleeping = v.slotRanks.length - v.slots;
+  const desc = v.nextSlotRank
+    ? `あと${sleeping}つの枠が鍵の中。次は<b>${v.nextSlotRank}</b>の昇段試験で開く`
+    : '台の枠は、すべて開いた';
+  const head = `<div class="parts-head"><div><b>改造の枠</b><small class="muted">開いた枠 ${v.slots}/${v.slotRanks.length}・付けている ${used}${v.rank ? `・段位 ${v.rank}` : ''}</small></div>
+    <div class="slot-row big">${row}</div>
+    <div class="shop-desc">${desc}</div></div>`;
   const rows = PART_ORDER.map((id, i) => {
     const p = PARTS[id];
     const have = v.state.owned.includes(id);
@@ -285,12 +293,14 @@ export function partsHtml(v: PartsView): string {
     let btn: string;
     if (!have) btn = `<span class="shop-lock">Lv ${i + 2}</span>`;
     else if (on) btn = `<button class="shop-btn" data-part-off="${id}"${v.canChange ? '' : ' disabled'}>外す</button>`;
+    else if (!v.slots) btn = `<span class="shop-lock">枠が鍵の中</span>`;
     else btn = `<button class="shop-btn buy" data-part-on="${id}"${v.canChange && used < v.slots ? '' : ' disabled'}>付ける</button>`;
     const art = `<div class="part-thumb${on ? ' on' : ''}${have ? '' : ' unknown'}">${partSvg(id)}</div>`;
     return `<div class="shop-row part-row${on ? ' cur' : ''}${have ? '' : ' locked'}">${art}<div class="mis"><div class="shop-name">${have ? p.name : '？？？'}${on ? '<em>装着中</em>' : ''}</div>${have ? `<div class="shop-flavor">${p.flavor}</div><div class="shop-desc">${p.desc}</div>` : `<div class="shop-desc">Lv ${i + 2} で手に入る</div>`}</div><div class="shop-acts">${btn}</div></div>`;
   }).join('');
   const note = v.canChange ? '' : '<p class="help-note">BONUS 中と台が回っている間は、付け替えできません。</p>';
-  return head + rows + note + `<p class="help-note">改造パーツは Lv が上がるたびに1つ手に入ります（Lv ${PART_ORDER.length + 1} まで）。付けると台が少し有利になります。</p>`;
+  const zero = v.slots ? '' : `<p class="help-note parts-zero">${v.nextSlotRank}の昇段試験に受かると、台の枠の鍵が開いてパーツを付けられます。</p>`;
+  return head + zero + rows + note + `<p class="help-note">改造パーツは Lv が上がるたびに1つ手に入ります（Lv ${PART_ORDER.length + 1} まで）。台の枠は5つ。昇段試験の5級・3級・1級・二段・名人に受かるたびに、鍵が1つずつ開きます。</p>`;
 }
 
 /** 台のダイアログで出す画面（メニューの台選び・改造・昇段試験） */

@@ -161,3 +161,45 @@ export function partSvg(id: PartId, label?: string): string {
   const aria = label ? ` role="img" aria-label="${label}"` : ' aria-hidden="true"';
   return `<svg class="part-art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"${aria}>${defs(pid)}${ART[id](f)}</svg>`;
 }
+
+/** 鍵のかかった枠の南京錠（viewBox 64×64） */
+export function lockSvg(): string {
+  const pid = `pa${++seq}`;
+  const f = (k: string) => `url(#${pid}-${k})`;
+  return `<svg class="part-art lock-art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${defs(pid)}
+    <path d="M20 30 V22 Q20 9 32 9 Q44 9 44 22 V30" fill="none" stroke="${INK}" stroke-width="10" stroke-linecap="round"/>
+    <path d="M20 30 V22 Q20 9 32 9 Q44 9 44 22 V30" fill="none" stroke="${f('s')}" stroke-width="5" stroke-linecap="round"/>
+    <rect x="12" y="28" width="40" height="30" rx="6" fill="${f('g')}" stroke="${INK}" stroke-width="${W}"/>
+    <circle cx="32" cy="40" r="4.6" fill="${INK}"/><path d="M30 42 L29 50 H35 L34 42 Z" fill="${INK}"/>
+    ${rivet(17, 33)}${rivet(47, 33)}${rivet(17, 53)}${rivet(47, 53)}
+    <path d="M16 31 Q24 29 30 30" stroke="#fff4b8" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".8"/>
+  </svg>`;
+}
+
+export interface SlotRowView {
+  /** 付けているパーツ（前から順に枠に入る） */
+  equip: PartId[];
+  /** 開いている枠の数 */
+  slots: number;
+  /** 枠ごとの、鍵が開く段位の名前（5つ） */
+  ranks: string[];
+  /** 新しく開いた枠（0 始まり。鍵が外れる動きを付ける） */
+  opened?: number;
+  /** 鍵の枠の下に段位の名前を書く */
+  labels?: boolean;
+  /** 付けているパーツの名前（title 用） */
+  names?: Partial<Record<PartId, string>>;
+}
+
+/** 台の改造の5つの枠：付けているパーツ・開いた空の枠・鍵のかかった枠。次に開く鍵は光らせる */
+export function slotRowHtml(v: SlotRowView): string {
+  return v.ranks
+    .map((rank, i) => {
+      const id = v.equip[i];
+      const label = v.labels ? `<small>${i < v.slots ? '&nbsp;' : rank}</small>` : '';
+      if (i < v.slots && id) return `<span class="slot on" title="${v.names?.[id] ?? ''}"><i>${partSvg(id)}</i>${label}</span>`;
+      if (i < v.slots) return `<span class="slot open${i === v.opened ? ' opened' : ''}" title="空いている枠"><i>${i === v.opened ? lockSvg() : ''}</i>${label}</span>`;
+      return `<span class="slot locked${i === v.slots ? ' next' : ''}" title="${rank}の昇段試験で開く"><i>${lockSvg()}</i>${label}</span>`;
+    })
+    .join('');
+}

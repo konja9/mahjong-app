@@ -11,6 +11,7 @@ import { type MenuBadges, type MenuItem, hasBadge, menuBadges, menuHtml } from '
 import { lockPageScroll, scrollToView } from './scroll';
 import { type BgmTrack, bgm, configureAudio, sfx, suspendAudio, unlockAudio } from './audio';
 import { LevelUpFx } from './effects/levelup';
+import { slotRowHtml } from './machine/partArt';
 import { Fx, type WinTier } from './effects/pachinko';
 import type { EffectLevel } from './effects/performance';
 import {
@@ -48,7 +49,7 @@ import { logoSvg } from './brand/logo';
 import type { ChapterId, TutorialAction } from './tutorial/script';
 import { SPECS } from './machine/specs';
 import { effectiveSpec } from './machine/mods';
-import { PARTS, type PartId, applyParts, equipPart, loadParts, rewardsFor, saveParts, slotsFor, unequipPart } from './machine/parts';
+import { PARTS, type PartId, SLOT_RANKS, applyParts, equipPart, loadParts, nextSlotRank, rewardsFor, saveParts, slotsFor, unequipPart } from './machine/parts';
 import { type Rank, canTakeExam, examIntroHtml, examResultHtml, examTabHtml, notebookHtml, notebookName, unreadNotes, judge, loadExam, nextRank, rankName, recordPass, saveExam } from './exam';
 import {
   FINAL_LEVEL,
@@ -256,7 +257,7 @@ export class App {
       onTalk: (e) => this.talk(e),
       onCharaTap: () => this.talk('tap'),
     });
-    this.panel.setParts(this.parts.equip);
+    this.renderSlots();
     this.panel.machine.spec = this.spec;
     if (this.spec.jissenOnly && this.s.mode !== 'jissen') this.s = { ...this.s, mode: 'jissen' };
     this.applyLooks();
@@ -323,9 +324,15 @@ export class App {
         },
         this.recentNews,
       );
-      const r = this.talker.gossip(gossipLine(text), performance.now(), this.s.effects !== 'off');
+      // パーツを持っているのに台の枠がまだ鍵の中なら、ときどき昇段試験をすすめる
+      const next = nextSlotRank(this.exam.rank);
+      const slotHint =
+        !this.slots && next && this.parts.owned.length && Math.random() < 0.3
+          ? `台の鍵、${rankName(next)}の昇段試験で開けてみな。パーツが付けてほしそうにしてるぜ`
+          : null;
+      const r = this.talker.gossip(slotHint ?? gossipLine(text), performance.now(), this.s.effects !== 'off');
       if (r.line) {
-        this.recentNews = [text, ...this.recentNews].slice(0, 12);
+        if (!slotHint) this.recentNews = [text, ...this.recentNews].slice(0, 12);
         this.panel.say(r.line, r.face);
         this.scheduleGossip(GOSSIP_GAP_MS);
       } else this.scheduleGossip(GOSSIP_RETRY_MS);
@@ -924,6 +931,7 @@ export class App {
         parts: rw.parts.map((id) => ({ id, name: PARTS[id].name, desc: PARTS[id].desc })),
         cash: rw.cash,
         canEquip: this.canChangeParts && this.parts.equip.length < this.slots,
+        lockedNote: this.slots ? undefined : `台の枠はまだ鍵の中。${rankName(nextSlotRank(this.exam.rank) ?? 1)}の昇段試験で開くぜ`,
         exam,
       },
       (id) => this.equipPart(id as PartId),
@@ -932,6 +940,11 @@ export class App {
     if (act === 'read' && chapter) this.openStory(chapter.n);
     else if (act === 'exam') this.startExam();
     else this.tip('levelUp');
+  }
+
+  /** 台の上の改造の5つの枠を描き直す */
+  private renderSlots(): void {
+    this.panel.setParts(this.parts.equip, this.slots, SLOT_RANKS.map(rankName));
   }
 
   /** 台に付けられる改造パーツの枠 */
@@ -952,7 +965,7 @@ export class App {
     } else unequipPart(this.parts, id);
     saveParts(this.parts);
     applyParts(this.parts, this.slots);
-    this.panel.setParts(this.parts.equip);
+    this.renderSlots();
     this.panel.machine.spec = this.spec;
     this.panel.render();
     this.renderShop();
@@ -1041,7 +1054,16 @@ export class App {
       this.renderExpStrip(true);
     }
     const slotUp = this.slots > before;
-    const html = examResultHtml(x.rank, j, slotUp ? this.slots : 0, x.missed, this.lv.read);
+    if (slotUp) this.renderSlots();
+    const next = nextSlotRank(this.exam.rank);
+    const slot = j.pass
+      ? {
+          opened: slotUp ? this.slots : null,
+          row: slotRowHtml({ equip: this.parts.equip, slots: this.slots, ranks: SLOT_RANKS.map(rankName), opened: slotUp ? this.slots - 1 : undefined, labels: true }),
+          next: next ? rankName(next) : null,
+        }
+      : null;
+    const html = examResultHtml(x.rank, j, slot, x.missed, this.lv.read);
     // 認定証の下に帳面の頁を出すので、その頁は読んだことにする
     if (j.pass) {
       this.exam.notesRead = [...new Set([...(this.exam.notesRead ?? []), this.exam.rank])];
@@ -2240,13 +2262,14 @@ export class App {
   private renderShop(): void {
     // 台選びは BONUS 中と台が回っている間はできない。試聴は BONUS・RUSH の曲が鳴っている間はできない
     const ok = this.shopView === 'items' ? !this.round && !this.panel.rush : !this.round && this.panel.idle;
-    const nextSlot = [1, 3, 5, 7, 10].find((r) => r > this.exam.rank);
+    const nextSlot = nextSlotRank(this.exam.rank);
     const parts = {
       view: {
         state: this.parts,
         slots: this.slots,
         rank: rankName(this.exam.rank),
         nextSlotRank: nextSlot ? rankName(nextSlot) : null,
+        slotRanks: SLOT_RANKS.map(rankName),
         canChange: this.canChangeParts,
       },
       tab: this.machineTab,

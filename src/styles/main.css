@@ -4433,3 +4433,29 @@ body.exam #open-shop {
     animation: none;
   }
 }
+/* 昇段試験：改造の枠の知らせ */
+#levelup .ex-slot {
+  flex-direction: column;
+  align-items: center;
+}
+#levelup .ex-slot.quiet {
+  box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.3);
+}
+#levelup .ex-slot b {
+  color: #ffd84a;
+}
+.ex-slot-mark,
+.ex-slot-pip {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(242, 201, 76, 0.18);
+  color: var(--main);
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.ex-slot-pip {
+  padding: 0 6px;
+}

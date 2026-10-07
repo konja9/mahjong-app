@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { partSvg } from '../src/ui/machine/partArt';
+import { partSvg, slotRowHtml } from '../src/ui/machine/partArt';
+
+const RANKS5 = ['5級', '3級', '1級', '二段', '名人'];
 import { PART_ORDER } from '../src/ui/machine/parts';
 import { partsHtml } from '../src/ui/shop';
 
@@ -24,9 +26,29 @@ describe('改造パーツの絵', () => {
     expect(partSvg('gold')).toContain('aria-hidden="true"');
   });
   it('改造の画面：各行に絵の枠。付けている行は光り、まだのパーツは影', () => {
-    const html = partsHtml({ state: { owned: ['fast', 'tank'], equip: ['tank'] }, slots: 2, rank: '5級', nextSlotRank: '3級', canChange: true });
+    const html = partsHtml({ state: { owned: ['fast', 'tank'], equip: ['tank'] }, slots: 2, rank: '5級', nextSlotRank: '1級', slotRanks: RANKS5, canChange: true });
     expect(html.match(/class="part-thumb/g)).toHaveLength(PART_ORDER.length);
     expect(html.match(/part-thumb on/g)).toHaveLength(1);
     expect(html.match(/part-thumb unknown/g)).toHaveLength(PART_ORDER.length - 2);
+  });
+  it('改造の画面：5つの枠のうち、開いていない枠は鍵で、次に開く鍵が光る', () => {
+    const html = partsHtml({ state: { owned: ['fast', 'tank'], equip: ['tank'] }, slots: 2, rank: '3級', nextSlotRank: '1級', slotRanks: RANKS5, canChange: true });
+    expect(html.match(/class="slot on/g)).toHaveLength(1);
+    expect(html.match(/class="slot open/g)).toHaveLength(1);
+    expect(html.match(/class="slot locked/g)).toHaveLength(3);
+    expect(html.match(/slot locked next/g)).toHaveLength(1);
+    expect(html).toContain('あと3つの枠が鍵の中');
+  });
+  it('枠が0のときは付けられず、5級の昇段試験をすすめる', () => {
+    const html = partsHtml({ state: { owned: ['fast'], equip: [] }, slots: 0, rank: '', nextSlotRank: '5級', slotRanks: RANKS5, canChange: true });
+    expect(html).not.toContain('data-part-on');
+    expect(html).toContain('枠が鍵の中');
+    expect(html).toContain('5級の昇段試験に受かると');
+    expect(html.match(/class="slot locked/g)).toHaveLength(5);
+  });
+  it('枠の並び：新しく開いた枠には、外れる鍵の動きを付ける', () => {
+    const row = slotRowHtml({ equip: [], slots: 1, ranks: RANKS5, opened: 0, labels: true });
+    expect(row).toContain('slot open opened');
+    expect(row.match(/<small>/g)).toHaveLength(5);
   });
 });

@@ -326,7 +326,7 @@ if (want(5)) {
   await p.context().close();
 }
 if (want(5)) {
-  // 改造：Lv 12・初段（認定証と同じ段位）で、枠（4つ）をパーツで埋めた状態
+  // 改造：Lv 12・初段（認定証と同じ段位）で、開いた枠（3つ）をパーツで埋めた状態
   const p = await open({
     settings: { effects: 'off', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' },
     level: { exp: 52000, read: [1, 2, 3] },
@@ -335,7 +335,7 @@ if (want(5)) {
       'tensu.exam.v1': { rank: 6, passedAt: [], notesRead: [1, 2, 3, 4, 5, 6] },
       'tensu.parts.v1': {
         owned: ['fast', 'tank', 'cushion', 'lens', 'denchu', 'st', 'combo', 'kakuhen', 'uwanose', 'premium', 'round'],
-        equip: ['tank', 'st', 'combo', 'kakuhen'],
+        equip: ['tank', 'st', 'kakuhen'],
       },
     },
   });

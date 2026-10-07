@@ -1,4 +1,5 @@
 import type { Filters, HandConstraints, Mode } from '../core/generator';
+import { SLOT_RANKS } from './machine/parts';
 import { load, save } from './storage';
 import { charaSvg } from './tutorial/chara';
 
@@ -63,6 +64,11 @@ export const RANKS: Rank[] = [
 /** 段位の名前（0 は「段位なし」） */
 export const rankName = (rank: number): string => (rank <= 0 ? '' : RANKS[rank - 1].name);
 
+/** その段位（RANKS の並び）に受かると、台の改造の枠の鍵が開くか */
+export const opensSlot = (rank: Rank): boolean => (SLOT_RANKS as readonly number[]).includes(RANKS.indexOf(rank) + 1);
+
+const SLOT_MARK = '<em class="ex-slot-mark">受かると改造の枠が開く</em>';
+
 /** 次に受ける試験（すべて受かっていれば null） */
 export const nextRank = (rank: number): Rank | null => RANKS[rank] ?? null;
 
@@ -123,8 +129,15 @@ export function recordPass(s: ExamState, today: string): void {
   s.passedAt.push(today);
 }
 
-/** 試験の結果（合格なら認定証、不合格なら足りなかったところ）。slots は増えた枠の数（0 は増えていない） */
-export function examResultHtml(rank: Rank, j: Judge, slots: number, missed: number[], read: number[] = []): string {
+/** 合格したときの改造の枠：opened は新しく開いた枠の番号（1〜5。開かなければ null）、row は5つの枠の並び、next は次に枠が開く段位 */
+export interface SlotNews {
+  opened: number | null;
+  row: string;
+  next: string | null;
+}
+
+/** 試験の結果（合格なら認定証、不合格なら足りなかったところ） */
+export function examResultHtml(rank: Rank, j: Judge, slot: SlotNews | null, missed: number[], read: number[] = []): string {
   const avg = `${j.avg.toFixed(1)}秒`;
   const stats = `<div class="ex-stats"><div><small>正解</small><b>${j.correct}<u>/${rank.modes.length}</u></b></div><div><small>平均の速さ</small><b>${avg}</b></div></div>`;
   if (j.pass) {
@@ -139,7 +152,7 @@ export function examResultHtml(rank: Rank, j: Judge, slots: number, missed: numb
           <div class="ex-seal" aria-hidden="true">發</div>
         </div>
         ${notePageHtml(RANKS.indexOf(rank) + 1, read)}
-        ${slots ? `<div class="lu-reward"><small>改造の枠</small><b>${slots}つに増えた</b><span>メニューの「改造」でパーツを付けられる</span></div>` : ''}
+        ${slotNewsHtml(slot)}
         <div class="lu-buttons"><button class="lu-btn lu-read" type="button" data-lu="close">閉じる</button></div>
       </div>`;
   }
@@ -157,12 +170,19 @@ export function examResultHtml(rank: Rank, j: Judge, slots: number, missed: numb
     </div>`;
 }
 
+function slotNewsHtml(slot: SlotNews | null): string {
+  if (!slot) return '';
+  if (slot.opened)
+    return `<div class="lu-reward ex-slot"><small>改造の枠</small><b>鍵が開いた！ ${slot.opened}つめの枠</b><div class="slot-row big">${slot.row}</div><span>メニューの「改造」でパーツを付けられる</span></div>`;
+  return slot.next ? `<div class="lu-reward ex-slot quiet"><small>改造の枠</small><span>次は<b>${slot.next}</b>で、台の枠の鍵が開く</span></div>` : '';
+}
+
 /** 台のダイアログの「昇段試験」タブ：全段位の状態と、次の試験の条件・［受ける］ */
 export function examTabHtml(s: ExamState, level: number, canStart: boolean): string {
   const next = nextRank(s.rank);
   const head = next
     ? `<div class="ex-next">
-        <div><small>次の試験</small><b>${next.name}</b></div>
+        <div><small>次の試験</small><b>${next.name}</b>${opensSlot(next) ? SLOT_MARK : ''}</div>
         <div class="shop-desc">${next.about}・${next.pass}問以上正解${next.avgSec ? `・平均 ${next.avgSec}秒以内` : ''}${next.input ? '・数値入力' : ''}</div>
         ${
           level >= next.level
@@ -178,9 +198,9 @@ export function examTabHtml(s: ExamState, level: number, canStart: boolean): str
       : i === s.rank && level >= r.level
         ? '<span class="shop-state ex-open">受けられる</span>'
         : `<span class="shop-lock">Lv ${r.level}</span>`;
-    return `<div class="shop-row${passed ? ' cur' : ''}${!passed && level < r.level ? ' locked' : ''}"><div class="mis"><div class="shop-name">${r.name}</div><div class="shop-desc">${r.about}・${r.pass}問${r.avgSec ? `・平均${r.avgSec}秒` : ''}</div></div><div class="shop-acts">${state}</div></div>`;
+    return `<div class="shop-row${passed ? ' cur' : ''}${!passed && level < r.level ? ' locked' : ''}"><div class="mis"><div class="shop-name">${r.name}${opensSlot(r) ? '<em class="ex-slot-pip" title="受かると改造の枠が開く">枠</em>' : ''}</div><div class="shop-desc">${r.about}・${r.pass}問${r.avgSec ? `・平均${r.avgSec}秒` : ''}</div></div><div class="shop-acts">${state}</div></div>`;
   }).join('');
-  return `${head}${rows}<p class="help-note">試験は10問。yan・台・経験値は動きません。受かると改造の枠が増えることがあります。何度でも受け直せます。</p>`;
+  return `${head}${rows}<p class="help-note">試験は10問。yan・台・経験値は動きません。「枠」の印の段位に受かると、台の改造の枠の鍵が開きます。何度でも受け直せます。</p>`;
 }
 
 // ------------------------------------------------------------ 世界観：パチふとくんの「数えの試験」と、ゲンさんの帳面
@@ -267,7 +287,8 @@ export function examIntro(rank: Rank, read: number[]): string {
         ? '誰かがこうやって、卓のそばで数え方を教えてた気がするんだ。……まあいい、座りな。'
         : 'オレ様の試験だ。なんで試験なんかするのかって？　……分からねえ。体が勝手にやりたがるんだ。';
   const cond = `${rank.about}、${rank.pass}問以上正解${rank.avgSec ? `・平均 ${rank.avgSec}秒以内` : ''}${rank.input ? '・数値入力' : ''}`;
-  return `${lead}<br><b>${rank.name}</b>の試験は ${cond}。全部、お前の力で数えな。`;
+  const slot = opensSlot(rank) ? '<br>受かれば、台の改造の枠の鍵が一つ開くぜ。' : '';
+  return `${lead}<br><b>${rank.name}</b>の試験は ${cond}。全部、お前の力で数えな。${slot}`;
 }
 
 /** 認定証の文（ゲンさんを知る前は名前を出さない） */

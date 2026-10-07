@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { BASE_MODS, effectiveSpec, setMods } from '../src/ui/machine/mods';
-import { PARTS, PART_ORDER, type PartId, applyParts, equipPart, modsFor, partForLevel, rewardsFor, slotsFor, syncOwned, unequipPart } from '../src/ui/machine/parts';
+import { MAX_SLOTS, PARTS, PART_ORDER, type PartId, applyParts, equipPart, modsFor, nextSlotRank, partForLevel, rewardsFor, slotsFor, syncOwned, unequipPart } from '../src/ui/machine/parts';
 import { Machine } from '../src/ui/machine/machine';
 import { ballsFor, costFor, denchuFor, fastSecondsFor } from '../src/ui/machine/economy';
 import { SPECS } from '../src/ui/machine/specs';
@@ -24,8 +24,10 @@ describe('台の改造パーツ', () => {
     syncOwned(s, 5);
     expect(s.owned).toEqual(PART_ORDER.slice(0, 4));
   });
-  it('枠は段位で増える（最初1つ、名人で6つ）', () => {
-    expect([0, 1, 2, 3, 5, 7, 9, 10].map(slotsFor)).toEqual([1, 2, 2, 3, 4, 5, 5, 6]);
+  it('枠は5つ。最初は0で、5級・3級・1級・二段・名人で1つずつ開く', () => {
+    expect(Array.from({ length: 11 }, (_, r) => slotsFor(r))).toEqual([0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5]);
+    expect(slotsFor(10)).toBe(MAX_SLOTS);
+    expect([0, 1, 2, 5, 7, 9, 10].map(nextSlotRank)).toEqual([1, 3, 3, 7, 10, 10, null]);
   });
   it('持っていないパーツ・枠を超えるパーツは付けられない', () => {
     const s = { owned: ['fast', 'tank'] as PartId[], equip: [] as PartId[] };
@@ -65,7 +67,7 @@ describe('台の改造パーツ', () => {
     for (const mode of ['hayami', 'fu', 'jissen'] as const) {
       setMods(BASE_MODS);
       const base = simulate(mode, 0.85, 0.5, 1, 30000, SPECS.ama);
-      setMods(modsFor(['round', 'gold', 'kakuhen', 'st', 'combo', 'denchu']));
+      setMods(modsFor(['round', 'gold', 'kakuhen', 'st', 'combo']));
       const full = simulate(mode, 0.85, 0.5, 1, 30000, effectiveSpec(SPECS.ama));
       expect(full / base).toBeGreaterThan(1.05);
       expect(full / base).toBeLessThan(1.6);
