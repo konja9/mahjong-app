@@ -8,6 +8,8 @@ import { type Face, charaSvg } from '../tutorial/chara';
 import { ECONOMY } from './economy';
 import { Machine, PREMIUM_SYMBOL, type SpinResult, maxHolds } from './machine';
 import { mods } from './mods';
+import { partSvg } from './partArt';
+import { PARTS, type PartId } from './parts';
 
 export interface PanelHooks {
   /** 発展リーチ・大当り中は回答を止める */
@@ -79,6 +81,7 @@ export class MachinePanel {
           <div class="m-msg" aria-live="polite"></div>
           <div class="m-bottom">
             <div class="m-holds" aria-label="保留">${Array.from({ length: maxHolds() }, () => '<span class="hold"></span>').join('')}</div>
+            <div class="m-parts" aria-label="付けている改造パーツ"></div>
             <button class="m-chara" type="button" aria-label="パチふとくん" data-silent></button>
             <div class="m-chucker" title="始動口"><span></span></div>
           </div>
@@ -445,6 +448,14 @@ export class MachinePanel {
     const el = this.root.querySelector<HTMLElement>('.m-msg')!;
     el.className = `m-msg ${cls}`;
     el.textContent = text;
+  }
+
+  /** 付けている改造パーツの絵を、液晶帯の下の段に並べる */
+  setParts(ids: PartId[]): void {
+    const el = this.root.querySelector<HTMLElement>('.m-parts');
+    if (!el) return;
+    el.innerHTML = ids.map((id) => `<span class="m-part" title="${PARTS[id].name}">${partSvg(id)}</span>`).join('');
+    el.hidden = ids.length === 0;
   }
 
   render(pop = false): void {

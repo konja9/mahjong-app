@@ -5,6 +5,7 @@
 import type { Mode } from '../core/generator';
 import { MACHINE_IDS, type MachineId, SPECS } from './machine/specs';
 import { PARTS, PART_ORDER, type PartsState } from './machine/parts';
+import { partSvg } from './machine/partArt';
 import { load, save } from './storage';
 
 const KEY = 'tensu.shop.v1';
@@ -285,7 +286,8 @@ export function partsHtml(v: PartsView): string {
     if (!have) btn = `<span class="shop-lock">Lv ${i + 2}</span>`;
     else if (on) btn = `<button class="shop-btn" data-part-off="${id}"${v.canChange ? '' : ' disabled'}>外す</button>`;
     else btn = `<button class="shop-btn buy" data-part-on="${id}"${v.canChange && used < v.slots ? '' : ' disabled'}>付ける</button>`;
-    return `<div class="shop-row${on ? ' cur' : ''}${have ? '' : ' locked'}"><div class="mis"><div class="shop-name">${have ? p.name : '？？？'}${on ? '<em>装着中</em>' : ''}</div>${have ? `<div class="shop-flavor">${p.flavor}</div><div class="shop-desc">${p.desc}</div>` : `<div class="shop-desc">Lv ${i + 2} で手に入る</div>`}</div><div class="shop-acts">${btn}</div></div>`;
+    const art = `<div class="part-thumb${on ? ' on' : ''}${have ? '' : ' unknown'}">${partSvg(id)}</div>`;
+    return `<div class="shop-row part-row${on ? ' cur' : ''}${have ? '' : ' locked'}">${art}<div class="mis"><div class="shop-name">${have ? p.name : '？？？'}${on ? '<em>装着中</em>' : ''}</div>${have ? `<div class="shop-flavor">${p.flavor}</div><div class="shop-desc">${p.desc}</div>` : `<div class="shop-desc">Lv ${i + 2} で手に入る</div>`}</div><div class="shop-acts">${btn}</div></div>`;
   }).join('');
   const note = v.canChange ? '' : '<p class="help-note">BONUS 中と台が回っている間は、付け替えできません。</p>';
   return head + rows + note + `<p class="help-note">改造パーツは Lv が上がるたびに1つ手に入ります（Lv ${PART_ORDER.length + 1} まで）。付けると台が少し有利になります。</p>`;

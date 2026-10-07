@@ -2303,3 +2303,67 @@ body[data-phase='summary'] #meter,
     display: inline;
   }
 }
+
+/* ============================================================ 改造パーツの絵 */
+.part-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* 改造の画面：名前の左の四角い枠 */
+.part-row {
+  justify-content: flex-start;
+}
+.part-row .mis {
+  flex: 1;
+  min-width: 0;
+}
+.part-thumb {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  padding: 4px;
+  border-radius: 10px;
+  background: radial-gradient(circle at 50% 40%, #2a2218, #120e09);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.part-thumb.on {
+  box-shadow: inset 0 0 0 1.5px var(--main), 0 0 10px rgba(242, 201, 76, 0.45);
+}
+/* まだ手に入れていないパーツは黒い影だけ見せる */
+.part-thumb.unknown .part-art {
+  filter: brightness(0);
+  opacity: 0.45;
+}
+/* 台の上：付けているパーツを保留ランプとパチふとくんの間に並べる */
+#machine .m-parts {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-left: 8px;
+}
+#machine .m-part {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+}
+#machine .m-part + .m-part {
+  margin-left: 2px;
+}
+/* 狭い幅では少し重ねて詰める */
+/* スマホ幅では液晶帯の下の段に入りきらないので、台の枠のすぐ下の右に並べる */
+@media (max-width: 480px) {
+  #machine .m-parts {
+    position: absolute;
+    top: 100%;
+    right: 14px;
+    margin: 4px 0 0;
+  }
+}
+@media (min-width: 900px) {
+  #machine .m-part {
+    width: 22px;
+    height: 22px;
+  }
+}

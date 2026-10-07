@@ -256,6 +256,7 @@ export class App {
       onTalk: (e) => this.talk(e),
       onCharaTap: () => this.talk('tap'),
     });
+    this.panel.setParts(this.parts.equip);
     this.panel.machine.spec = this.spec;
     if (this.spec.jissenOnly && this.s.mode !== 'jissen') this.s = { ...this.s, mode: 'jissen' };
     this.applyLooks();
@@ -951,6 +952,7 @@ export class App {
     } else unequipPart(this.parts, id);
     saveParts(this.parts);
     applyParts(this.parts, this.slots);
+    this.panel.setParts(this.parts.equip);
     this.panel.machine.spec = this.spec;
     this.panel.render();
     this.renderShop();
