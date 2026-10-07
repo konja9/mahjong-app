@@ -12,6 +12,7 @@ import { lockPageScroll, scrollToView } from './scroll';
 import { type BgmTrack, bgm, configureAudio, sfx, suspendAudio, unlockAudio } from './audio';
 import { LevelUpFx } from './effects/levelup';
 import { slotRowHtml } from './machine/partArt';
+import { scoreTableHtml, toggleScoreSide } from './scoreTable';
 import { Fx, type WinTier } from './effects/pachinko';
 import type { EffectLevel } from './effects/performance';
 import {
@@ -1531,9 +1532,11 @@ export class App {
     const ura = q.sit.uraIndicators.length
       ? `<div class="dora"><span class="muted">裏ドラ表示</span>${tilesInline(q.sit.uraIndicators)}<span class="muted small">→ ${doraLabel(q.sit.uraIndicators)}</span></div>`
       : '';
+    // 実戦（パチンコ）と稽古では、点数表をいつでも開ける（昇段試験では出さない）
+    const table = !this.examRun && (this.keiko || q.mode === 'jissen') ? '<button type="button" class="st-open" data-score-table>点数表</button>' : '';
     return `<div class="q-hand">
       <div class="q-info">
-        <div class="chips">${situationChips(q)}</div>
+        <div class="chips">${situationChips(q)}${table}</div>
         <div class="doras">
           <div class="dora"><span class="muted">ドラ表示</span>${tilesInline(q.sit.doraIndicators)}<span class="muted small">→ ${doraLabel(q.sit.doraIndicators)}</span></div>
           ${ura}
@@ -1925,6 +1928,10 @@ export class App {
     $('#overlay').addEventListener('click', () => this.fx.tap());
     $('#stage').addEventListener('click', (e) => {
       // 解説の「符の数え方」はヘルプを開く（次の問題へは進まない）
+      if ((e.target as HTMLElement).closest('[data-score-table]')) {
+        this.openScoreTable();
+        return;
+      }
       const link = (e.target as HTMLElement).closest<HTMLElement>('[data-help-link]');
       if (link) {
         this.openHelp(link.dataset.helpLink as HelpTab, 'fu-flow');
@@ -2044,13 +2051,20 @@ export class App {
         help.close();
         return;
       }
+      if (toggleScoreSide(t)) return;
       const b = t.closest<HTMLElement>('[data-help-tab]');
       if (b) {
         this.helpTab = b.dataset.helpTab as HelpTab;
-        help.innerHTML = helpHtml(this.helpTab, this.s.mode);
+        help.innerHTML = helpHtml(this.helpTab, this.s.mode, this.s.rules);
       }
     });
     help.addEventListener('close', () => this.pause('help', false));
+    const st = $<HTMLDialogElement>('#score-dialog');
+    st.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t === st || t.closest('[data-score-close]')) st.close();
+      else toggleScoreSide(t);
+    });
     $('#tip').addEventListener('click', (e) => {
       e.stopPropagation();
       // 「詳しく」はヘルプの該当カードへ
@@ -2176,11 +2190,23 @@ export class App {
     }
   }
 
+  /**
+   * 点数表のポップアップ（実戦・稽古）。今の問題が親なら親の表から見せる。
+   * パチンコでは時間は止めない（見ている間に速答の締切は過ぎる）
+   */
+  private openScoreTable(): void {
+    const dlg = $<HTMLDialogElement>('#score-dialog');
+    const dealer = this.q.mode !== 'hayami' && questionMeta(this.q).dealer;
+    dlg.innerHTML = `<div class="settings help"><div class="set-head"><span>点数表</span><button class="icon-btn" data-score-close aria-label="閉じる">×</button></div>
+      <div class="help-body">${scoreTableHtml(this.s.rules, dealer)}<p class="small muted">点数の出し方は、遊び方の「点数」のタブにあります。</p></div></div>`;
+    if (!dlg.open) dlg.showModal();
+  }
+
   /** ヘルプを開く。card を渡すとそのカードまでスクロールして光らせる */
   private openHelp(tab?: HelpTab, card?: string): void {
     const dlg = $<HTMLDialogElement>('#help-dialog');
     if (tab) this.helpTab = tab;
-    dlg.innerHTML = helpHtml(this.helpTab, this.s.mode);
+    dlg.innerHTML = helpHtml(this.helpTab, this.s.mode, this.s.rules);
     this.pause('help', true);
     if (!dlg.open) dlg.showModal();
     if (card) {
@@ -3013,6 +3039,7 @@ const SHELL = `
 <dialog id="menu-dialog" aria-label="メニュー"></dialog>
 <dialog id="settings-dialog"></dialog>
 <dialog id="help-dialog"></dialog>
+<dialog id="score-dialog" aria-label="点数表"></dialog>
 <dialog id="shop-dialog"></dialog>
 <dialog id="story-dialog" aria-label="物語"></dialog>
 <dialog id="record-dialog" aria-label="成績"></dialog>

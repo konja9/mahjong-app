@@ -4,20 +4,22 @@
 import { evaluate } from '../core/evaluate';
 import type { Mode } from '../core/generator';
 import { type Meld, defaultSituation } from '../core/hand';
-import { DEFAULT_RULES } from '../core/rules';
+import { DEFAULT_RULES, type Rules } from '../core/rules';
 import { formatAnswer } from '../core/score';
 import { parseTiles, windName } from '../core/tiles';
 import { blocksHtml, fuTable } from './explain';
+import { scoreTableHtml } from './scoreTable';
 import { ECONOMY, costFor, denchuFor, fastSecondsFor, fuScale, uwanoseMean } from './machine/economy';
 import { KAKUHEN_RATE, NORMAL_ODDS, RUSH_ODDS, ST_SPINS } from './machine/machine';
 import { MACHINE_IDS, SPECS, modesLabel } from './machine/specs';
 import { FINAL_LEVEL, MODE_EXP } from './level';
 
-export type HelpTab = 'basic' | 'fu' | 'machine' | 'bonus' | 'grow' | 'terms';
+export type HelpTab = 'basic' | 'score' | 'fu' | 'machine' | 'bonus' | 'grow' | 'terms';
 
 const TABS: [HelpTab, string][] = [
   ['basic', '基本'],
-  ['fu', '符の数え方'],
+  ['score', '点数'],
+  ['fu', '符'],
   ['machine', '台'],
   ['bonus', 'BONUS'],
   ['grow', '成長'],
@@ -102,7 +104,7 @@ function basic(): string {
       `<dl class="help-dl">
         <dt>パチンコ</dt><dd>yan を賭けて台を回すモード。問題は無制限で、所持金が尽きると破産です。</dd>
         <dt>稽古</dt><dd>演出も yan もない練習用。手牌1つを段階に分けて解きます。<b>重点学習</b>は 基本符 → 面子 → 雀頭 → 待ち → 符 → 翻 → 点数 の7段階、<b>簡易学習</b>は 符 → 翻 → 点数 の3段階。出題は 通常・苦手（正答率の低い要素）・復習（間違えた手）から選べます。経験値はパチンコと同じだけ入ります。</dd>
-        <dt>早見</dt><dd>翻と符から点数を答える。点数表を覚える練習。</dd>
+        <dt>早見</dt><dd>翻と符から点数を答える。点数表（「点数」のタブ）を覚える練習。</dd>
         <dt>符計算</dt><dd>手牌と状況から符を答える。答えは 20〜60符の6択（70符以上は出題しません。理由は「符の数え方」タブに）。</dd>
         <dt>実戦</dt><dd>手牌と状況から役・翻・符を数えて点数を答える。</dd>
       </dl>`,
@@ -114,6 +116,41 @@ function basic(): string {
       `<p>1問の BET は ${costFor(true, false)} yan。締切までに正解すると ${costFor(true, true)} yan に割引（${fastWindows()}）。不正解・パス・時間切れは −${costFor(false, false)} yan。初期所持金は ${ECONOMY.initial.toLocaleString()} yan。</p>`,
     ) +
     card('meter', '計器と破産', '', `<p>画面下の計器に<b>所持yan</b>・<b>本日の収支</b>・BET を常に表示。本日の収支は BET と BONUS の賞金だけを数え（交換所の買い物は含めない）、<b>朝5時</b>に0に戻ります。BET は回答すると実際にかかった額に変わり、BONUS 中は収支の枠が出玉になります。</p><p>所持金が尽きると破産で、${ECONOMY.initial.toLocaleString()} yan から再スタート。経験値・Lv・段位は減りません。</p>`)
+  );
+}
+
+/** 点数の出し方と点数表 */
+function score(rules: Rules): string {
+  const ex = (han: number, fu: number) => fu * 2 ** (han + 2);
+  return (
+    card(
+      'score-flow',
+      '点数の出し方',
+      '',
+      `<ol class="help-flow">
+        <li><b><span class="n">1</span>翻と符を数える</b><p>翻は役とドラの合計、符は手の形・待ち・和了り方（「符」のタブ）。<b>5翻以上は符に関係なく</b>満貫以上の決まった点数です。</p></li>
+        <li><b><span class="n">2</span>基本点 ＝ 符 × 2<sup>(翻＋2)</sup></b><p>例：30符3翻は 30 × 2<sup>5</sup> ＝ ${ex(3, 30)}。基本点が 2000 以上になったら満貫（基本点 2000）。</p></li>
+        <li><b><span class="n">3</span>払う人の数を掛ける</b><p><b>子のロン</b> 基本点×4、<b>親のロン</b> ×6。<b>子のツモ</b>は子が×1・親が×2ずつ、<b>親のツモ</b>は子が×2ずつ（オール）。</p></li>
+        <li><b><span class="n">4</span>100点単位に切り上げる</b><p>例：30符3翻の子のロンは ${ex(3, 30)}×4 ＝ ${ex(3, 30) * 4} → <b>3900</b>。ツモは1人ずつ切り上げるので、合計がロンと少しずれます（1000-2000 ＝ 4000）。</p></li>
+      </ol>`,
+    ) +
+    card(
+      'score-table',
+      '点数表',
+      '',
+      `${scoreTableHtml(rules)}<p class="small">20符はツモ（平和ツモ）だけ、25符は七対子（2翻から）。1翻のツモ・ロンの組み合わせでありえないマスは「—」です。実戦と稽古では、問題の上の「点数表」からいつでも開けます。</p>`,
+    ) +
+    card(
+      'score-tips',
+      '覚え方のコツ',
+      '',
+      `<ul>
+        <li><b>翻が1つ増えると約2倍</b>、<b>符が2倍なら点数も約2倍</b>。30符1翻 1000 → 2翻 2000 → 3翻 3900 → 4翻 7700。</li>
+        <li><b>親は子の1.5倍</b>。子 1000 なら親 1500、子 3900 なら親 5800。</li>
+        <li>よく出るのは<b>30符と40符</b>。まずこの2行（子・親）を覚えると、実戦の点数がぐっと速くなります。</li>
+        <li>4翻30符（7700）・3翻60符（7700）は満貫の一歩手前。${rules.kiriage ? 'このルールでは切り上げ満貫で 8000 として扱います。' : '切り上げ満貫のルールなら 8000（設定で変えられます）。'}</li>
+      </ul>`,
+    )
   );
 }
 
@@ -347,9 +384,9 @@ function terms(): string {
     ])}`;
 }
 
-export function helpHtml(tab: HelpTab, mode: Mode): string {
+export function helpHtml(tab: HelpTab, mode: Mode, rules: Rules = DEFAULT_RULES): string {
   const body =
-    tab === 'basic' ? basic() : tab === 'fu' ? fu() : tab === 'machine' ? machine() : tab === 'bonus' ? bonus(mode) : tab === 'grow' ? grow() : terms();
+    tab === 'basic' ? basic() : tab === 'score' ? score(rules) : tab === 'fu' ? fu() : tab === 'machine' ? machine() : tab === 'bonus' ? bonus(mode) : tab === 'grow' ? grow() : terms();
   return `<div class="settings help">
     <div class="set-head"><span>遊び方</span><button class="icon-btn" data-help-close aria-label="閉じる">×</button></div>
     <div class="cfg-group help-tabs" role="tablist">${TABS.map(

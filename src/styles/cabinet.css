@@ -2620,3 +2620,131 @@ body[data-phase='summary'] #meter,
     margin: 0 auto;
   }
 }
+
+/* 点数表：問題の上の「点数表」ボタンと、表（遊び方の「点数」タブ・ポップアップ） */
+.st-open {
+  margin-left: auto;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--main) 60%, transparent);
+  background: transparent;
+  color: var(--main);
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.st-open::before {
+  content: '▦ ';
+}
+.st-sides {
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.st-sides .cfg {
+  min-width: 64px;
+  background: var(--sub-bg);
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.st-sides .cfg.on {
+  background: var(--main);
+  color: var(--bg);
+}
+.st-legend {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--sub);
+}
+.st-legend b {
+  color: var(--text);
+}
+.score-table[data-show='child'] .score-grid[data-side='dealer'],
+.score-table[data-show='dealer'] .score-grid[data-side='child'] {
+  display: none;
+}
+.score-table .score-grid,
+.score-grid.limit-grid {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.score-table .score-grid th,
+.score-table .score-grid td {
+  text-align: center;
+  border: 0;
+}
+.score-table .score-grid thead th:first-child {
+  width: 44px;
+}
+.score-table .limit-grid thead th:first-child {
+  width: 34%;
+}
+.score-table .score-grid th {
+  padding: 4px 2px;
+  background: none;
+  font-size: 12px;
+  color: var(--sub);
+  font-weight: 800;
+}
+.score-table .score-grid tbody th {
+  white-space: nowrap;
+}
+.score-table .score-grid td {
+  padding: 5px 2px;
+  border-radius: 6px;
+  background: var(--sub-bg);
+  line-height: 1.25;
+}
+.score-table .score-grid td b {
+  display: block;
+  font-size: 15px;
+  color: var(--text);
+}
+.score-table .score-grid td small {
+  display: block;
+  font-size: 10.5px;
+  color: var(--sub);
+  white-space: nowrap;
+}
+.score-table .score-grid .st-na {
+  color: color-mix(in srgb, var(--sub) 45%, transparent);
+}
+.score-table .score-grid td.st-limit {
+  background: color-mix(in srgb, var(--main) 16%, var(--sub-bg));
+}
+.score-table .score-grid td.st-limit b {
+  color: var(--main);
+}
+.score-table .limit-grid tbody th {
+  text-align: left;
+  color: var(--main);
+}
+.score-table .limit-grid tbody th small {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--sub);
+  white-space: normal;
+}
+/* ヘルプのカードの中は少し背景を変えて、マスが見えるようにする */
+.h-card .score-table .score-grid td {
+  background: color-mix(in srgb, var(--main) 6%, var(--bg));
+}
+.st-sub {
+  margin: 12px 0 2px;
+  font-weight: 800;
+  font-size: 13px;
+}
+#score-dialog .help-body {
+  padding-bottom: 8px;
+}
+@media (max-width: 480px) {
+  .score-table .score-grid td b {
+    font-size: 13.5px;
+  }
+  .score-table .score-grid td small {
+    font-size: 9.5px;
+  }
+}
