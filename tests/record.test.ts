@@ -112,6 +112,10 @@ describe('成績の記録', () => {
     expect(examTarget(shodan, r).verdict).toBe('far');
     // 4級は早見と符計算をまとめて比べる
     const kyu4 = RANKS.find((x) => x.name === '4級')!;
+    const r3 = freshRecord('d');
+    fill(r3, 20, { mode: 'hayami' });
+    // 早見だけでは、早見と符計算を出す4級の判断はしない
+    expect(examTarget(kyu4, r3).verdict).toBe('few');
     const r2 = freshRecord('d');
     fill(r2, 6, { mode: 'hayami' });
     fill(r2, 6, { mode: 'fu' });

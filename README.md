@@ -238,6 +238,7 @@ npm run android:open   # Android Studio で開く（実機・エミュレータ�
   - 実機で試すには、AAB を Play Console の内部テストに一度アップロードし、自分の Google アカウントを**ライセンス テスター**に登録します（テスト用のカードで、実際には請求されません）。
 - **ストア掲載情報**：`store/listing.md`（アプリ名・説明文・分類）と、`store/` の画像（アイコン、フィーチャー グラフィック、スクリーンショット6枚）。主役は「退屈な点数計算の練習がパチンコで楽しくできる」こと、世界観は味付け。スクリーンショットの並びは 1 ゲームの肝（RUSH 中の早見） → 2 BONUS で稼ぐ（BONUS 獲得の画面） → 3 稽古（初心者から上級者まで） → 4 上達が見える（成績） → 5 段位が上がる（昇段試験の認定証と帳面、改造パーツ） → 6 世界観と締め。元の画面（`store/raw/`）は開発サーバーを立てて `npx -p playwright node scripts/store-raw.mjs http://localhost:5179/` で撮り、`npx -p playwright -p tsx tsx scripts/store.mjs` で見出しと絵を付けて書き出します。`ONLY=5` を付けると、その番号の元画面だけを撮り直します。1枚目とフィーチャー グラフィック（どちらも大当りの元画面を使う）は、`CANDIDATES=3` で store-raw を走らせるとリーチから BONUS の始まりまでの候補を `store/candidates/raw/` に連続で撮ります。選んだものを `store/candidates/pick/` に置いて `CANDIDATES=1` で store.mjs を走らせると、両方を合成した候補と一覧（`sheet.png`）ができます（`store/candidates/` はコミットしない）。
 - バージョンは `package.json` の `version` から作ります（`1.2.3` → versionName `1.2.3`、versionCode `10203`）。Play に上げるたびに上げてください。
+- **版の流れ**：0.1.4（最初のクローズドテスト）→ **0.2.0**（Lv・物語・昇段試験・改造・成績・稽古・BGM。リリースノートとテスターへのお願いは `store/release-notes-0.2.0.md`）→ 0.3.0（予定：Google Play Games Services。ログイン、クラウドセーブ＝保存キーをまとめて1つのスナップショットに、実績、リーダーボード。Web 版では何もしない＝`src/ui/native.ts` と同じくアプリ版だけ。実績とリーダーボードの中身は 0.2.0 のベータの感想を見てから決める）→ 本番公開。
 
 ### 公開（GitHub Pages）
 

@@ -85,7 +85,8 @@ const SAY_BY_LEVEL: [number, string[]][] = [
 /** スタート画面の一言（初回・読んでいない話・所持金が少ない、を優先） */
 export function startSay(v: StartView, rng: () => number = Math.random): string {
   if (v.first) return 'クケケケ、ようこそ新顔。まずはオレ様の案内を聞いていきな。';
-  if (v.unread) return 'クケケ、記憶がまた戻ってる。本を開いてみな';
+  // Lv 1 はまだ1話も読んでいないので「また」とは言わない
+  if (v.unread) return v.level <= 1 ? 'クケケ、オレ様の記憶のかけらが一つ戻った。本を開いてみな' : 'クケケ、記憶がまた戻ってる。本を開いてみな';
   if (v.balance < LOW_BALANCE) return '財布が軽そうだな。稽古で腕を磨くのもアリだぜ';
   const lines = [...SAY_BY_LEVEL].reverse().find(([lv]) => v.level >= lv)![1];
   return lines[Math.floor(rng() * lines.length) % lines.length];

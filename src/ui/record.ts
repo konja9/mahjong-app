@@ -291,7 +291,9 @@ export function examTarget(rank: Rank, r: RecordData, n = RECENT_N): ExamTarget 
   const shortAcc = now.acc === null ? needAcc : Math.max(0, needAcc - now.acc);
   const shortSec = needSec === null || now.avg === null ? 0 : Math.max(0, now.avg - needSec);
   let verdict: TargetVerdict;
-  if (now.n < RECENT_MIN || (needSec !== null && now.avg === null)) verdict = 'few';
+  // 2つの種目を出す段位（4級・2級）は、どちらの種目も数問ずつ解いていないと判断しない
+  const each = modes.every((m) => list.filter((x) => x.m === m).length >= Math.ceil(RECENT_MIN / modes.length));
+  if (now.n < RECENT_MIN || !each || (needSec !== null && now.avg === null)) verdict = 'few';
   else if (shortAcc === 0 && shortSec === 0) verdict = 'ready';
   else if (shortAcc <= 0.1 && shortSec <= 3) verdict = 'close';
   else verdict = 'far';
