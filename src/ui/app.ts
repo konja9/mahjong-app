@@ -1296,7 +1296,6 @@ export class App {
       else sfx.miss();
     }
     this.renderSteps();
-    queueMicrotask(() => this.tut.notify('stepAnswered'));
     if (run.done) return false;
     this.input = '';
     this.picked = -1;
@@ -1602,6 +1601,9 @@ export class App {
   /** チュートリアル：迷っている間に正解のボタンを光らせる */
   private revealAnswer(): void {
     if (!this.tut?.active || this.phase !== 'answering') return;
+    // 答えを待つ場面（自由に遊ぶ・答えさせる案内）だけ。説明を聞かせている間は光らせない
+    const st = this.tut.current;
+    if (!st || !(st.kind === 'free' || (st.kind === 'spot' && st.next === 'answered'))) return;
     const b = document.querySelector<HTMLElement>('#choices [data-tut="correct"]:not(:disabled)');
     if (!b) return;
     b.classList.add('tut-reveal');
@@ -2188,6 +2190,8 @@ export class App {
         if (this.s.keikoStudy !== 'focus' || this.s.keikoSource !== 'normal' || this.s.answerStyle !== 'choice') {
           this.update({ keikoStudy: 'focus', keikoSource: 'normal', answerStyle: 'choice' });
         }
+        // 重点学習の段階（基本符→面子→雀頭→待ち…）を見せるので、七対子などの特殊な形の手は引き直す
+        for (let i = 0; i < 30 && this.q.mode !== 'hayami' && this.q.ev.interp.form !== 'standard'; i++) this.next();
         return;
     }
   }

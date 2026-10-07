@@ -226,7 +226,7 @@ export class Tutorial {
         safeBottom: innerHeight - safe.bottom,
         target: { top: box.top, bottom: box.top + box.height },
         want: mobile ? 104 : 128,
-        answer: s.next === 'answered' || s.next === 'stepAnswered',
+        answer: s.next === 'answered',
       });
       this.ui.dataset.side = l.side;
       ui.top = l.top !== undefined ? `${l.top}px` : 'auto';

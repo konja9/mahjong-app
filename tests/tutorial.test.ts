@@ -24,6 +24,12 @@ describe('チュートリアルの台本', () => {
     const acts = p.flatMap((s) => (s.kind === 'do' ? [s.action] : []));
     expect(acts.indexOf('freeBet')).toBeLessThan(acts.indexOf('paidBet'));
   });
+  it('稽古の章は問題を解かせず、簡易学習と重点学習のタブを押させて紹介する', () => {
+    const k = CHAPTERS.find((c) => c.id === 'keiko')!.steps;
+    expect(k.some((s) => s.kind === 'spot' && s.next === 'answered')).toBe(false);
+    const clicks = k.flatMap((s) => (s.kind === 'spot' && s.next === 'click' ? [s.target] : []));
+    expect(clicks).toEqual(['.play-tab[data-play="keiko"]', '#mode-tabs .study-tabs [data-study="quick"]', '#mode-tabs .study-tabs [data-study="focus"]']);
+  });
   it('3つの出題の説明では、プレイヤーにタブを押して切り替えてもらい、最後は早見に戻す', () => {
     const clicks = CHAPTERS.find((c) => c.id === 'pachinko')!.steps.flatMap((s) => (s.kind === 'spot' && s.next === 'click' ? [s.target] : []));
     expect(clicks).toEqual(['#mode-tabs [data-mode="fu"]', '#mode-tabs [data-mode="jissen"]', '#mode-tabs [data-mode="hayami"]']);

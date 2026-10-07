@@ -10,7 +10,7 @@ import type { Face } from './chara';
 
 /** アプリ側で起きる出来事（runner.notify で知らせる） */
 /** idle：BONUS 中でない（BONUS が終わったときに知らせる。すでに BONUS 中でなければ待たずに進む） */
-export type TutorialEvent = 'answered' | 'bonusStart' | 'bonusEnd' | 'stepAnswered' | 'idle' | 'scoreTableClosed';
+export type TutorialEvent = 'answered' | 'bonusStart' | 'bonusEnd' | 'idle' | 'scoreTableClosed';
 
 /** 画面の準備（アプリ側の処理） */
 export type TutorialAction =
@@ -104,9 +104,12 @@ export const CHAPTERS: Chapter[] = [
       { kind: 'say', face: 'sweat', text: '……とはいえ、数え方を知らなきゃ賭場じゃカモだ。yan を使わない道場で叩き込むぜ。' },
       { kind: 'spot', target: '.play-tab[data-play="keiko"]', face: 'neutral', text: '「稽古」を押しな。', next: 'click' },
       { kind: 'do', action: 'keikoFocus' },
-      { kind: 'spot', target: '#mode-tabs .study-tabs', face: 'neutral', text: '重点学習は、符を1段ずつ数える。簡易学習は 符 → 翻 → 点数 の仕上げだ。', next: 'tap', pad: 6 },
-      { kind: 'spot', target: '#steps', face: 'proud', text: '答えた符はこの帯に積み上がる。今どこまで数えたか、ひと目で分かるぜ。', next: 'tap', pad: 6 },
-      { kind: 'spot', target: '#choices', face: 'neutral', text: '最初の段階だ。アガり方で何符足すか、答えてみな。', next: 'stepAnswered' },
+      { kind: 'spot', target: '#mode-tabs .study-tabs', face: 'neutral', text: '稽古は2通り。まずは「重点学習」だ。', next: 'tap', pad: 6 },
+      { kind: 'spot', target: '#question', face: 'neutral', text: '手牌は面子ごとに区切って見せる。光った面子から順に、符を1つずつ数えていくんだ。', next: 'tap', pad: 6 },
+      { kind: 'spot', target: '#steps', face: 'proud', text: '基本符 → 面子 → 雀頭 → 待ち → 符 → 翻 → 点数。この段階を1つずつ答える。答えた符は帯に積み上がるぜ。', next: 'tap', pad: 6 },
+      { kind: 'spot', target: '#mode-tabs .study-tabs [data-study="quick"]', face: 'grin', text: '次は「簡易学習」を押してみな。', next: 'click', pad: 4 },
+      { kind: 'spot', target: '#steps', face: 'neutral', text: '簡易学習は 符 → 翻 → 点数 の3段階だけ。数え方が身についてきたら、こっちで仕上げだ。', next: 'tap', pad: 6 },
+      { kind: 'spot', target: '#mode-tabs .study-tabs [data-study="focus"]', face: 'neutral', text: '慣れるまでは重点学習がおすすめだ。「重点学習」に戻しな。', next: 'click', pad: 4 },
       { kind: 'spot', target: '#mode-tabs .source-tabs', face: 'grin', text: '間違えた手は全部覚えてるぜ、クケケ。「復習」で解き直し、「苦手」で弱いところを集中して鍛えられる。', next: 'tap', pad: 6 },
     ],
   },
