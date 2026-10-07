@@ -218,7 +218,10 @@ if (want(2)) {
     const inBonus = await p.evaluate(() => !!window.tensu.round);
     await answerCorrect(p);
     if (!inBonus) continue;
-    // 答えたあとに BONUS が終わると獲得の画面が出る
+    // BONUS の最後の問題に答えて次へ進むと、獲得の画面が出る（演出は飛ばさない）
+    for (let t = 0; t < 40 && (await phase(p)) !== 'result'; t++) await p.waitForTimeout(100);
+    await p.waitForTimeout(600);
+    await p.keyboard.press('Enter');
     let last = '';
     for (let t = 0; t < 120; t++) {
       await p.waitForTimeout(100);
@@ -346,16 +349,16 @@ if (want(5)) {
   await p.context().close();
 }
 if (want(5)) {
-  // 改造：Lv 12・初段で、枠（3つ）をパーツで埋めた状態
+  // 改造：Lv 12・初段（認定証と同じ段位）で、枠（4つ）をパーツで埋めた状態
   const p = await open({
     settings: { effects: 'off', playMode: 'pachinko', mode: 'jissen', answerStyle: 'choice' },
     level: { exp: 52000, read: [1, 2, 3] },
     shop: title,
     extra: {
-      'tensu.exam.v1': { rank: 5, passedAt: [], notesRead: [1, 2, 3, 4, 5] },
+      'tensu.exam.v1': { rank: 6, passedAt: [], notesRead: [1, 2, 3, 4, 5, 6] },
       'tensu.parts.v1': {
         owned: ['fast', 'tank', 'cushion', 'lens', 'denchu', 'st', 'combo', 'kakuhen', 'uwanose', 'premium', 'round'],
-        equip: ['tank', 'st', 'kakuhen'],
+        equip: ['tank', 'st', 'combo', 'kakuhen'],
       },
     },
   });
