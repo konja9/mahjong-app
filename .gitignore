@@ -5,3 +5,4 @@ dist
 public/assets/sfx/*.wav
 __pycache__/
 store/candidates/
+store/promo/work/
