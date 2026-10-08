@@ -2852,3 +2852,24 @@ body[data-phase='summary'] #meter,
 .slot.locked.next[data-go-exam]:active {
   transform: translateY(1px) scale(0.95);
 }
+
+/* 点数表のポップアップの「閉じる」：点数表ボタンのあった位置に重ねる（位置はスクリプトで当てる）。赤みの縁で切り替わったと分かるように */
+#score-dialog .st-close {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  box-sizing: border-box;
+  padding: 0;
+  border-color: #ff8a8a;
+  color: #ffb3b3;
+  background: rgba(30, 8, 8, 0.92);
+}
+#score-dialog .st-close::before {
+  content: '×';
+  margin-right: 4px;
+}
+#score-dialog .st-close:active {
+  transform: translateY(1px) scale(0.97);
+}

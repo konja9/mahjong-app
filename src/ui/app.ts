@@ -12,7 +12,7 @@ import { lockPageScroll, scrollToView } from './scroll';
 import { type BgmTrack, bgm, configureAudio, sfx, suspendAudio, unlockAudio } from './audio';
 import { LevelUpFx } from './effects/levelup';
 import { slotRowHtml } from './machine/partArt';
-import { scoreSidesHtml, scoreTableHtml, toggleScoreSide } from './scoreTable';
+import { scorePopupHtml, toggleScoreSide } from './scoreTable';
 import { Fx, type WinTier } from './effects/pachinko';
 import type { EffectLevel } from './effects/performance';
 import {
@@ -2071,7 +2071,11 @@ export class App {
     });
     help.addEventListener('close', () => this.pause('help', false));
     const st = $<HTMLDialogElement>('#score-dialog');
-    st.addEventListener('close', () => this.tut.notify('scoreTableClosed'));
+    st.addEventListener('close', () => {
+      st.style.marginBottom = '';
+      this.tut.notify('scoreTableClosed');
+    });
+    addEventListener('resize', () => st.open && this.placeScoreClose());
     st.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
       if (t === st || t.closest('[data-score-close]')) st.close();
@@ -2211,9 +2215,24 @@ export class App {
   private openScoreTable(): void {
     const dlg = $<HTMLDialogElement>('#score-dialog');
     const dealer = this.q.mode !== 'hayami' && questionMeta(this.q).dealer;
-    dlg.innerHTML = `<div class="settings help st-pop"><div class="set-head"><span>点数表</span>${scoreSidesHtml(dealer)}<button class="icon-btn" data-score-close aria-label="閉じる">×</button></div>
-      <div class="help-body">${scoreTableHtml(this.s.rules, dealer, { legend: false })}</div></div>`;
+    dlg.innerHTML = scorePopupHtml(this.s.rules, dealer);
     if (!dlg.open) dlg.showModal();
+    this.placeScoreClose();
+  }
+
+  /**
+   * 「閉じる」ボタンを、答えのボタンの下の「点数表」ボタンと同じ位置に重ね、
+   * ポップアップがそのボタンを隠さないよう、必要なときだけ下端をボタンの上まで持ち上げる
+   */
+  private placeScoreClose(): void {
+    const dlg = $<HTMLDialogElement>('#score-dialog');
+    const open = document.querySelector<HTMLElement>('[data-score-table]');
+    const close = dlg.querySelector<HTMLElement>('.st-close');
+    if (!open || !close) return;
+    const r = open.getBoundingClientRect();
+    dlg.style.marginBottom = '';
+    if (dlg.getBoundingClientRect().bottom > r.top - 8) dlg.style.marginBottom = `${Math.max(0, innerHeight - r.top + 8)}px`;
+    Object.assign(close.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
   }
 
   /** ヘルプを開く。card を渡すとそのカードまでスクロールして光らせる */

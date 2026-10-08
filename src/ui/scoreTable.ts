@@ -84,3 +84,14 @@ export function toggleScoreSide(target: HTMLElement): boolean {
   });
   return true;
 }
+
+/**
+ * 実戦・稽古の問題から開く点数表のポップアップ（表だけ）。
+ * 見出しの「×」のほかに、答えのボタンの下の「点数表」ボタンのあった位置に出す「閉じる」ボタンを持つ
+ * （位置はアプリ側で測って当てる。親指を動かさずに閉じられるように）
+ */
+export function scorePopupHtml(rules: Rules, dealer: boolean): string {
+  return `<div class="settings help st-pop"><div class="set-head"><span>点数表</span>${scoreSidesHtml(dealer)}<button class="icon-btn" data-score-close aria-label="閉じる">×</button></div>
+    <div class="help-body">${scoreTableHtml(rules, dealer, { legend: false })}</div></div>
+    <button type="button" class="st-open st-close" data-score-close>閉じる</button>`;
+}

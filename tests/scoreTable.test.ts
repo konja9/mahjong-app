@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_RULES } from '../src/core/rules';
 import { helpHtml } from '../src/ui/help';
-import { limitTableHtml, scoreGridHtml, scoreTableHtml } from '../src/ui/scoreTable';
+import { limitTableHtml, scoreGridHtml, scorePopupHtml, scoreTableHtml } from '../src/ui/scoreTable';
 
 /** 表の「符」の行の、翻の列のマスの文字 */
 function cellText(html: string, fu: number, han: number): string {
@@ -40,5 +40,12 @@ describe('点数表', () => {
     expect(pop).toContain('ロン<br>ツモ');
     const h = helpHtml('score', 'jissen');
     for (const id of ['score-flow', 'score-table', 'score-tips']) expect(h).toContain(`id="h-${id}"`);
+  });
+  it('ポップアップは表だけで、見出しの×と、点数表ボタンの位置に出す「閉じる」の2つで閉じられる', () => {
+    const h = scorePopupHtml(DEFAULT_RULES, false);
+    expect(h.match(/data-score-close/g)).toHaveLength(2);
+    expect(h).toContain('class="st-open st-close"');
+    expect(h).not.toContain('st-legend');
+    expect(h).toContain('data-st-side="dealer"');
   });
 });
