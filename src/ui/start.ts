@@ -99,7 +99,7 @@ const LOW_BALANCE = 300;
 export function startHtml(v: StartView): string {
   const say = startSay(v);
   const tutorial = v.first
-    ? `<button class="st-btn st-tutorial big" type="button" data-start="tutorial"><b>チュートリアル</b><small>はじめての人はこちら</small></button>`
+    ? `<button class="st-btn st-tutorial big" type="button" data-start="tutorial"><b data-t="チュートリアル">チュートリアル</b><small>はじめての人はこちら</small></button>`
     : '';
   const sub = v.first
     ? `<button class="st-link" type="button" data-start="skip">チュートリアルをとばす</button>`
@@ -110,8 +110,8 @@ export function startHtml(v: StartView): string {
     <div class="st-chara"><div class="st-face">${charaSvg('grin')}</div><p class="st-say">${say}</p></div>
     <div class="st-buttons">
       ${tutorial}
-      <button class="st-btn st-pachinko" type="button" data-start="pachinko"><b>パチンコ</b><small>所持金 ${v.balance.toLocaleString()} yan</small></button>
-      <button class="st-btn st-keiko" type="button" data-start="keiko"><b>稽古</b><small>yan を使わずに練習</small></button>
+      <button class="st-btn st-pachinko" type="button" data-start="pachinko"><b data-t="パチンコ">パチンコ</b><small>所持金 ${v.balance.toLocaleString()} yan</small></button>
+      <button class="st-btn st-keiko" type="button" data-start="keiko"><b data-t="稽古">稽古</b><small>yan を使わずに練習</small></button>
     </div>
     ${sub}
   </div>`;
