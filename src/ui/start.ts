@@ -99,22 +99,25 @@ const LOW_BALANCE = 300;
 
 export function startHtml(v: StartView): string {
   const say = startSay(v);
-  const tutorial = v.first
-    ? `<button class="st-btn st-tutorial big" type="button" data-start="tutorial"><b data-t="チュートリアル">チュートリアル</b><small>はじめての人はこちら</small></button>`
-    : '';
-  const sub = v.first
-    ? `<button class="st-link" type="button" data-start="skip">チュートリアルをとばす</button>`
-    : `<button class="st-link" type="button" data-start="tutorial">チュートリアルを見る</button>`;
-  return `<div class="st-inner">
-    <h1 class="st-logo">${logoSvg({ layout: 'stack' })}</h1>
-    ${v.first ? '' : `<p class="st-lv">Lv <b>${v.level}</b>${v.cleared ? '　物語 <b>完結</b>' : ''}</p>`}
-    <div class="st-chara"><div class="st-face">${charaSvg('grin')}</div><p class="st-say">${say}</p></div>
+  const head = `<h1 class="st-logo">${logoSvg({ layout: 'stack' })}</h1>`;
+  const chara = `<div class="st-chara"><div class="st-face">${charaSvg('grin')}</div><p class="st-say">${say}</p></div>`;
+  // 初回は選ばせない：「スタート」だけで、そのままチュートリアルへ進む
+  if (v.first) {
+    return `<div class="st-inner">${head}${chara}
     <div class="st-buttons">
-      ${tutorial}
+      <button class="st-btn st-go" type="button" data-start="tutorial" aria-label="スタート">${modeButtonSvg('start')}</button>
+    </div>
+  </div>`;
+  }
+  return `<div class="st-inner">
+    ${head}
+    <p class="st-lv">Lv <b>${v.level}</b>${v.cleared ? '　物語 <b>完結</b>' : ''}</p>
+    ${chara}
+    <div class="st-buttons">
       <button class="st-btn st-pachinko" type="button" data-start="pachinko" aria-label="パチンコ">${modeButtonSvg('pachinko')}<small>所持金 ${v.balance.toLocaleString()} yan</small></button>
       <button class="st-btn st-keiko" type="button" data-start="keiko" aria-label="稽古">${modeButtonSvg('keiko')}<small>yan を使わずに練習</small></button>
     </div>
-    ${sub}
+    <button class="st-link" type="button" data-start="tutorial">チュートリアルを見る</button>
   </div>`;
 }
 
@@ -138,8 +141,6 @@ export interface StartHost {
   onShown(shown: boolean): void;
   /** ローディングのあと、選んだ入り口でゲームを始める */
   enter(choice: StartChoice): void;
-  /** 初回の「チュートリアルをとばす」 */
-  skipTutorial(): void;
   /** 動きを止めるか（演出オフ・動きを減らす設定） */
   still(): boolean;
 }
@@ -241,11 +242,6 @@ export class StartScreen {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-start]');
       if (!b) return;
       const v = b.dataset.start!;
-      if (v === 'skip') {
-        this.host.skipTutorial();
-        this.show();
-        return;
-      }
       this.load(v as StartChoice);
       return;
     }

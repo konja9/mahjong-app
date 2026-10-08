@@ -9,6 +9,7 @@ const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'store', 'brand'
 mkdirSync(OUT, { recursive: true });
 const files = {
   'btn-pachinko.svg': modeButtonSvg('pachinko', { sub: '所持金 1,000 yan' }),
+  'btn-start.svg': modeButtonSvg('start'),
   'btn-keiko.svg': modeButtonSvg('keiko', { sub: 'yan を使わずに練習' }),
 };
 for (const [name, svg] of Object.entries(files)) {

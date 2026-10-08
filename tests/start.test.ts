@@ -52,20 +52,23 @@ describe('チュートリアルの吹き出しの置き場所', () => {
 });
 
 describe('スタート画面', () => {
-  it('初回はチュートリアルを大きく出し、とばすボタンも出す', () => {
+  it('初回は「スタート」だけを出し、押すとそのままチュートリアルへ', () => {
     const h = startHtml({ first: true, balance: 2000, level: 1, cleared: false });
-    expect(h).toContain('st-btn st-tutorial big');
-    expect(h).toContain('data-start="skip"');
-    expect(h).toContain('2,000 yan');
+    expect(h).toContain('st-btn st-go');
+    expect(h).toContain('data-start="tutorial"');
+    expect(h.match(/data-start=/g)).toHaveLength(1);
+    expect(h).toContain('aria-label="スタート"');
+    for (const x of ['data-start="pachinko"', 'data-start="keiko"', 'data-start="skip"', '2,000 yan']) expect(h).not.toContain(x);
   });
 
-  it('2回目以降はチュートリアルを小さな文字ボタンにする', () => {
+  it('2回目以降はパチンコと稽古を出し、チュートリアルは小さな文字ボタンにする', () => {
     const h = startHtml({ first: false, balance: 500, level: 3, cleared: false });
-    expect(h).not.toContain('st-tutorial big');
+    expect(h).not.toContain('st-go');
     expect(h).not.toContain('data-start="skip"');
     expect(h).toContain('class="st-link" type="button" data-start="tutorial"');
     expect(h).toContain('data-start="pachinko"');
     expect(h).toContain('data-start="keiko"');
+    expect(h).toContain('500 yan');
   });
 
   it('世界観の一文は25〜35本で、入り口に合った文を選ぶ', () => {

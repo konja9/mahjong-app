@@ -7,7 +7,7 @@ import { TITLE } from './glyphs';
  * 傾きも絵に含める（パチンコは左へ、稽古は右へ少しだけ）。文字はパスなので、どの環境でも同じ形になる
  */
 
-export type ModeButton = 'pachinko' | 'keiko';
+export type ModeButton = 'pachinko' | 'keiko' | 'start';
 
 interface Look {
   chars: string;
@@ -24,6 +24,8 @@ interface Look {
 
 const LOOKS: Record<ModeButton, Look> = {
   pachinko: { chars: 'パチンコ', face: ['#4a1218', '#2a0a0e'], edge: '#e8b93a', back: '#0e3a2c', foil: ['#fff6c8', '#e8b93a', '#7a4f0a'], tilt: -0.8 },
+  // 初回の「スタート」：金の面に金の縁。そのままチュートリアルへ進む
+  start: { chars: 'スタート', face: ['#6b4a0c', '#33220a'], edge: '#ffe08a', back: '#0e3a2c', foil: ['#fffbe0', '#f5c842', '#8a5a0c'], tilt: -0.8 },
   keiko: { chars: '稽古', face: ['#13281f', '#0b1813'], edge: '#7fc7a0', back: '#06201a', foil: ['#f1ffd9', '#8fd6a8', '#1f6a4a'], tilt: 0.8 },
 };
 
@@ -32,6 +34,8 @@ const EM = 1000;
 const SCALE = 0.12;
 /** 字形の上端（この y を面の上から約 22 に置く） */
 const GLYPH_TOP = 300;
+
+const LABEL: Record<ModeButton, string> = { pachinko: 'パチンコ', keiko: '稽古', start: 'スタート' };
 
 let seq = 0;
 
@@ -64,7 +68,7 @@ export function modeButtonSvg(mode: ModeButton, o: ModeButtonOpts = {}): string 
   const frame = `<rect x="24" y="4" width="952" height="222" rx="30" fill="none" stroke="${k.edge}" stroke-width="8"/>
     <rect x="34" y="14" width="932" height="202" rx="22" fill="none" stroke="${k.edge}" stroke-opacity=".28" stroke-width="5"/>
     <path d="M44 24 H380 Q240 70 44 140 Z" fill="#fff" opacity=".06"/>`;
-  return `<svg class="pf-mode-btn ${className(o)}" viewBox="-12 -14 1024 276" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${mode === 'pachinko' ? 'パチンコ' : '稽古'}">
+  return `<svg class="pf-mode-btn ${className(o)}" viewBox="-12 -14 1024 276" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${LABEL[mode]}">
   <defs>
     <linearGradient id="${id}-face" x1="0" y1="0" x2="0" y2="230" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${k.face[0]}"/><stop offset="1" stop-color="${k.face[1]}"/></linearGradient>
     <linearGradient id="${id}-foil" x1="0" y1="300" x2="0" y2="1250" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${k.foil[0]}"/><stop offset=".55" stop-color="${k.foil[1]}"/><stop offset="1" stop-color="${k.foil[2]}"/></linearGradient>

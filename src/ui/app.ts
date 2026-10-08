@@ -43,7 +43,7 @@ import { type Settings, loadSettings, saveSettings } from './settings';
 import { type ConfigView, configPanelHtml, configSummaryHtml, keikoTabsHtml } from './configPanel';
 import { type HelpTab, helpHtml } from './help';
 import { introSeen } from './intro';
-import { Tutorial, skipAllTutorial, tutorialDone } from './tutorial/runner';
+import { Tutorial, tutorialDone } from './tutorial/runner';
 import { type StartChoice, StartScreen } from './start';
 import { charaSvg } from './tutorial/chara';
 import { logoSvg } from './brand/logo';
@@ -296,7 +296,6 @@ export class App {
         this.syncScene();
       },
       enter: (c) => this.enterFromStart(c),
-      skipTutorial: () => skipAllTutorial(ALL_CHAPTERS),
       still: () => this.s.effects === 'off' || matchMedia('(prefers-reduced-motion: reduce)').matches,
     });
     this.start.show();

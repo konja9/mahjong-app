@@ -115,19 +115,22 @@ body.start-open {
 }
 /* パチンコ（赤）・稽古（緑）のボタンは、絵（SVG：牌の面・金の縁・金箔の文字）がそのままボタンの見た目 */
 .st-btn.st-pachinko,
-.st-btn.st-keiko {
+.st-btn.st-keiko,
+.st-btn.st-go {
   padding: 0;
   border-radius: 0;
   background: none;
   box-shadow: none;
 }
 .st-btn.st-pachinko:active,
-.st-btn.st-keiko:active {
+.st-btn.st-keiko:active,
+.st-btn.st-go:active {
   transform: translateY(3px);
 }
 /* フォーカス（キーボード）は四角い枠ではなく、絵の形に沿った光で示す */
 .st-btn.st-pachinko:focus-visible,
-.st-btn.st-keiko:focus-visible {
+.st-btn.st-keiko:focus-visible,
+.st-btn.st-go:focus-visible {
   outline: none;
   filter: drop-shadow(0 0 7px #fff4b8);
 }
