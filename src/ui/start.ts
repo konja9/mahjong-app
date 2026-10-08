@@ -1,5 +1,6 @@
 import { sfx } from './audio';
 import { logoSvg } from './brand/logo';
+import { modeButtonSvg } from './brand/modeButtons';
 import { charaSvg } from './tutorial/chara';
 import { PREMIUM_INDEX, Reel } from './effects/reel';
 
@@ -110,8 +111,8 @@ export function startHtml(v: StartView): string {
     <div class="st-chara"><div class="st-face">${charaSvg('grin')}</div><p class="st-say">${say}</p></div>
     <div class="st-buttons">
       ${tutorial}
-      <button class="st-btn st-pachinko" type="button" data-start="pachinko"><b data-t="パチンコ">パチンコ</b><small>所持金 ${v.balance.toLocaleString()} yan</small></button>
-      <button class="st-btn st-keiko" type="button" data-start="keiko"><b data-t="稽古">稽古</b><small>yan を使わずに練習</small></button>
+      <button class="st-btn st-pachinko" type="button" data-start="pachinko" aria-label="パチンコ">${modeButtonSvg('pachinko')}<small>所持金 ${v.balance.toLocaleString()} yan</small></button>
+      <button class="st-btn st-keiko" type="button" data-start="keiko" aria-label="稽古">${modeButtonSvg('keiko')}<small>yan を使わずに練習</small></button>
     </div>
     ${sub}
   </div>`;

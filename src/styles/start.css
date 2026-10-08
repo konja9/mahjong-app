@@ -85,7 +85,7 @@ body.start-open {
 .st-buttons {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   width: 100%;
 }
 .st-btn {
@@ -94,87 +94,63 @@ body.start-open {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 14px 16px 16px;
-  /* ロゴと同じ：黒い牌に金の縁、緑の背（下にのぞく）。文字ごと少し傾ける */
-  border-radius: 16px;
-  background: linear-gradient(180deg, #26211a, #14110d);
-  box-shadow:
-    inset 0 0 0 3px #c9962a,
-    inset 0 0 0 6px rgba(201, 150, 42, 0.28),
-    0 0 0 2px #000,
-    0 7px 0 2px #000,
-    0 5px 0 #0e3a2c,
-    0 12px 20px rgba(0, 0, 0, 0.5);
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #1d1a22;
+  box-shadow: inset 0 0 0 2px rgba(242, 201, 76, 0.55), 0 6px 18px rgba(0, 0, 0, 0.4);
   color: #fff;
-  transform: skewX(-8deg) rotate(-0.8deg);
-  transition: transform 0.1s, box-shadow 0.1s;
-}
-.st-btn.st-keiko {
-  transform: skewX(-8deg) rotate(0.8deg);
+  transition: transform 0.1s;
 }
 .st-btn:active {
-  transform: skewX(-8deg) translateY(4px);
-  box-shadow:
-    inset 0 0 0 3px #c9962a,
-    inset 0 0 0 6px rgba(201, 150, 42, 0.28),
-    0 0 0 2px #000,
-    0 3px 0 2px #000,
-    0 1px 0 #0e3a2c;
+  transform: scale(0.98);
 }
-/* 文字：下の層に黒い縁と影、上の層に金箔（上が明るく下が暗い）。傾きは打ち消して読みやすく */
 .st-btn b {
-  position: relative;
-  display: block;
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 900;
-  letter-spacing: 0.1em;
-  transform: skewX(8deg);
-  color: transparent;
-}
-.st-btn b::before,
-.st-btn b::after {
-  content: attr(data-t);
-  position: absolute;
-  inset: 0;
-  text-align: center;
-  letter-spacing: inherit;
-}
-.st-btn b::before {
-  color: #000;
-  -webkit-text-stroke: 9px #000;
-  text-shadow: 3px 4px 0 #000;
-}
-.st-btn b::after {
-  background: linear-gradient(180deg, #fff6c8 0%, #e8b93a 55%, #7a4f0a 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  letter-spacing: 0.08em;
 }
 .st-btn small {
-  display: block;
-  color: #d9cfae;
+  color: #b9b29c;
   font-size: 12px;
-  font-weight: 700;
-  transform: skewX(8deg);
-  text-shadow: 0 1px 0 #000, 0 0 6px #000;
 }
-/* 稽古は牌の縁と文字を、パチンコの金に対して若草色にして見分ける */
+/* パチンコ（赤）・稽古（緑）のボタンは、絵（SVG：牌の面・金の縁・金箔の文字）がそのままボタンの見た目 */
+.st-btn.st-pachinko,
 .st-btn.st-keiko {
-  box-shadow:
-    inset 0 0 0 3px #7fc7a0,
-    inset 0 0 0 6px rgba(127, 199, 160, 0.26),
-    0 0 0 2px #000,
-    0 7px 0 2px #000,
-    0 5px 0 #0e3a2c,
-    0 12px 20px rgba(0, 0, 0, 0.5);
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
 }
-.st-btn.st-keiko b::after {
-  background: linear-gradient(180deg, #f1ffd9 0%, #8fd6a8 55%, #1f6a4a 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
+.st-btn.st-pachinko:active,
+.st-btn.st-keiko:active {
+  transform: translateY(3px);
+}
+/* フォーカス（キーボード）は四角い枠ではなく、絵の形に沿った光で示す */
+.st-btn.st-pachinko:focus-visible,
+.st-btn.st-keiko:focus-visible {
+  outline: none;
+  filter: drop-shadow(0 0 7px #fff4b8);
+}
+.st-btn .pf-mode-btn {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+/* 説明文は絵の上、文字の下の段に重ねる（絵の座標で 面の下側 約74%） */
+.st-btn.st-pachinko small,
+.st-btn.st-keiko small {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 65%;
+  color: #d9cfae;
+  font-weight: 700;
+  text-align: center;
+  text-shadow: 0 1px 0 #000, 0 0 6px #000;
+  pointer-events: none;
 }
 .st-btn.big {
-  transform: none;
   padding: 18px 16px;
   background: linear-gradient(180deg, #f2c94c, #c8961c);
   box-shadow: 0 0 0 2px #1b1206, 0 0 26px rgba(242, 201, 76, 0.5);
@@ -182,18 +158,10 @@ body.start-open {
 }
 .st-btn.big b {
   font-size: 26px;
-  transform: none;
-  color: #1b1206;
-}
-.st-btn.big b::before,
-.st-btn.big b::after {
-  content: none;
 }
 .st-btn.big small {
   color: #3a2a08;
   font-weight: 700;
-  transform: none;
-  text-shadow: none;
 }
 .st-btn:focus-visible,
 .st-link:focus-visible {

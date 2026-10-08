@@ -17,6 +17,8 @@ from fontTools.ttLib import TTFont
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 TITLE = 'パチふと'
+# スタート画面のボタン「パチンコ」「稽古」の文字（TITLE と同じ字形。重なる字は1つだけ書き出す）
+BUTTONS = 'ンコ稽古'
 SUB = 'パチンコ符計算トレーニング'
 # LED の粒の数：1文字あたり 16 列 × 21 行（DotGothic16 の1ドット＝1粒。行は字の高さの 1.32 倍ぶん）
 COLS, ROWS = 16, 21
@@ -62,12 +64,12 @@ def main() -> None:
     lines = [
         '/**',
         ' * ロゴの文字（tools/glyphs.py で書き出したもの。手で直さない）',
-        ' * - TITLE：Reggae One の「パチふと」のパス（1em=1000、上端が0）',
+        ' * - TITLE：Reggae One の「パチふと」と、ボタンの「ンコ稽古」のパス（1em=1000、上端が0）',
         f' * - SUB：DotGothic16 の副題の LED の粒（1文字 {COLS}列×{ROWS}行。"1" が点灯）',
         ' */',
         'export const TITLE: Record<string, string> = {',
     ]
-    for ch in TITLE:
+    for ch in TITLE + BUTTONS:
         lines.append(f"  '{ch}': '{title_path(ch)}',")
     lines.append('};')
     lines.append('')
