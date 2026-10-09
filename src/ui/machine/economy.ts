@@ -14,8 +14,6 @@ export const ECONOMY = {
   fastCost: 20,
   /** 速答（割引）の締切（秒）。モードの難しさに合わせる */
   fastSeconds: { hayami: 6, fu: 12, jissen: 20 } as Record<Mode, number>,
-  /** 不正解・パス・時間切れの追加ペナルティ */
-  missPenalty: 20,
   /** 大当り 1 回のラウンド数（ラウンド問題の数） */
   rounds: 6,
   /**
@@ -73,8 +71,8 @@ export function denchuFor(mode: Mode): number {
 }
 
 export function costFor(correct: boolean, fast: boolean, spec: MachineSpec = SPECS.ama): number {
-  const miss = mods.missPenalty ?? ECONOMY.missPenalty;
-  const base = (!correct ? ECONOMY.cost + miss : fast ? ECONOMY.fastCost : ECONOMY.cost) * spec.betMult;
+  // 不正解・パス・時間切れは BET のまま（追加のペナルティはない。クッションで一部が戻る）。不正解では経験値も入らない
+  const base = (!correct ? ECONOMY.cost * (1 - mods.missRefund) : fast ? ECONOMY.fastCost : ECONOMY.cost) * spec.betMult;
   return Math.round(base);
 }
 

@@ -21,8 +21,9 @@ describe('yan', () => {
   it('コスト', () => {
     expect(costFor(true, true)).toBe(20);
     expect(costFor(true, false)).toBe(40);
-    expect(costFor(false, false)).toBe(60);
-    expect(costFor(false, true)).toBe(60);
+    // 不正解・パス・時間切れは BET のまま（追加のペナルティはない。速答の割引もない）
+    expect(costFor(false, false)).toBe(40);
+    expect(costFor(false, true)).toBe(40);
   });
   it('ラウンド賞金：符のマス・連続・PREMIUM（翻と親子では変わらない）', () => {
     const base = { mode: 'jissen' as Mode, fu: 40, yakuman: false, fast: false, combo: 1, premium: false };

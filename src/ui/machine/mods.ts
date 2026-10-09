@@ -11,8 +11,8 @@ export interface Mods {
   holds: number;
   /** 速答の締切に足す秒数 */
   fastBonus: Record<Mode, number>;
-  /** 不正解の追加ペナルティ（null は ECONOMY のまま） */
-  missPenalty: number | null;
+  /** 不正解のとき、BET のうち戻る割合（0〜1） */
+  missRefund: number;
   /** 電チュー開放に必要な連続正解から引く数 */
   denchuMinus: number;
   /** RUSH の回転数に足す数 */
@@ -36,7 +36,7 @@ export interface Mods {
 export const BASE_MODS: Mods = {
   holds: 4,
   fastBonus: { hayami: 0, fu: 0, jissen: 0 },
-  missPenalty: null,
+  missRefund: 0,
   denchuMinus: 0,
   stPlus: 0,
   kakuhenPlus: 0,

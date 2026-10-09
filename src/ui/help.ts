@@ -114,7 +114,7 @@ function basic(): string {
       'bet',
       'BET と速答',
       `<div class="mt-cell mt-bet"><div class="bet-box"><small>BET<em>速答で割引</em></small><span class="bet-v"><s>${costFor(true, false)}</s><b>${costFor(true, true)}</b></span><i class="bar"></i></div></div>`,
-      `<p>1問の BET は ${costFor(true, false)} yan。締切までに正解すると ${costFor(true, true)} yan に割引（${fastWindows()}）。不正解・パス・時間切れは −${costFor(false, false)} yan。初期所持金は ${ECONOMY.initial.toLocaleString()} yan。</p>`,
+      `<p>1問の BET は ${costFor(true, false)} yan。締切までに正解すると ${costFor(true, true)} yan に割引（${fastWindows()}）。不正解・パス・時間切れは −${costFor(false, false)} yan（BET のまま。追加のペナルティはありません。そのかわり、不正解では経験値が入りません）。初期所持金は ${ECONOMY.initial.toLocaleString()} yan。</p>`,
     ) +
     card('meter', '計器と破産', '', `<p>画面下の計器に<b>所持yan</b>・<b>本日の収支</b>・BET を常に表示。本日の収支は BET と BONUS の賞金だけを数え（交換所の買い物は含めない）、<b>朝5時</b>に0に戻ります。BET は回答すると実際にかかった額に変わり、BONUS 中は収支の枠が出玉になります。</p><p>所持金が尽きると破産で、${ECONOMY.initial.toLocaleString()} yan から再スタート。経験値・Lv・段位は減りません。</p>`)
   );

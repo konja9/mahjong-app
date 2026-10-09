@@ -47,7 +47,7 @@ describe('台の改造パーツ', () => {
     setMods(modsFor(['fast', 'tank', 'cushion', 'denchu', 'st', 'kakuhen', 'gold']));
     expect(fastSecondsFor('jissen')).toBe(22);
     expect(fastSecondsFor('hayami')).toBe(7);
-    expect(costFor(false, false)).toBe(50);
+    expect(costFor(false, false)).toBe(36);
     expect(denchuFor('jissen')).toBe(3);
     expect(ballsFor('jissen', 3)).toBe(2);
     const sp = effectiveSpec(SPECS.ama);
@@ -94,22 +94,32 @@ describe('台の改造パーツ', () => {
       expect(upgradePart(s, 'tank', 99999)).toBe(0);
       expect(upgradeCost(s, 'uwanose')).toBe(null);
     });
+    it('クッション：不正解の BET が 10 / 20 / 30% 戻る（Lv1/2/3 で −36 / −32 / −28）', () => {
+      for (const [lv, cost] of [[1, 36], [2, 32], [3, 28]] as const) {
+        setMods(modsFor(['cushion'], { cushion: lv }));
+        expect(costFor(false, false)).toBe(cost);
+        expect(costFor(true, false)).toBe(40);
+        expect(costFor(true, true)).toBe(20);
+      }
+      setMods(BASE_MODS);
+      expect(costFor(false, false)).toBe(40);
+    });
     it('持っていないパーツは強化できない', () => {
       const s = { owned: ['fast'] as PartId[], equip: [] as PartId[] };
       expect(upgradePart(s, 'gold', 99999)).toBe(0);
     });
-    it('段階が上がると効き目が強くなる（速答の締切・ペナルティ・ST・連続ブースター・保留）', () => {
+    it('段階が上がると効き目が強くなる（速答の締切・不正解の戻し・ST・連続ブースター・保留）', () => {
       setMods(modsFor(['fast', 'cushion', 'st', 'combo', 'tank'], { fast: 3, cushion: 3, st: 3, combo: 3, tank: 2 }));
       expect(fastSecondsFor('jissen')).toBe(24);
       expect(fastSecondsFor('hayami')).toBe(8);
-      expect(costFor(false, false)).toBe(40);
+      expect(costFor(false, false)).toBe(28);
       expect(effectiveSpec(SPECS.ama).st).toBe(SPECS.ama.st + 3);
       expect(comboMult(5)).toBeCloseTo(2 * 1.3);
       expect(new Machine(() => 'off').enter(10)).toBe(6);
       // 強化なし（Lv1）は今までと同じ
       setMods(modsFor(['fast', 'cushion', 'combo']));
       expect(fastSecondsFor('jissen')).toBe(22);
-      expect(costFor(false, false)).toBe(50);
+      expect(costFor(false, false)).toBe(36);
       expect(comboMult(5)).toBeCloseTo(2 * 1.1);
     });
     it('保存データ：強化の段階を読み込む。ないものは Lv1、壊れた値・最大を超える値・持っていないパーツは Lv1 に整える', () => {

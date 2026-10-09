@@ -52,9 +52,9 @@ export const PARTS: Record<PartId, Part> = {
     lv('保留の上限 4 → 6', (m) => ({ ...m, holds: 6 })),
   ]),
   cushion: part('cushion', 'クッション', '負けたときの痛みを、少しだけやわらげる', [
-    lv('不正解の追加ペナルティ 20 → 10', (m) => ({ ...m, missPenalty: 10 })),
-    lv('不正解の追加ペナルティ 20 → 5', (m) => ({ ...m, missPenalty: 5 })),
-    lv('不正解の追加ペナルティ 20 → 0', (m) => ({ ...m, missPenalty: 0 })),
+    lv('不正解のとき、BET の 10% が戻る', (m) => ({ ...m, missRefund: 0.1 })),
+    lv('不正解のとき、BET の 20% が戻る', (m) => ({ ...m, missRefund: 0.2 })),
+    lv('不正解のとき、BET の 30% が戻る', (m) => ({ ...m, missRefund: 0.3 })),
   ]),
   lens: part('lens', '先読みレンズ', '液晶の奥まで見通せる、と言われるレンズ', [
     lv('保留変化とパチふとくん予告が出やすくなる（演出だけ）', (m) => ({ ...m, noticeBoost: m.noticeBoost * 1.6 })),
