@@ -367,7 +367,7 @@ export class App {
     return this.keiko ? 'off' : this.s.effects;
   }
 
-  /** 音量（稽古は効果音を鳴らさず BGM だけ）と、場面の BGM */
+  /** 音量と、場面の BGM */
   private configureSound(): void {
     configureAudio(this.s.sfxVolume, this.s.bgmVolume);
     this.syncScene();
@@ -3019,7 +3019,7 @@ export class App {
       <div class="set-sec">表示・演出</div>
       ${row('演出', '点滅や揺れが苦手な場合は「控えめ」か「オフ」に', 'effects', [['max', '全開'], ['lite', '控えめ'], ['off', 'オフ']], s.effects)}
       <div class="set-sec">音</div>
-      ${volRow('効果音', '稽古では鳴らない', 'sfxVolume', s.sfxVolume)}
+      ${volRow('効果音', 'ボタンや正解・不正解の音（0 で鳴らさない）', 'sfxVolume', s.sfxVolume)}
       ${volRow('BGM', 'BONUS・RUSH の曲は交換所で', 'bgmVolume', s.bgmVolume)}
       <div class="set-sec">ルール <span class="muted small">変更すると新しいセッションを開始</span></div>
       ${row('喰いタン', '鳴いた断么九を認める', 'kuitan', yn, onOff(r.kuitan))}

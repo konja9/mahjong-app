@@ -78,7 +78,7 @@ export function tipText(id: Exclude<TipId, 'firstHit'>, fastSec: number, spec: M
     case 'rush':
       return `RUSH 突入だ！ ${spec.st}回転のあいだ大当り 1/${spec.rushOdds}。外すと回転が減るから、腕で引っぱりな`;
     case 'miss':
-      return `外したな。BET と合わせて −${costFor(false, false)} yan、連続正解も切れる。解説を読んで取り返しな`;
+      return `外したな。−${costFor(false, false)} yan で、連続正解も切れる（経験値も入らねえ）。解説を読んで取り返しな`;
     case 'fast':
       return `速いじゃねえか。${fastSec}秒以内の正解は BET が ${costFor(true, true)} yan に割引だぜ`;
     case 'low':

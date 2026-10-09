@@ -12,7 +12,6 @@ let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 /** BGM の出力（効果音と別の音量） */
 let bgmBus: GainNode | null = null;
-let sfxOn = true;
 let sfxVolume = 0.5;
 let bgmVolume = 0.5;
 
@@ -21,12 +20,8 @@ const SFX_GAIN = 0.6;
 /** BGM のファイルの音量（効果音とのつり合い。BGM は後ろで鳴る音なので一段下げる） */
 const BGM_GAIN = 0.15;
 
-/**
- * 音量を決める。sfx・music は 0〜1（0 で鳴らさない）。
- * sfxAllowed=false は効果音だけ止める（稽古。BGM は鳴らす）
- */
-export function configureAudio(sfx: number, music: number, sfxAllowed = true): void {
-  sfxOn = sfxAllowed;
+/** 音量を決める。sfx・music は 0〜1（0 で鳴らさない） */
+export function configureAudio(sfx: number, music: number): void {
   sfxVolume = sfx;
   bgmVolume = music;
   if (master) master.gain.value = sfxVolume * SFX_GAIN;
@@ -79,7 +74,7 @@ export function audioLevel(): number {
 
 /** 効果音を鳴らせるときの AudioContext */
 function ready(): AudioContext | null {
-  if (!sfxOn || !ctx || !master || sfxVolume <= 0) return null;
+  if (!ctx || !master || sfxVolume <= 0) return null;
   return ctx;
 }
 
