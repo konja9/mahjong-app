@@ -5,21 +5,21 @@ import type { AchievementId } from './achievements';
  * 空のものは送らない（作る前でもゲームはそのまま動く）。手順は store/play-games.md
  */
 export const ACHIEVEMENT_IDS: Record<AchievementId, string> = {
-  firstBonus: '',
-  firstRush: '',
-  premium: '',
-  rank5kyu: '',
-  rankShodan: '',
-  rankMeijin: '',
-  allSlots: '',
-  allParts: '',
-  storyEnd: '',
-  allNotes: '',
-  streak20: '',
-  correct100: '',
-  correct1000: '',
-  correct5000: '',
-  yakuman: '',
+  firstBonus: 'CgkIy5DXiMwFEAIQAQ',
+  firstRush: 'CgkIy5DXiMwFEAIQAg',
+  premium: 'CgkIy5DXiMwFEAIQAw',
+  rank5kyu: 'CgkIy5DXiMwFEAIQBA',
+  rankShodan: 'CgkIy5DXiMwFEAIQBQ',
+  rankMeijin: 'CgkIy5DXiMwFEAIQBg',
+  allSlots: 'CgkIy5DXiMwFEAIQBw',
+  allParts: 'CgkIy5DXiMwFEAIQCA',
+  storyEnd: 'CgkIy5DXiMwFEAIQCQ',
+  allNotes: 'CgkIy5DXiMwFEAIQCg',
+  streak20: 'CgkIy5DXiMwFEAIQCw',
+  correct100: 'CgkIy5DXiMwFEAIQDA',
+  correct1000: 'CgkIy5DXiMwFEAIQDQ',
+  correct5000: 'CgkIy5DXiMwFEAIQDg',
+  yakuman: 'CgkIy5DXiMwFEAIQDw',
 };
 
 export const LEADERBOARD_IDS = {
