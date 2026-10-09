@@ -24,7 +24,7 @@ export const ACHIEVEMENT_IDS: Record<AchievementId, string> = {
 
 export const LEADERBOARD_IDS = {
   /** 最大連続正解 */
-  bestStreak: '',
+  bestStreak: 'CgkIy5DXiMwFEAIQEA',
   /** 累計正解数 */
-  totalCorrect: '',
+  totalCorrect: 'CgkIy5DXiMwFEAIQEQ',
 };
