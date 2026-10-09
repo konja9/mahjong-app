@@ -27,8 +27,11 @@ export const ECONOMY = {
   yakumanUnits: 10,
   /** 速答の賞金の倍率（速答は BET 半額で得をするので、賞金には上乗せしない） */
   fastMult: 1,
-  /** ラウンド内の連続正解の倍率の階段（1問目 ×1、2問連続 ×1.05、3問以上 ×1.1）。1問ミスで最初に戻る */
-  comboLadder: [1, 1.05, 1.1],
+  /**
+   * ラウンド内の連続正解の倍率の階段（1問目 ×1 → 6問連続で ×2。以降は ×2 のまま）。1問ミスで最初に戻る。
+   * yan は経験値に関係なく遊びの中身（台・景品・改造の強化）に使うので、連続で稼ぐ手応えを大きくした
+   */
+  comboLadder: [1, 1.1, 1.25, 1.45, 1.7, 2],
   /**
    * 電チュー開放：この連続正解数から、正解1回で玉が2個入る。
    * 早見は連続正解しやすいので、必要な連続数を多くする
@@ -51,8 +54,8 @@ export const ECONOMY = {
   ] as [number, number][],
   /**
    * モード別のレート（30符のマス1つあたりの yan）。
-   * 正解率85%・速答5割のプレイヤーの回収率が約115%になるよう
-   * tests/economy.test.ts のシミュレーションで決めた値。上級者（正解95%・速答8割）は約250〜300%
+   * 正解率85%・速答5割のプレイヤーの回収率が（連続正解の倍率を含めて）約150%になる。
+   * tests/economy.test.ts のシミュレーションで確かめている。上級者（正解95%・速答8割）は約350〜420%
    */
   modeScale: { hayami: 36.6, fu: 43.2, jissen: 22.2 } as Record<Mode, number>,
   /** 残りがこれ未満で警告表示 */
@@ -105,7 +108,7 @@ export function fuRate(mode: Mode, premium: boolean, spec: MachineSpec = SPECS.a
 export function comboMult(combo: number): number {
   const l = ECONOMY.comboLadder;
   const i = Math.min(Math.max(0, combo), l.length - 1);
-  return i === l.length - 1 && mods.comboTop !== null ? mods.comboTop : l[i];
+  return i === l.length - 1 ? l[i] * mods.comboTopMult : l[i];
 }
 
 /** ラウンド問題の賞金 */

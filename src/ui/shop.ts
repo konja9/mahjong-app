@@ -4,7 +4,7 @@
  */
 import type { Mode } from '../core/generator';
 import { MACHINE_IDS, type MachineId, SPECS, modesLabel } from './machine/specs';
-import { PARTS, PART_ORDER, type PartsState } from './machine/parts';
+import { PARTS, PART_ORDER, type PartsState, partLevel, upgradeCost } from './machine/parts';
 import { partSvg, slotRowHtml } from './machine/partArt';
 import { load, save } from './storage';
 
@@ -275,6 +275,8 @@ export interface PartsView {
   /** 次の枠を開ける昇段試験を今受けられる */
   nextReady?: boolean;
   canChange: boolean;
+  /** 所持金（強化できるかの判定と、足りないときの表示に使う） */
+  balance?: number;
 }
 
 export function partsHtml(v: PartsView): string {
@@ -298,11 +300,20 @@ export function partsHtml(v: PartsView): string {
     else if (!v.slots) btn = `<span class="shop-lock">枠が鍵の中</span>`;
     else btn = `<button class="shop-btn buy" data-part-on="${id}"${v.canChange && used < v.slots ? '' : ' disabled'}>付ける</button>`;
     const art = `<div class="part-thumb${on ? ' on' : ''}${have ? '' : ' unknown'}">${partSvg(id)}</div>`;
-    return `<div class="shop-row part-row${on ? ' cur' : ''}${have ? '' : ' locked'}">${art}<div class="mis"><div class="shop-name">${have ? p.name : '？？？'}${on ? '<em>装着中</em>' : ''}</div>${have ? `<div class="shop-flavor">${p.flavor}</div><div class="shop-desc">${p.desc}</div>` : `<div class="shop-desc">Lv ${i + 2} で手に入る</div>`}</div><div class="shop-acts">${btn}</div></div>`;
+    const lvNow = partLevel(v.state, id);
+    const max = p.levels.length;
+    const stars = have && max > 1 ? `<span class="part-lv" aria-label="強化 ${lvNow}/${max}">${'★'.repeat(lvNow)}${'☆'.repeat(max - lvNow)}</span>` : '';
+    // 強化：持っているパーツを、yan で次の段階へ（付け替えと同じく BONUS 中・回転中はできない）
+    const cost = have ? upgradeCost(v.state, id) : null;
+    const next = cost !== null ? `<div class="part-next">Lv ${lvNow + 1}：${p.levels[lvNow].desc}</div>` : '';
+    const rich = (v.balance ?? 0) >= (cost ?? 0);
+    const up = cost !== null ? `<button class="shop-btn up" data-part-up="${id}" aria-label="強化 ${cost.toLocaleString()} yan"${v.canChange && rich ? '' : ' disabled'}>強化 ${cost.toLocaleString()}</button>` : have && max > 1 ? '<span class="part-max">MAX</span>' : '';
+    const desc = have ? p.levels[lvNow - 1].desc : '';
+    return `<div class="shop-row part-row${on ? ' cur' : ''}${have ? '' : ' locked'}">${art}<div class="mis"><div class="shop-name">${have ? p.name : '？？？'}${stars}${on ? '<em>装着中</em>' : ''}</div>${have ? `<div class="shop-flavor">${p.flavor}</div><div class="shop-desc">${desc}</div>${next}` : `<div class="shop-desc">Lv ${i + 2} で手に入る</div>`}</div><div class="shop-acts">${btn}${up}</div></div>`;
   }).join('');
-  const note = v.canChange ? '' : '<p class="help-note">BONUS 中と台が回っている間は、付け替えできません。</p>';
+  const note = v.canChange ? '' : '<p class="help-note">BONUS 中と台が回っている間は、付け替え・強化できません。</p>';
   const zero = v.slots ? '' : `<p class="help-note parts-zero">${v.nextSlotRank}の昇段試験に受かると、台の枠の鍵が開いてパーツを付けられます。</p>`;
-  return head + zero + rows + note + `<p class="help-note">改造パーツは Lv が上がるたびに1つ手に入ります（Lv ${PART_ORDER.length + 1} まで）。台の枠は5つ。昇段試験の5級・3級・1級・二段・名人に受かるたびに、鍵が1つずつ開きます。</p>`;
+  return head + zero + rows + note + `<p class="help-note">改造パーツは Lv が上がるたびに1つ手に入ります（Lv ${PART_ORDER.length + 1} まで）。持っているパーツは yan で強化できます（1,500 → 4,500 yan）。台の枠は5つ。昇段試験の5級・3級・1級・二段・名人に受かるたびに、鍵が1つずつ開きます。</p>`;
 }
 
 /** 台のダイアログで出す画面（メニューの台選び・改造・昇段試験） */

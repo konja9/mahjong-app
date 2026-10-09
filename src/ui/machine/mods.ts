@@ -21,8 +21,8 @@ export interface Mods {
   kakuhenPlus: number;
   /** 満貫以上のラウンド上乗せの上限に足す数 */
   extraMaxPlus: number;
-  /** 連続正解の倍率の最上段（null は ECONOMY のまま） */
-  comboTop: number | null;
+  /** 連続正解の倍率の最上段に掛ける倍率（1 は ECONOMY のまま） */
+  comboTopMult: number;
   /** 全問正解の上乗せの抽選を良くする */
   uwanoseUp: boolean;
   /** 保留変化・パチふとくん予告の出やすさの倍率（演出だけ） */
@@ -41,7 +41,7 @@ export const BASE_MODS: Mods = {
   stPlus: 0,
   kakuhenPlus: 0,
   extraMaxPlus: 0,
-  comboTop: null,
+  comboTopMult: 1,
   uwanoseUp: false,
   noticeBoost: 1,
   hitMult: 1,

@@ -35,8 +35,10 @@ describe('yan', () => {
     expect(roundPrize({ ...base, fu: 0, yakuman: true })).toBeGreaterThan(v * 5);
     // 速答は BET の割引で得をするので、賞金は変わらない
     expect(roundPrize({ ...base, fast: true })).toBe(Math.round(v * ECONOMY.fastMult));
-    expect(roundPrize({ ...base, combo: 20 })).toBe(roundPrize({ ...base, combo: 5 }));
-    expect(roundPrize({ ...base, combo: 5 })).toBeGreaterThanOrEqual(Math.floor(v * ECONOMY.comboLadder.at(-1)!));
+    // 連続正解の倍率は6問連続で最上段（×2）。それ以上は上がらない
+    expect(ECONOMY.comboLadder).toEqual([1, 1.1, 1.25, 1.45, 1.7, 2]);
+    expect(roundPrize({ ...base, combo: 20 })).toBe(roundPrize({ ...base, combo: ECONOMY.comboLadder.length }));
+    expect(roundPrize({ ...base, combo: ECONOMY.comboLadder.length })).toBeGreaterThanOrEqual(Math.floor(v * ECONOMY.comboLadder.at(-1)!));
     expect(roundPrize({ ...base, premium: true })).toBeGreaterThanOrEqual(v * 1.9);
     // 早見の満貫以上（符なし）は30符ぶん
     expect(roundPrize({ ...base, mode: 'hayami', fu: 0 })).toBe(roundPrize({ ...base, mode: 'hayami', fu: 30 }));
@@ -52,26 +54,26 @@ describe('yan', () => {
 
 describe('経済バランス（シミュレーション）', () => {
   for (const mode of ['hayami', 'fu', 'jissen'] as Mode[]) {
-    // 中級者（正解85%・速答5割）は約115%、上級者（95%・8割）は約250〜300%、初心者（60%・2割）は大きく負ける
-    it(`${mode}：中級は約115%、上級は約250%、初心者は大きくマイナス`, () => {
+    // 中級者（正解85%・速答5割）は約150%、上級者（95%・8割）は約350〜420%、初心者（60%・2割）は大きく負ける
+    it(`${mode}：中級は約150%、上級は約370%、初心者は大きくマイナス`, () => {
       const mid = (simulate(mode, 0.85, 0.5, 1, 30000) + simulate(mode, 0.85, 0.5, 7, 30000)) / 2;
-      expect(mid).toBeGreaterThan(1.07);
-      expect(mid).toBeLessThan(1.24);
+      expect(mid).toBeGreaterThan(1.3);
+      expect(mid).toBeLessThan(1.7);
       const pro = simulate(mode, 0.95, 0.8, 2, 30000);
-      expect(pro).toBeGreaterThan(2.0);
-      expect(pro).toBeLessThan(3.4);
+      expect(pro).toBeGreaterThan(3.0);
+      expect(pro).toBeLessThan(4.8);
       expect(simulate(mode, 0.6, 0.2, 3)).toBeLessThan(0.45);
     });
   }
   // 大当りが重い台は1回の試行のばらつきが大きいので、長めにまわして平均をとる
-  it('ミドル（符計算・実戦）・MAX（実戦）：中級は約115%、上級は約250%', () => {
+  it('ミドル（符計算・実戦）・MAX（実戦）：中級は約150%、上級は約370%', () => {
     for (const id of ['middle', 'max'] as const) for (const mode of SPECS[id].modes) {
       const mid = [11, 21, 31].map((sd) => simulate(mode, 0.85, 0.5, sd, 100000, SPECS[id])).reduce((a, b) => a + b) / 3;
-      expect(mid).toBeGreaterThan(1.05);
-      expect(mid).toBeLessThan(1.27);
+      expect(mid).toBeGreaterThan(1.3);
+      expect(mid).toBeLessThan(1.8);
       const pro = simulate(mode, 0.95, 0.8, 12, 100000, SPECS[id]);
-      expect(pro).toBeGreaterThan(2.0);
-      expect(pro).toBeLessThan(3.4);
+      expect(pro).toBeGreaterThan(3.0);
+      expect(pro).toBeLessThan(4.8);
     }
   }, 240000);
   it('1問あたりの稼ぎは 甘デジ < ミドル < MAX（ミドルはどの種目でも間に入る）', () => {

@@ -1,6 +1,7 @@
 import type { Mode } from '../core/generator';
 import type { HelpTab } from './help';
 import { ECONOMY, costFor, denchuFor } from './machine/economy';
+import { UPGRADE_COST } from './machine/parts';
 import { type MachineSpec, SPECS } from './machine/specs';
 import { load, save } from './storage';
 
@@ -31,6 +32,7 @@ export type TipId =
   | 'rushMiss'
   | 'shop'
   | 'machine'
+  | 'upgrade'
   | 'levelUp';
 
 export class Tips {
@@ -101,6 +103,8 @@ export function tipText(id: Exclude<TipId, 'firstHit'>, fastSec: number, spec: M
       return 'メニュー（右上の ≡）の交換所で称号・スキン・BGM が買えるぜ。格を見せつけな';
     case 'machine':
       return `ミドル台を解放できるだけ稼いだな（${SPECS.middle.price.toLocaleString()} yan）。メニューの「台選び」だ`;
+    case 'upgrade':
+      return `改造パーツを強化できるだけ稼いだな（${UPGRADE_COST[0].toLocaleString()} yan〜）。メニューの「改造」で、持ってるパーツをもっと強くできるぜ`;
     case 'levelUp':
       return 'Lv が上がるたび、改造パーツが手に入って、オレ様の記憶も1話ずつ戻る。2 Lv ごとに昇段試験もあるぜ。全部メニュー（右上の ≡）からだ';
   }
@@ -126,6 +130,7 @@ export function tipLink(id: Exclude<TipId, 'firstHit'>): { tab: HelpTab; card: s
     rushMiss: ['machine', 'rush-miss'],
     shop: ['grow', 'shop'],
     machine: ['machine', 'machine'],
+    upgrade: ['grow', 'parts'],
     levelUp: ['grow', 'level'],
   };
   const v = map[id];

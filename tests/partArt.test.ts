@@ -39,6 +39,24 @@ describe('改造パーツの絵', () => {
     expect(html.match(/slot locked next/g)).toHaveLength(1);
     expect(html).toContain('あと3つの枠が鍵の中');
   });
+  it('改造の画面：持っているパーツに強化のボタンと段階の星。お金が足りないと押せず、最大は MAX', () => {
+    const state = { owned: ['fast', 'tank', 'uwanose'] as never[], equip: [] as never[], lv: { tank: 2 } };
+    const view = { state, slots: 1, rank: '5級', nextSlotRank: '3級', slotRanks: RANKS5, canChange: true };
+    const rich = partsHtml({ ...view, balance: 2000 });
+    expect(rich).toContain('data-part-up="fast" aria-label="強化 1,500 yan">強化 1,500</button>');
+    expect(rich).not.toMatch(/data-part-up="fast"[^>]* disabled/);
+    expect(rich).toContain('Lv 2：速答の締切 +3秒');
+    expect(rich).toContain('★☆☆');
+    // 最大段階（保留タンクは2段階）は MAX、1段階だけのパーツには出さない
+    expect(rich).toContain('part-max');
+    expect(rich).not.toContain('data-part-up="tank"');
+    expect(rich).not.toContain('data-part-up="uwanose"');
+    // お金が足りない・BONUS 中は押せない
+    expect(partsHtml({ ...view, balance: 100 })).toMatch(/data-part-up="fast"[^>]* disabled/);
+    expect(partsHtml({ ...view, balance: 99999, canChange: false })).toMatch(/data-part-up="fast"[^>]* disabled/);
+    // 持っていないパーツには出さない
+    expect(rich).not.toContain('data-part-up="gold"');
+  });
   it('次の鍵が光るのは、その枠を開ける試験を受けられるときだけ', () => {
     expect(slotRowHtml({ equip: [], slots: 1, ranks: RANKS5 })).not.toContain('locked next');
     expect(slotRowHtml({ equip: [], slots: 1, ranks: RANKS5, nextReady: true }).match(/slot locked next/g)).toHaveLength(1);

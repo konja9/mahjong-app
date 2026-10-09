@@ -59,7 +59,7 @@ describe('遊び方', () => {
   });
 
   it('すべての Tips に文面があり、「詳しく」の行き先のカードがヘルプにある', () => {
-    const ids = ['enter', 'reach', 'jackpot', 'rush', 'miss', 'fast', 'low', 'denchuSoon', 'denchu', 'bonusFu', 'ladder', 'bonusMiss', 'roundUp', 'uwanose', 'rushMiss', 'shop', 'machine', 'levelUp'] as const;
+    const ids = ['enter', 'reach', 'jackpot', 'rush', 'miss', 'fast', 'low', 'denchuSoon', 'denchu', 'bonusFu', 'ladder', 'bonusMiss', 'roundUp', 'uwanose', 'rushMiss', 'shop', 'machine', 'upgrade', 'levelUp'] as const;
     for (const id of ids) {
       expect(tipText(id, 20).length).toBeGreaterThan(10);
       const link = tipLink(id);

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { BASE_MODS, effectiveSpec, setMods } from '../src/ui/machine/mods';
-import { MAX_SLOTS, PARTS, PART_ORDER, type PartId, applyParts, equipPart, modsFor, nextSlotRank, partForLevel, rewardsFor, slotsFor, syncOwned, unequipPart } from '../src/ui/machine/parts';
+import { MAX_SLOTS, PARTS, PART_ORDER, type PartId, UPGRADE_COST, applyParts, equipPart, loadParts, modsFor, nextSlotRank, partForLevel, partLevel, rewardsFor, saveParts, slotsFor, syncOwned, unequipPart, upgradeCost, upgradePart } from '../src/ui/machine/parts';
 import { Machine } from '../src/ui/machine/machine';
-import { ballsFor, costFor, denchuFor, fastSecondsFor } from '../src/ui/machine/economy';
+import { ballsFor, comboMult, costFor, denchuFor, fastSecondsFor } from '../src/ui/machine/economy';
 import { SPECS } from '../src/ui/machine/specs';
 import { simulate } from './sim';
 
@@ -72,5 +72,74 @@ describe('台の改造パーツ', () => {
       expect(full / base).toBeGreaterThan(1.05);
       expect(full / base).toBeLessThan(1.6);
     }
+  });
+
+  describe('強化（yan で）', () => {
+    it('費用は Lv1→2 が 1,500、Lv2→3 が 4,500。最大段階では強化できない', () => {
+      expect(UPGRADE_COST).toEqual([1500, 4500]);
+      const s = { owned: ['fast', 'tank', 'uwanose'] as PartId[], equip: [] as PartId[] };
+      expect(partLevel(s, 'fast')).toBe(1);
+      expect(upgradeCost(s, 'fast')).toBe(1500);
+      expect(upgradePart(s, 'fast', 1499)).toBe(0);
+      expect(upgradePart(s, 'fast', 1500)).toBe(1500);
+      expect(partLevel(s, 'fast')).toBe(2);
+      expect(upgradeCost(s, 'fast')).toBe(4500);
+      expect(upgradePart(s, 'fast', 99999)).toBe(4500);
+      expect(partLevel(s, 'fast')).toBe(3);
+      expect(upgradeCost(s, 'fast')).toBe(null);
+      expect(upgradePart(s, 'fast', 99999)).toBe(0);
+      // 2段階までのパーツ・1段階だけのパーツ
+      expect(PARTS.tank.levels).toHaveLength(2);
+      expect(upgradePart(s, 'tank', 99999)).toBe(1500);
+      expect(upgradePart(s, 'tank', 99999)).toBe(0);
+      expect(upgradeCost(s, 'uwanose')).toBe(null);
+    });
+    it('持っていないパーツは強化できない', () => {
+      const s = { owned: ['fast'] as PartId[], equip: [] as PartId[] };
+      expect(upgradePart(s, 'gold', 99999)).toBe(0);
+    });
+    it('段階が上がると効き目が強くなる（速答の締切・ペナルティ・ST・連続ブースター・保留）', () => {
+      setMods(modsFor(['fast', 'cushion', 'st', 'combo', 'tank'], { fast: 3, cushion: 3, st: 3, combo: 3, tank: 2 }));
+      expect(fastSecondsFor('jissen')).toBe(24);
+      expect(fastSecondsFor('hayami')).toBe(8);
+      expect(costFor(false, false)).toBe(40);
+      expect(effectiveSpec(SPECS.ama).st).toBe(SPECS.ama.st + 3);
+      expect(comboMult(5)).toBeCloseTo(2 * 1.3);
+      expect(new Machine(() => 'off').enter(10)).toBe(6);
+      // 強化なし（Lv1）は今までと同じ
+      setMods(modsFor(['fast', 'cushion', 'combo']));
+      expect(fastSecondsFor('jissen')).toBe(22);
+      expect(costFor(false, false)).toBe(50);
+      expect(comboMult(5)).toBeCloseTo(2 * 1.1);
+    });
+    it('保存データ：強化の段階を読み込む。ないものは Lv1、壊れた値・最大を超える値・持っていないパーツは Lv1 に整える', () => {
+      const store: Record<string, string> = {};
+      const ls = { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => void (store[k] = v), removeItem: (k: string) => void delete store[k] };
+      Object.defineProperty(globalThis, 'localStorage', { value: ls, configurable: true });
+      saveParts({ owned: ['fast', 'tank', 'gold'], equip: ['fast'], lv: { fast: 3, tank: 9, gold: -2, premium: 3 } as never });
+      const loaded = loadParts(1);
+      expect(partLevel(loaded, 'fast')).toBe(3);
+      expect(partLevel(loaded, 'tank')).toBe(2);
+      expect(partLevel(loaded, 'gold')).toBe(1);
+      expect(loaded.lv?.premium).toBeUndefined();
+      // 古いデータ（lv なし）
+      store['tensu.parts.v1'] = JSON.stringify({ owned: ['fast'], equip: [] });
+      expect(partLevel(loadParts(1), 'fast')).toBe(1);
+    });
+    it('全部の枠を強いパーツで埋めて最大まで強化しても、中級者の回収率の伸びは2.6倍未満（Lv1 のときは 1.6倍未満）', () => {
+      const set: PartId[] = ['round', 'gold', 'kakuhen', 'st', 'combo'];
+      const max = Object.fromEntries(set.map((id) => [id, PARTS[id].levels.length]));
+      for (const mode of ['hayami', 'fu', 'jissen'] as const) {
+        setMods(BASE_MODS);
+        const base = simulate(mode, 0.85, 0.5, 1, 30000, SPECS.ama);
+        setMods(modsFor(set));
+        const lv1 = simulate(mode, 0.85, 0.5, 1, 30000, effectiveSpec(SPECS.ama));
+        setMods(modsFor(set, max));
+        const top = simulate(mode, 0.85, 0.5, 1, 30000, effectiveSpec(SPECS.ama));
+        expect(lv1 / base).toBeLessThan(1.6);
+        expect(top / base).toBeGreaterThan(lv1 / base);
+        expect(top / base).toBeLessThan(2.6);
+      }
+    });
   });
 });

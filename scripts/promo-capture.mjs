@@ -30,7 +30,7 @@ const meta = existsSync(META) ? JSON.parse(readFileSync(META, 'utf8')) : {};
 const W = 432;
 const H = 768;
 const DONE = { done: ['prologue', 'pachinko', 'keiko', 'tools'] };
-const TIPS = ['enter', 'reach', 'jackpot', 'rush', 'miss', 'fast', 'low', 'firstHit', 'denchuSoon', 'denchu', 'bonusFu', 'ladder', 'bonusMiss', 'roundUp', 'uwanose', 'rushMiss', 'shop', 'machine', 'levelUp', 'mission'];
+const TIPS = ['enter', 'reach', 'jackpot', 'rush', 'miss', 'fast', 'low', 'firstHit', 'denchuSoon', 'denchu', 'bonusFu', 'ladder', 'bonusMiss', 'roundUp', 'uwanose', 'rushMiss', 'shop', 'machine', 'upgrade', 'levelUp', 'mission'];
 const TITLE = { owned: ['title-fu-reader'], equip: { title: 'title-fu-reader' } };
 
 /** 押した場所に出す光る丸（何を押したか、動画で分かるように） */

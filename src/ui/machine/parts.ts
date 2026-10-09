@@ -20,101 +20,83 @@ export type PartId =
   | 'round'
   | 'gold';
 
-export interface Part {
-  id: PartId;
-  name: string;
+/** パーツの1段階分（Lv1 は手に入れたときの効果。強化すると Lv2・Lv3 になる） */
+export interface PartLevel {
   /** 効果の説明 */
   desc: string;
-  /** 世界観の一言 */
-  flavor: string;
   apply: (m: Mods) => Mods;
 }
 
+export interface Part {
+  id: PartId;
+  name: string;
+  /** 世界観の一言 */
+  flavor: string;
+  /** Lv1 の効果の説明（手に入れたときの表示に使う） */
+  desc: string;
+  /** 段階ごとの効果（1〜3段階。数字で伸ばせるものだけ強化できる） */
+  levels: PartLevel[];
+}
+
+const lv = (desc: string, apply: (m: Mods) => Mods): PartLevel => ({ desc, apply });
+const part = (id: PartId, name: string, flavor: string, levels: PartLevel[]): Part => ({ id, name, flavor, desc: levels[0].desc, levels });
+
 export const PARTS: Record<PartId, Part> = {
-  fast: {
-    id: 'fast',
-    name: '速答センサー',
-    desc: '速答の締切 +2秒（早見は +1秒）',
-    flavor: '指先の迷いを読み取る、感度の高いセンサー',
-    apply: (m) => ({ ...m, fastBonus: { hayami: m.fastBonus.hayami + 1, fu: m.fastBonus.fu + 2, jissen: m.fastBonus.jissen + 2 } }),
-  },
-  tank: {
-    id: 'tank',
-    name: '保留タンク',
-    desc: '保留の上限 4 → 5',
-    flavor: '玉を一つ多く溜めておける、昔ながらの改造',
-    apply: (m) => ({ ...m, holds: m.holds + 1 }),
-  },
-  cushion: {
-    id: 'cushion',
-    name: 'クッション',
-    desc: '不正解の追加ペナルティ 20 → 10',
-    flavor: '負けたときの痛みを、少しだけやわらげる',
-    apply: (m) => ({ ...m, missPenalty: 10 }),
-  },
-  lens: {
-    id: 'lens',
-    name: '先読みレンズ',
-    desc: '保留変化とパチふとくん予告が出やすくなる（演出だけ）',
-    flavor: '液晶の奥まで見通せる、と言われるレンズ',
-    apply: (m) => ({ ...m, noticeBoost: m.noticeBoost * 1.6 }),
-  },
-  denchu: {
-    id: 'denchu',
-    name: '電チュー増強',
-    desc: '電チュー開放に必要な連続正解 −1',
-    flavor: 'チューリップのばねを強くした',
-    apply: (m) => ({ ...m, denchuMinus: m.denchuMinus + 1 }),
-  },
-  st: {
-    id: 'st',
-    name: 'ST 延長',
-    desc: 'RUSH の回転数 +1',
-    flavor: '確変の灯りを、少しだけ長く保つ',
-    apply: (m) => ({ ...m, stPlus: m.stPlus + 1 }),
-  },
-  combo: {
-    id: 'combo',
-    name: '連続ブースター',
-    desc: 'BONUS の連続正解の倍率の最上段 ×1.1 → ×1.15',
-    flavor: '流れに乗った雀士を、さらに押し上げる',
-    apply: (m) => ({ ...m, comboTop: 1.15 }),
-  },
-  kakuhen: {
-    id: 'kakuhen',
-    name: '確変ユニット',
-    desc: '大当りが確変になる割合 +5%',
-    flavor: '地下の賭場から流れてきた、出どころ不明の部品',
-    apply: (m) => ({ ...m, kakuhenPlus: m.kakuhenPlus + 0.05 }),
-  },
-  uwanose: {
-    id: 'uwanose',
-    name: '上乗せ強化',
-    desc: 'BONUS 全問正解の上乗せで、高い倍率が出やすくなる',
-    flavor: '全部当てた者に、台が少しだけ気前よくなる',
-    apply: (m) => ({ ...m, uwanoseUp: true }),
-  },
-  premium: {
-    id: 'premium',
-    name: '赤五筒センサー',
-    desc: '確変大当りが PREMIUM（赤五筒）になりやすい',
-    flavor: '赤い牌にだけ反応する、気まぐれなセンサー',
-    apply: (m) => ({ ...m, premiumPlus: m.premiumPlus + 0.03 }),
-  },
-  round: {
-    id: 'round',
-    name: 'ラウンド追加',
-    desc: '満貫以上のラウンド上乗せの上限 +1R（1回の BONUS で最大 +4R）',
-    flavor: 'もう一問、数えさせてくれ',
-    apply: (m) => ({ ...m, extraMaxPlus: m.extraMaxPlus + 1 }),
-  },
-  gold: {
-    id: 'gold',
-    name: '金の玉',
-    desc: '大当り確率 ×1.05',
-    flavor: '一度だけ見た、伝説の大当りの玉と同じ色',
-    apply: (m) => ({ ...m, hitMult: m.hitMult * 1.05 }),
-  },
+  fast: part('fast', '速答センサー', '指先の迷いを読み取る、感度の高いセンサー', [
+    lv('速答の締切 +2秒（早見は +1秒）', (m) => ({ ...m, fastBonus: { hayami: 1, fu: 2, jissen: 2 } })),
+    lv('速答の締切 +3秒（早見は +1秒）', (m) => ({ ...m, fastBonus: { hayami: 1, fu: 3, jissen: 3 } })),
+    lv('速答の締切 +4秒（早見は +2秒）', (m) => ({ ...m, fastBonus: { hayami: 2, fu: 4, jissen: 4 } })),
+  ]),
+  tank: part('tank', '保留タンク', '玉を一つ多く溜めておける、昔ながらの改造', [
+    lv('保留の上限 4 → 5', (m) => ({ ...m, holds: 5 })),
+    lv('保留の上限 4 → 6', (m) => ({ ...m, holds: 6 })),
+  ]),
+  cushion: part('cushion', 'クッション', '負けたときの痛みを、少しだけやわらげる', [
+    lv('不正解の追加ペナルティ 20 → 10', (m) => ({ ...m, missPenalty: 10 })),
+    lv('不正解の追加ペナルティ 20 → 5', (m) => ({ ...m, missPenalty: 5 })),
+    lv('不正解の追加ペナルティ 20 → 0', (m) => ({ ...m, missPenalty: 0 })),
+  ]),
+  lens: part('lens', '先読みレンズ', '液晶の奥まで見通せる、と言われるレンズ', [
+    lv('保留変化とパチふとくん予告が出やすくなる（演出だけ）', (m) => ({ ...m, noticeBoost: m.noticeBoost * 1.6 })),
+    lv('保留変化とパチふとくん予告がさらに出やすくなる（演出だけ）', (m) => ({ ...m, noticeBoost: m.noticeBoost * 2 })),
+    lv('保留変化とパチふとくん予告がとても出やすくなる（演出だけ）', (m) => ({ ...m, noticeBoost: m.noticeBoost * 2.5 })),
+  ]),
+  denchu: part('denchu', '電チュー増強', 'チューリップのばねを強くした', [
+    lv('電チュー開放に必要な連続正解 −1', (m) => ({ ...m, denchuMinus: m.denchuMinus + 1 })),
+    lv('電チュー開放に必要な連続正解 −2', (m) => ({ ...m, denchuMinus: m.denchuMinus + 2 })),
+  ]),
+  st: part('st', 'ST 延長', '確変の灯りを、少しだけ長く保つ', [
+    lv('RUSH の回転数 +1', (m) => ({ ...m, stPlus: m.stPlus + 1 })),
+    lv('RUSH の回転数 +2', (m) => ({ ...m, stPlus: m.stPlus + 2 })),
+    lv('RUSH の回転数 +3', (m) => ({ ...m, stPlus: m.stPlus + 3 })),
+  ]),
+  combo: part('combo', '連続ブースター', '流れに乗った雀士を、さらに押し上げる', [
+    lv('BONUS の連続正解の倍率の最上段 ×1.1', (m) => ({ ...m, comboTopMult: 1.1 })),
+    lv('BONUS の連続正解の倍率の最上段 ×1.2', (m) => ({ ...m, comboTopMult: 1.2 })),
+    lv('BONUS の連続正解の倍率の最上段 ×1.3', (m) => ({ ...m, comboTopMult: 1.3 })),
+  ]),
+  kakuhen: part('kakuhen', '確変ユニット', '地下の賭場から流れてきた、出どころ不明の部品', [
+    lv('大当りが確変になる割合 +5%', (m) => ({ ...m, kakuhenPlus: m.kakuhenPlus + 0.05 })),
+    lv('大当りが確変になる割合 +8%', (m) => ({ ...m, kakuhenPlus: m.kakuhenPlus + 0.08 })),
+    lv('大当りが確変になる割合 +12%', (m) => ({ ...m, kakuhenPlus: m.kakuhenPlus + 0.12 })),
+  ]),
+  uwanose: part('uwanose', '上乗せ強化', '全部当てた者に、台が少しだけ気前よくなる', [
+    lv('BONUS 全問正解の上乗せで、高い倍率が出やすくなる', (m) => ({ ...m, uwanoseUp: true })),
+  ]),
+  premium: part('premium', '赤五筒センサー', '赤い牌にだけ反応する、気まぐれなセンサー', [
+    lv('確変大当りが PREMIUM（赤五筒）になりやすい（+3%）', (m) => ({ ...m, premiumPlus: m.premiumPlus + 0.03 })),
+    lv('確変大当りが PREMIUM（赤五筒）になりやすい（+5%）', (m) => ({ ...m, premiumPlus: m.premiumPlus + 0.05 })),
+    lv('確変大当りが PREMIUM（赤五筒）になりやすい（+8%）', (m) => ({ ...m, premiumPlus: m.premiumPlus + 0.08 })),
+  ]),
+  round: part('round', 'ラウンド追加', 'もう一問、数えさせてくれ', [
+    lv('満貫以上のラウンド上乗せの上限 +1R（1回の BONUS で最大 +4R）', (m) => ({ ...m, extraMaxPlus: m.extraMaxPlus + 1 })),
+    lv('満貫以上のラウンド上乗せの上限 +2R（1回の BONUS で最大 +5R）', (m) => ({ ...m, extraMaxPlus: m.extraMaxPlus + 2 })),
+  ]),
+  gold: part('gold', '金の玉', '一度だけ見た、伝説の大当りの玉と同じ色', [
+    lv('大当り確率 ×1.05', (m) => ({ ...m, hitMult: m.hitMult * 1.05 })),
+    lv('大当り確率 ×1.08', (m) => ({ ...m, hitMult: m.hitMult * 1.08 })),
+    lv('大当り確率 ×1.12', (m) => ({ ...m, hitMult: m.hitMult * 1.12 })),
+  ]),
 };
 
 /** Lv 2 から順に手に入るパーツ（Lv 2 で fast、Lv 3 で tank …） */
@@ -144,6 +126,8 @@ export function nextSlotRank(rank: number): number | null {
 export interface PartsState {
   owned: PartId[];
   equip: PartId[];
+  /** 強化の段階（ないものは 1） */
+  lv?: Partial<Record<PartId, number>>;
 }
 
 const KEY = 'tensu.parts.v1';
@@ -153,7 +137,13 @@ export function loadParts(level: number): PartsState {
   const s = load<Partial<PartsState>>(KEY, {});
   const owned = (s.owned ?? []).filter(isPart);
   const equip = (s.equip ?? []).filter((id) => isPart(id) && owned.includes(id));
-  const st = { owned, equip };
+  // 強化の段階：持っているパーツの、1〜最大段階の整数だけ（壊れた値は 1 に戻す）
+  const lv: Partial<Record<PartId, number>> = {};
+  for (const id of owned) {
+    const n = Math.floor(Number(s.lv?.[id]));
+    if (n >= 2) lv[id] = Math.min(n, PARTS[id].levels.length);
+  }
+  const st: PartsState = { owned, equip, lv };
   // 改造パーツができる前から Lv が上がっていた人にも、その Lv までのパーツを渡す
   syncOwned(st, level);
   return st;
@@ -194,13 +184,33 @@ export function unequipPart(s: PartsState, id: PartId): void {
   s.equip = s.equip.filter((p) => p !== id);
 }
 
-/** 付けているパーツをまとめた効き目 */
-export function modsFor(equip: PartId[]): Mods {
-  return equip.reduce((m, id) => PARTS[id].apply(m), BASE_MODS);
+/** パーツの今の強化の段階（1〜） */
+export const partLevel = (s: PartsState, id: PartId): number => Math.min(Math.max(1, s.lv?.[id] ?? 1), PARTS[id].levels.length);
+
+/** 強化の費用：今の段階から次の段階へ（Lv1→2、Lv2→3） */
+export const UPGRADE_COST = [1500, 4500] as const;
+
+/** 次の段階への強化の費用（最大段階なら null） */
+export function upgradeCost(s: PartsState, id: PartId): number | null {
+  const lv = partLevel(s, id);
+  return lv >= PARTS[id].levels.length ? null : UPGRADE_COST[lv - 1];
+}
+
+/** パーツを1段階強化する。払った額を返す（持っていない・最大段階・お金が足りないなら 0） */
+export function upgradePart(s: PartsState, id: PartId, balance: number): number {
+  const cost = upgradeCost(s, id);
+  if (!s.owned.includes(id) || cost === null || balance < cost) return 0;
+  s.lv = { ...s.lv, [id]: partLevel(s, id) + 1 };
+  return cost;
+}
+
+/** 付けているパーツをまとめた効き目（lv：強化の段階。ないものは Lv1） */
+export function modsFor(equip: PartId[], lv: Partial<Record<PartId, number>> = {}): Mods {
+  return equip.reduce((m, id) => PARTS[id].levels[Math.min(Math.max(1, lv[id] ?? 1), PARTS[id].levels.length) - 1].apply(m), BASE_MODS);
 }
 
 /** 付けているパーツの効き目を台・経済に反映する。枠より多く付いていたら後ろから外す */
 export function applyParts(s: PartsState, slots: number): void {
   if (s.equip.length > slots) s.equip = s.equip.slice(0, slots);
-  setMods(modsFor(s.equip));
+  setMods(modsFor(s.equip, s.lv));
 }

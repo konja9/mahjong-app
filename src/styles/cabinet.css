@@ -2873,3 +2873,48 @@ body[data-phase='summary'] #meter,
 #score-dialog .st-close:active {
   transform: translateY(1px) scale(0.97);
 }
+
+/* 改造パーツの強化：段階の星、次の段階の効果、強化ボタン */
+.part-lv {
+  margin-left: 6px;
+  color: var(--gold-hot);
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.part-next {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: color-mix(in srgb, var(--gold-hot) 70%, var(--sub));
+}
+.part-row .shop-acts {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 84px;
+}
+.part-row .shop-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+}
+.part-row .shop-name .part-lv {
+  margin-left: 0;
+}
+.shop-btn.up {
+  background: linear-gradient(180deg, #fff3b0, var(--gold-hot));
+  color: #231600;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.shop-btn.up:disabled {
+  opacity: 0.4;
+}
+.part-max {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--gold-hot);
+}

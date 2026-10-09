@@ -11,6 +11,7 @@ import { blocksHtml, fuTable } from './explain';
 import { scoreTableHtml } from './scoreTable';
 import { ECONOMY, costFor, denchuFor, fastSecondsFor, fuScale, uwanoseMean } from './machine/economy';
 import { KAKUHEN_RATE, NORMAL_ODDS, RUSH_ODDS, ST_SPINS } from './machine/machine';
+import { UPGRADE_COST } from './machine/parts';
 import { MACHINE_IDS, SPECS, modesLabel } from './machine/specs';
 import { FINAL_LEVEL, MODE_EXP } from './level';
 
@@ -335,6 +336,7 @@ function grow(): string {
       '台の改造',
       '',
       `<p>Lv が上がるたびに<b>改造パーツ</b>が1つ手に入ります（保留タンク・速答センサー・確変ユニットなど）。<b>台の改造の枠をタップ</b>するか、メニューの「改造」で台に付けると、台が少し有利になります。</p>
+      <p>持っているパーツは、<b>yan で強化</b>できます（Lv1→2 が ${UPGRADE_COST[0].toLocaleString()} yan、Lv2→3 が ${UPGRADE_COST[1].toLocaleString()} yan。速答の締切・ST の回転数・確変の割合などが段階ごとに伸びます）。改造の画面の「強化」から。</p>
       <p>改造の枠は<b>5つ</b>。最初はすべて鍵がかかっていて、<b>昇段試験の5級・3級・1級・二段・名人</b>に受かるたびに1つずつ開きます。枠を開ける試験が受けられるときは、次の鍵が光ります。<b>光っている鍵をタップ</b>すると、昇段試験の画面が開きます。</p>`,
     ) +
     card(

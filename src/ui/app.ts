@@ -51,7 +51,7 @@ import type { ChapterId, TutorialAction } from './tutorial/script';
 import { SPECS, allows, fallbackMode, modesLabel } from './machine/specs';
 import { lockSvg } from './machine/partArt';
 import { effectiveSpec } from './machine/mods';
-import { PARTS, type PartId, SLOT_RANKS, applyParts, equipPart, loadParts, nextSlotRank, rewardsFor, saveParts, slotsFor, unequipPart } from './machine/parts';
+import { PARTS, type PartId, SLOT_RANKS, applyParts, equipPart, loadParts, nextSlotRank, partLevel, rewardsFor, saveParts, slotsFor, unequipPart, upgradeCost, upgradePart, UPGRADE_COST } from './machine/parts';
 import { type Rank, canTakeExam, examIntroHtml, examResultHtml, examTabHtml, notebookHtml, notebookName, unreadNotes, judge, loadExam, nextRank, rankName, recordPass, saveExam, slotExamReady } from './exam';
 import {
   FINAL_LEVEL,
@@ -978,6 +978,22 @@ export class App {
     return slotsFor(this.exam.rank);
   }
 
+  /** 改造パーツを yan で1段階強化する。付けているパーツなら、台と経済の数値も作り直す */
+  private upgradePartNow(id: PartId): void {
+    if (!this.canChangeParts) return;
+    const cost = upgradePart(this.parts, id, this.wallet.balance);
+    if (!cost) return;
+    this.pay(cost);
+    saveParts(this.parts);
+    applyParts(this.parts, this.slots);
+    this.panel.machine.spec = this.spec;
+    this.panel.render();
+    this.renderSlots();
+    this.renderShop();
+    sfx.levelUp();
+    this.toast(`「${PARTS[id].name}」が Lv ${partLevel(this.parts, id)} に強化された`);
+  }
+
   /** 改造パーツを付け替えられるか（BONUS 中・台が回っている間はできない） */
   private get canChangeParts(): boolean {
     return !this.round && this.panel.idle;
@@ -1136,6 +1152,7 @@ export class App {
     if (!this.keiko && delta > 0) {
       if (target >= 1500) this.tip('shop');
       if (target >= SPECS.middle.price && !this.shop.machines.includes('middle')) this.tip('machine');
+      if (target >= UPGRADE_COST[0] && this.parts.owned.some((id) => upgradeCost(this.parts, id) !== null)) this.tip('upgrade');
     }
     // 数字は桁ごとに回る（オドメーター）。動きの速さは CSS で決める
     val.style.setProperty('--odo-ms', `${animate ? rollMs : 0}ms`);
@@ -2330,6 +2347,10 @@ export class App {
         this.startExam();
         return;
       }
+      if (d.partUp) {
+        this.upgradePartNow(d.partUp as PartId);
+        return;
+      }
       if (d.partOn || d.partOff) {
         this.equipPart((d.partOn ?? d.partOff) as PartId, !!d.partOn);
         return;
@@ -2389,6 +2410,7 @@ export class App {
         slotRanks: SLOT_RANKS.map(rankName),
         nextReady: this.slotReady,
         canChange: this.canChangeParts,
+        balance: this.wallet.balance,
       },
       tab: this.machineTab,
       examHtml: examTabHtml(this.exam, levelOf(this.lv.exp).level, !this.round && this.panel.idle && !this.examRun),
