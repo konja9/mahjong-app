@@ -6,5 +6,5 @@
   手順は store/play-games.md
 -->
 <resources>
-    <string name="game_services_project_id" translatable="false">0</string>
+    <string name="game_services_project_id" translatable="false">192217991243</string>
 </resources>
